@@ -1,0 +1,20 @@
+{
+  "name": "Mi Espacio — CAA Doble Vía",
+  "short_name": "Mi Espacio",
+  "description": "Comunicación Aumentativa y Alternativa de doble vía con administración colaborativa para adolescentes y familias.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0B1220",
+  "theme_color": "#0B1220",
+  "lang": "es",
+  "categories": ["accessibility", "medical", "utilities"],
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

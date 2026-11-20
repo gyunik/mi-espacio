@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Espacio personal">
+  <rect width="240" height="160" rx="16" fill="#0F172A"/>
+  <circle cx="120" cy="80" r="54" fill="#162032" stroke="#38BDF8" stroke-opacity="0.2" stroke-width="2"/>
+  <circle cx="120" cy="80" r="42" fill="none" stroke="#F59E0B" stroke-width="3" stroke-dasharray="6 5"/><circle cx="120" cy="68" r="10" fill="#F8FAFC"/><path d="M102 102C102 90 110 84 120 84C130 84 138 90 138 102" fill="none" stroke="#F8FAFC" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

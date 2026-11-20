@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Mucho ruido">
+  <rect width="240" height="160" rx="16" fill="#0F172A"/>
+  <circle cx="120" cy="80" r="54" fill="#162032" stroke="#38BDF8" stroke-opacity="0.2" stroke-width="2"/>
+  <polygon points="82,70 100,70 118,52 118,108 100,90 82,90" fill="#F59E0B" fill-opacity="0.25" stroke="#F59E0B" stroke-width="3.5" stroke-linejoin="round"/><path d="M134 64C142 72 142 88 134 96" fill="none" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round"/><path d="M146 54C158 68 158 92 146 106" fill="none" stroke="#F43F5E" stroke-width="3.5" stroke-linecap="round"/><line x1="76" y1="112" x2="164" y2="48" stroke="#F43F5E" stroke-width="4" stroke-linecap="round"/>
+</svg>

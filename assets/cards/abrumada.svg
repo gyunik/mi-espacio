@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Abrumada">
+  <rect width="240" height="160" rx="16" fill="#0F172A"/>
+  <circle cx="120" cy="80" r="54" fill="#162032" stroke="#38BDF8" stroke-opacity="0.2" stroke-width="2"/>
+  <path d="M74 74C86 62 98 86 110 74C122 62 134 86 146 74C156 64 162 72 166 76" fill="none" stroke="#38BDF8" stroke-width="4" stroke-linecap="round"/><path d="M74 96C86 84 98 108 110 96C122 84 134 108 146 96C156 86 162 94 166 98" fill="none" stroke="#F59E0B" stroke-width="4" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B1220" />
+  <meta name="description" content="Mi Espacio — Comunicación Aumentativa y Alternativa de doble vía con administración colaborativa." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Mi Espacio — CAA Doble Vía</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+  <!-- ========================================================================
+       PANTALLA DE SELECCIÓN DE ROL (Primer inicio o cambio de contexto)
+       ======================================================================== -->
+  <section id="role-gate" class="role-gate" aria-label="Selección de modo de uso">
+    <div class="role-gate__container">
+      <div class="role-gate__brand">
+        <img src="./icons/icon.svg" alt="" class="role-gate__logo" width="64" height="64" />
+        <h1 class="role-gate__title">Mi Espacio</h1>
+        <p class="role-gate__subtitle">
+          Comunicación de doble vía, previsible y colaborativa. Elegí cómo querés usar este dispositivo:
+        </p>
+      </div>
+
+      <div class="role-cards">
+        <button type="button" id="btn-choose-communicator" class="role-card role-card--primary">
+          <span class="role-card__badge">Uso diario</span>
+          <h2 class="role-card__title">Modo Comunicador</h2>
+          <p class="role-card__desc">
+            Pantalla completa para el adolescente. Libre de configuraciones y distracciones.
+          </p>
+        </button>
+
+        <div class="role-card role-card--secondary">
+          <span class="role-card__badge role-card__badge--emerald">Edición remota o local</span>
+          <h2 class="role-card__title">Modo Familia / Equipo</h2>
+          <p class="role-card__desc">
+            Para padres, familiares a distancia o terapeutas: crear tarjetas, preguntas del día y ver el historial.
+          </p>
+
+          <div class="role-card__pairing">
+            <label for="gate-pairing-input" class="field-label">
+              Código de vinculación (opcional, 6 dígitos)
+            </label>
+            <div class="pin-row">
+              <input
+                id="gate-pairing-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                class="input input--code"
+                placeholder="Ej: 482915"
+              />
+              <button type="button" id="btn-choose-family" class="btn btn--emerald">
+                Entrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       MODO 1: COMUNICADOR (100% Libre de configuraciones)
+       ======================================================================== -->
+  <div id="communicator-shell" class="app-shell" hidden>
+    <!-- Barra Superior Fija: Validación de Comprensión -->
+    <header class="quick-bar" aria-label="Respuestas rápidas universales">
+      <div class="quick-bar__row">
+        <div class="quick-bar__grid">
+          <button type="button" class="quick-btn quick-btn--yes" data-quick-phrase="Sí">
+            <span class="quick-btn__dot" aria-hidden="true"></span>
+            <span class="quick-btn__label">SÍ</span>
+          </button>
+
+          <button type="button" class="quick-btn quick-btn--no" data-quick-phrase="No">
+            <span class="quick-btn__dot" aria-hidden="true"></span>
+            <span class="quick-btn__label">NO</span>
+          </button>
+
+          <button type="button" class="quick-btn quick-btn--confused" data-quick-phrase="No entiendo">
+            <span class="quick-btn__dot" aria-hidden="true"></span>
+            <span class="quick-btn__label">NO ENTIENDO</span>
+          </button>
+
+          <button type="button" class="quick-btn quick-btn--wait" data-quick-phrase="Dame un segundo">
+            <span class="quick-btn__dot" aria-hidden="true"></span>
+            <span class="quick-btn__label">DAME UN SEGUNDO</span>
+          </button>
+        </div>
+
+        <!-- Salida discreta protegida por toque largo (2.5s) para adultos -->
+        <button
+          type="button"
+          id="btn-exit-communicator"
+          class="role-exit-btn"
+          title="Mantener 2 segundos para cambiar de modo"
+          aria-label="Mantener 2 segundos para cambiar de modo"
+        >
+          <span id="exit-hold-ring" class="role-exit-btn__fill" aria-hidden="true"></span>
+          <span class="role-exit-btn__icon" aria-hidden="true">⇄</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <!-- Pestaña 1: Mi Voz -->
+      <section id="comm-view-voice" class="tab-view is-active" role="tabpanel">
+        <div id="phrase-bar" class="phrase-bar" aria-label="Tira de frase">
+          <div id="phrase-tokens" class="phrase-bar__tokens" aria-live="polite">
+            <span class="phrase-bar__placeholder">Tocá las tarjetas para armar una frase...</span>
+          </div>
+          <div class="phrase-bar__actions">
+            <button type="button" id="btn-play-phrase" class="btn btn--accent btn--sm" disabled>
+              ▶ Leer
+            </button>
+            <button type="button" id="btn-backspace-phrase" class="btn btn--ghost btn--sm" disabled aria-label="Borrar última palabra">
+              ⌫
+            </button>
+            <button type="button" id="btn-clear-phrase" class="btn btn--ghost btn--sm" disabled>
+              Limpiar
+            </button>
+          </div>
+        </div>
+
+        <div id="category-filters" class="category-bar" role="tablist" aria-label="Categorías"></div>
+        <div id="cards-grid" class="cards-grid" aria-live="polite"></div>
+      </section>
+
+      <!-- Pestaña 2: Te Pregunto (Doble Vía) -->
+      <section id="comm-view-ask" class="tab-view" role="tabpanel" hidden>
+        <div class="ask-setup">
+          <div class="ask-setup__header">
+            <h2 class="section-title">Te Pregunto</h2>
+            <button type="button" id="btn-toggle-ask-setup" class="btn btn--ghost btn--sm" aria-expanded="true">
+              Ocultar opciones
+            </button>
+          </div>
+
+          <div id="ask-setup-body" class="ask-setup__body">
+            <!-- Preguntas rápidas del día creadas por Familia / Equipo -->
+            <div class="ask-daily-wrap">
+              <span class="field-label">Preguntas del día / rápidas:</span>
+              <div id="ask-daily-chips" class="ask-presets"></div>
+            </div>
+
+            <div class="ask-inputs">
+              <div class="ask-input-group">
+                <label for="ask-input-a" class="field-label">Opción A</label>
+                <div class="input-with-select">
+                  <input id="ask-input-a" type="text" class="input" value="¿Querés helado?" maxlength="60" />
+                  <select id="ask-select-a" class="select select--compact" aria-label="Elegir tarjeta para Opción A">
+                    <option value="">Tarjeta...</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="ask-input-group">
+                <label for="ask-input-b" class="field-label">Opción B</label>
+                <div class="input-with-select">
+                  <input id="ask-input-b" type="text" class="input" value="¿Querés ver una peli?" maxlength="60" />
+                  <select id="ask-select-b" class="select select--compact" aria-label="Elegir tarjeta para Opción B">
+                    <option value="">Tarjeta...</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ask-controls">
+            <button type="button" id="btn-read-options" class="btn btn--accent btn--lg">
+              🔊 Leer opciones
+            </button>
+            <button type="button" id="btn-reset-ask" class="btn btn--ghost btn--lg">
+              Reiniciar
+            </button>
+          </div>
+        </div>
+
+        <div class="ask-split" aria-label="Opciones visuales para elegir">
+          <button type="button" id="ask-card-a" class="ask-card" data-option="A">
+            <div id="ask-visual-a" class="ask-card__visual">🍨</div>
+            <span id="ask-text-a" class="ask-card__text">¿Querés helado?</span>
+            <span class="ask-card__badge" aria-hidden="true">Elegido ✓</span>
+          </button>
+
+          <button type="button" id="ask-card-b" class="ask-card" data-option="B">
+            <div id="ask-visual-b" class="ask-card__visual">🎬</div>
+            <span id="ask-text-b" class="ask-card__text">¿Querés ver una peli?</span>
+            <span class="ask-card__badge" aria-hidden="true">Elegido ✓</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Pestaña 3: Explorar / Plantillas -->
+      <section id="comm-view-templates" class="tab-view" role="tabpanel" hidden>
+        <div class="templates-header">
+          <h2 class="section-title">Explorar Plantillas</h2>
+          <p class="muted-text">
+            Importá paquetes de tarjetas listos para usar con un toque, sin borrar las actuales.
+          </p>
+        </div>
+        <div id="templates-grid" class="templates-grid"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" role="tablist" aria-label="Navegación del comunicador">
+      <button type="button" class="nav-btn is-active" data-comm-tab="voice" role="tab" aria-selected="true">
+        <span class="nav-btn__icon" aria-hidden="true">💬</span>
+        <span class="nav-btn__label">Mi Voz</span>
+      </button>
+      <button type="button" class="nav-btn" data-comm-tab="ask" role="tab" aria-selected="false">
+        <span class="nav-btn__icon" aria-hidden="true">🔀</span>
+        <span class="nav-btn__label">Te Pregunto</span>
+      </button>
+      <button type="button" class="nav-btn" data-comm-tab="templates" role="tab" aria-selected="false">
+        <span class="nav-btn__icon" aria-hidden="true">📦</span>
+        <span class="nav-btn__label">Explorar</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ========================================================================
+       MODO 2: FAMILIA / EQUIPO (Administración Local o Remota)
+       ======================================================================== -->
+  <div id="family-shell" class="app-shell" hidden>
+    <header class="family-header">
+      <div class="family-header__top">
+        <div>
+          <span class="family-header__eyebrow">Modo Familia / Equipo</span>
+          <h1 class="family-header__title">Mi Espacio</h1>
+        </div>
+        <button type="button" id="btn-switch-to-comm" class="btn btn--accent btn--sm">
+          Ir a Comunicador
+        </button>
+      </div>
+
+      <!-- Código de Vinculación de 6 dígitos (Colaboración remota) -->
+      <div class="pairing-banner">
+        <div class="pairing-banner__info">
+          <span class="field-label">Código de vinculación del tablero:</span>
+          <strong id="display-pairing-code" class="pairing-code">000000</strong>
+          <span class="sync-pill">● Almacenamiento Local (Firebase Ready)</span>
+        </div>
+        <div class="pairing-banner__actions">
+          <button type="button" id="btn-copy-code" class="btn btn--ghost btn--sm">Copiar</button>
+          <button type="button" id="btn-new-code" class="btn btn--ghost btn--sm">Nuevo código</button>
+        </div>
+      </div>
+
+      <!-- Sub-navegación del equipo -->
+      <div class="family-tabs" role="tablist">
+        <button type="button" class="category-pill is-active" data-fam-tab="cards">Tarjetas y Voz</button>
+        <button type="button" class="category-pill" data-fam-tab="questions">Preguntas del Día</button>
+        <button type="button" class="category-pill" data-fam-tab="history">Historial de Hoy</button>
+        <button type="button" class="category-pill" data-fam-tab="settings">Ajustes</button>
+      </div>
+    </header>
+
+    <main class="main-content main-content--family">
+      <!-- Sub-vista 1: Tarjetas y Notas de Voz -->
+      <section id="fam-view-cards" class="tab-view is-active">
+        <form id="card-form" class="panel">
+          <h2 id="form-title" class="panel__title">Nueva Tarjeta</h2>
+          <input type="hidden" id="card-id" value="" />
+
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="card-text" class="field-label">Texto de la tarjeta</label>
+              <input id="card-text" type="text" class="input" placeholder="Ej: Hola, ¿cómo estás hoy?" maxlength="60" required />
+            </div>
+
+            <div class="form-field">
+              <label for="card-category" class="field-label">Categoría</label>
+              <select id="card-category" class="select">
+                <option value="limites">Límites y Calma</option>
+                <option value="necesidades">Necesidades</option>
+                <option value="familia">Familia y Amigos</option>
+                <option value="ocio">Música y Ocio</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label for="card-photo" class="field-label">Foto real (opcional)</label>
+              <div class="photo-upload-row">
+                <input id="card-photo" type="file" accept="image/*" class="file-input" />
+                <button type="button" id="btn-clear-photo" class="btn btn--ghost btn--sm" hidden>Quitar foto</button>
+              </div>
+              <div id="photo-preview-wrap" class="photo-preview" hidden>
+                <img id="photo-preview" alt="Vista previa" />
+              </div>
+            </div>
+
+            <div class="form-field">
+              <span class="field-label">Nota de voz de familiar/terapeuta (MediaRecorder)</span>
+              <div class="voice-record-row">
+                <button type="button" id="btn-record-voice" class="btn btn--ghost btn--sm">
+                  🎙️ Grabar nota
+                </button>
+                <button type="button" id="btn-play-recorded" class="btn btn--ghost btn--sm" hidden>
+                  ▶ Escuchar
+                </button>
+                <button type="button" id="btn-clear-recorded" class="btn btn--danger btn--sm" hidden>
+                  Borrar audio
+                </button>
+              </div>
+              <span id="record-status" class="muted-text"></span>
+            </div>
+          </div>
+
+          <div class="form-field" style="margin-top: 12px;">
+            <span class="field-label">O elegir ícono minimalista</span>
+            <div id="icon-picker" class="icon-picker"></div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="btn-test-voice" class="btn btn--ghost">🔊 Probar TTS</button>
+            <button type="button" id="btn-cancel-edit" class="btn btn--ghost" hidden>Cancelar</button>
+            <button type="submit" class="btn btn--emerald">Guardar tarjeta</button>
+          </div>
+        </form>
+
+        <div class="panel">
+          <h2 class="panel__title">Tarjetas en el Tablero (<span id="cards-count">0</span>)</h2>
+          <div id="manage-cards-list" class="manage-list"></div>
+        </div>
+      </section>
+
+      <!-- Sub-vista 2: Preguntas Rápidas del Día -->
+      <section id="fam-view-questions" class="tab-view" hidden>
+        <form id="question-form" class="panel">
+          <h2 class="panel__title">Crear Pregunta Rápida para Hoy</h2>
+          <p class="muted-text" style="margin-bottom: 12px;">
+            Aparecerá lista en la pestaña "Te Pregunto" del Modo Comunicador.
+          </p>
+
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="qq-title" class="field-label">Título corto</label>
+              <input id="qq-title" type="text" class="input" placeholder="Ej: Merienda de hoy" maxlength="35" required />
+            </div>
+            <div class="form-field"></div>
+
+            <div class="form-field">
+              <label for="qq-opt-a" class="field-label">Opción A</label>
+              <input id="qq-opt-a" type="text" class="input" placeholder="Ej: ¿Querés tostadas?" maxlength="55" required />
+            </div>
+            <div class="form-field">
+              <label for="qq-icon-a" class="field-label">Ícono A</label>
+              <input id="qq-icon-a" type="text" class="input" value="🥪" maxlength="4" />
+            </div>
+
+            <div class="form-field">
+              <label for="qq-opt-b" class="field-label">Opción B</label>
+              <input id="qq-opt-b" type="text" class="input" placeholder="Ej: ¿Querés fruta?" maxlength="55" required />
+            </div>
+            <div class="form-field">
+              <label for="qq-icon-b" class="field-label">Ícono B</label>
+              <input id="qq-icon-b" type="text" class="input" value="🍎" maxlength="4" />
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn--emerald">Guardar pregunta</button>
+          </div>
+        </form>
+
+        <div class="panel">
+          <h2 class="panel__title">Preguntas Guardadas</h2>
+          <div id="manage-questions-list" class="manage-list"></div>
+        </div>
+      </section>
+
+      <!-- Sub-vista 3: Historial Simple de Uso -->
+      <section id="fam-view-history" class="tab-view" hidden>
+        <div class="panel">
+          <div class="ask-setup__header" style="margin-bottom: 12px;">
+            <h2 class="panel__title" style="margin: 0;">Actividad de Hoy</h2>
+            <button type="button" id="btn-clear-logs" class="btn btn--ghost btn--sm">Limpiar historial</button>
+          </div>
+          <div id="usage-logs-list" class="manage-list"></div>
+        </div>
+      </section>
+
+      <!-- Sub-vista 4: Ajustes de Voz y Vinculación -->
+      <section id="fam-view-settings" class="tab-view" hidden>
+        <div class="panel">
+          <h2 class="panel__title">Configuración de Voz y Tablero</h2>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="setting-voice" class="field-label">Voz en español (TTS)</label>
+              <select id="setting-voice" class="select">
+                <option value="">Automática (es-AR / Latino)</option>
+              </select>
+              <span class="muted-text" style="font-size: 0.78rem;">
+                Tip: En Windows, Microsoft Edge incluye la voz natural argentina ("Elena"). En Chrome podés elegir "Google español de Estados Unidos" (latino) o instalar Español (Argentina) en Windows.
+              </span>
+            </div>
+
+            <div class="form-field">
+              <label for="setting-rate" class="field-label">
+                Velocidad de lectura: <strong id="rate-value">0.95x</strong>
+              </label>
+              <input id="setting-rate" type="range" min="0.75" max="1.15" step="0.05" value="0.95" class="range-input" />
+            </div>
+
+            <div class="form-field">
+              <label class="toggle-label" for="setting-phrase-bar">
+                <input id="setting-phrase-bar" type="checkbox" checked />
+                <span>Mostrar tira superior de frase en "Mi Voz"</span>
+              </label>
+            </div>
+
+            <div class="form-field">
+              <label for="join-code-input" class="field-label">Vincular a otro código de 6 dígitos</label>
+              <div class="pin-row">
+                <input id="join-code-input" type="text" inputmode="numeric" maxlength="6" class="input input--code" placeholder="6 dígitos" />
+                <button type="button" id="btn-join-code" class="btn btn--accent btn--sm">Vincular</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

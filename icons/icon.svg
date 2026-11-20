@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mi Espacio">
+  <rect width="512" height="512" rx="112" fill="#0B1220"/>
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="#162032" stroke="#38BDF8" stroke-width="10" stroke-opacity="0.45"/>
+  <!-- Puente de doble vía minimalista -->
+  <path d="M112 316C112 224 176 164 256 164C336 164 400 224 400 316" fill="none" stroke="#38BDF8" stroke-width="22" stroke-linecap="round"/>
+  <path d="M156 316C156 250 198 208 256 208C314 208 356 250 356 316" fill="none" stroke="#10B981" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="134" cy="340" r="22" fill="#38BDF8"/>
+  <circle cx="378" cy="340" r="22" fill="#10B981"/>
+</svg>

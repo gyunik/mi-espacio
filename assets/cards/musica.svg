@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Música">
+  <rect width="240" height="160" rx="16" fill="#0F172A"/>
+  <circle cx="120" cy="80" r="54" fill="#162032" stroke="#38BDF8" stroke-opacity="0.2" stroke-width="2"/>
+  <path d="M104 104V54L150 46V96" fill="none" stroke="#38BDF8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="94" cy="106" r="10" fill="#10B981"/><circle cx="140" cy="98" r="10" fill="#10B981"/>
+</svg>

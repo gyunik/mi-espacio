@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Salir a caminar">
+  <rect width="240" height="160" rx="16" fill="#0F172A"/>
+  <circle cx="120" cy="80" r="54" fill="#162032" stroke="#38BDF8" stroke-opacity="0.2" stroke-width="2"/>
+  <path d="M74 106C94 86 116 98 134 78C146 66 156 58 166 56" fill="none" stroke="#10B981" stroke-width="4" stroke-linecap="round"/><circle cx="152" cy="48" r="6" fill="#38BDF8"/><circle cx="90" cy="108" r="5" fill="#F8FAFC"/>
+</svg>
