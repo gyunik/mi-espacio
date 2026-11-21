@@ -3,7 +3,7 @@
  * Cachea el App Shell para funcionamiento offline en Android / iOS / Desktop.
  */
 
-const CACHE_NAME = 'mi-espacio-v13';
+const CACHE_NAME = 'mi-espacio-v14';
 const APP_SHELL = [
   './',
   './index.html',
@@ -37,7 +37,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) return;
 
   // Network-first: siempre busca la versión más reciente online y usa caché si no hay internet
   event.respondWith(

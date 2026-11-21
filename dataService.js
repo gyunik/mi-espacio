@@ -433,6 +433,9 @@ async function saveLiveEvent(eventObj) {
   if (fb) {
     const { pairingCode } = getSettings();
     await fb.setDoc(fb.doc(fb.db, 'boards', pairingCode, 'events', eventObj.id), eventObj);
+    console.log('[Mi Espacio] Evento guardado en Firebase:', pairingCode, eventObj.type, eventObj.label || eventObj.questionText);
+  } else {
+    console.warn('[Mi Espacio] Firebase no activo, guardado solo local.');
   }
 
   try {

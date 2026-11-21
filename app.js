@@ -437,7 +437,6 @@ async function showBrowserNotification(title, body) {
   } catch {}
 }
 
-let sentTimer = null;
 async function dispatchTeenRequest(label, category) {
   if (!state.settings.notifyFamilyOnTap) return;
   dom.commSentStatus.textContent = `Enviando "${label}"...`;
@@ -449,10 +448,6 @@ async function dispatchTeenRequest(label, category) {
     console.error('Error enviando aviso a Familia:', err);
     dom.commSentStatus.textContent = `Error al enviar: ${err?.message || 'sin conexión'}`;
   }
-  clearTimeout(sentTimer);
-  sentTimer = setTimeout(() => {
-    dom.commSentStatus.hidden = true;
-  }, 6000);
 }
 
 /* ==========================================================================
