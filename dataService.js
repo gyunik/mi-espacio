@@ -402,11 +402,11 @@ export async function ensureSeedData() {
   const cards = await getCards();
   const questions = await getQuickQuestions();
 
-  if (!settings.seeded && cards.length === 0) {
+  if (cards.length === 0) {
     await importTemplatePack('pack-adolescente');
     await importTemplatePack('pack-emociones');
     saveSettings({ seeded: true });
-  } else if (cards.length > 0) {
+  } else {
     const allTemplates = TEMPLATE_PACKS.flatMap((p) => p.cards);
     const byText = new Map(allTemplates.map((t) => [t.text.toLowerCase(), t.imageData]));
     for (const c of cards) {

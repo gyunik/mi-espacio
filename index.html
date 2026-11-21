@@ -286,16 +286,32 @@
         <form id="live-question-form" class="panel">
           <h2 class="panel__title">Enviar Pregunta Ahora al Comunicador</h2>
           <p class="muted-text" style="margin-bottom: 12px;">
-            Le aparece un aviso calmo y visual en su pantalla para que elija entre 2 opciones.
+            Elegí una pregunta rápida o armá 2 opciones. Le aparece un aviso calmo y visual en su pantalla.
           </p>
+
+          <div class="ask-daily-wrap" style="margin-bottom: 12px;">
+            <span class="field-label">Preguntas rápidas listas:</span>
+            <div id="live-daily-chips" class="ask-presets"></div>
+          </div>
+
           <div class="form-grid">
             <div class="form-field">
               <label for="live-opt-a" class="field-label">Opción A</label>
-              <input id="live-opt-a" type="text" class="input" value="¿Cenamos ahora?" maxlength="55" required />
+              <div class="input-with-select">
+                <input id="live-opt-a" type="text" class="input" value="¿Cenamos ahora?" maxlength="55" required />
+                <select id="live-select-a" class="select select--compact" aria-label="Elegir pregunta para Opción A">
+                  <option value="">Elegir...</option>
+                </select>
+              </div>
             </div>
             <div class="form-field">
               <label for="live-opt-b" class="field-label">Opción B</label>
-              <input id="live-opt-b" type="text" class="input" value="¿Preferís en 20 minutos?" maxlength="55" required />
+              <div class="input-with-select">
+                <input id="live-opt-b" type="text" class="input" value="¿Preferís en 20 minutos?" maxlength="55" required />
+                <select id="live-select-b" class="select select--compact" aria-label="Elegir pregunta para Opción B">
+                  <option value="">Elegir...</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="form-actions">

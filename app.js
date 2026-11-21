@@ -180,8 +180,11 @@ function cacheDom() {
     settings: document.getElementById('fam-view-settings')
   };
   dom.liveQuestionForm = document.getElementById('live-question-form');
+  dom.liveDailyChips = document.getElementById('live-daily-chips');
   dom.liveOptA = document.getElementById('live-opt-a');
   dom.liveOptB = document.getElementById('live-opt-b');
+  dom.liveSelectA = document.getElementById('live-select-a');
+  dom.liveSelectB = document.getElementById('live-select-b');
   dom.btnClearEvents = document.getElementById('btn-clear-events');
   dom.liveEventsList = document.getElementById('live-events-list');
 
@@ -649,6 +652,8 @@ function bindAskMode() {
 
 function renderAskDailyChips() {
   dom.askDailyChips.innerHTML = '';
+  if (dom.liveDailyChips) dom.liveDailyChips.innerHTML = '';
+
   state.quickQuestions.forEach((qq) => {
     const chip = document.createElement('button');
     chip.type = 'button';
@@ -665,6 +670,22 @@ function renderAskDailyChips() {
       renderAskCards();
     });
     dom.askDailyChips.appendChild(chip);
+
+    if (dom.liveDailyChips) {
+      const liveChip = document.createElement('button');
+      liveChip.type = 'button';
+      liveChip.className = 'chip-btn';
+      liveChip.textContent = qq.title;
+      liveChip.addEventListener('click', () => {
+        dom.liveOptA.value = qq.optionA.text;
+        dom.liveOptB.value = qq.optionB.text;
+        dom.liveOptA.dataset.icon = qq.optionA.icon || '🅰️';
+        dom.liveOptA.dataset.image = qq.optionA.imageData || '';
+        dom.liveOptB.dataset.icon = qq.optionB.icon || '🅱️';
+        dom.liveOptB.dataset.image = qq.optionB.imageData || '';
+      });
+      dom.liveDailyChips.appendChild(liveChip);
+    }
   });
 }
 
@@ -718,7 +739,8 @@ function applyCardToAsk(side, cardId) {
 }
 
 function populateAskCardSelectors() {
-  [dom.askSelectA, dom.askSelectB].forEach((sel) => {
+  [dom.askSelectA, dom.askSelectB, dom.liveSelectA, dom.liveSelectB].forEach((sel) => {
+    if (!sel) return;
     sel.innerHTML = '<option value="">Elegir pregunta...</option>';
     state.cards.forEach((c) => {
       const opt = document.createElement('option');
@@ -873,6 +895,22 @@ function bindFamilyMode() {
       res === 'granted' ? '🔔 Alertas activas' : '🔕 Permiso denegado';
   });
 
+  dom.liveSelectA.addEventListener('change', () => {
+    const card = state.cards.find((c) => c.id === dom.liveSelectA.value);
+    if (!card) return;
+    dom.liveOptA.value = toQuestionForm(card.text);
+    dom.liveOptA.dataset.icon = card.icon || '🅰️';
+    dom.liveOptA.dataset.image = card.imageData || '';
+  });
+
+  dom.liveSelectB.addEventListener('change', () => {
+    const card = state.cards.find((c) => c.id === dom.liveSelectB.value);
+    if (!card) return;
+    dom.liveOptB.value = toQuestionForm(card.text);
+    dom.liveOptB.dataset.icon = card.icon || '🅱️';
+    dom.liveOptB.dataset.image = card.imageData || '';
+  });
+
   dom.liveQuestionForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const optA = dom.liveOptA.value.trim();
@@ -881,8 +919,16 @@ function bindFamilyMode() {
 
     await sendParentQuestion({
       title: 'Pregunta de Familia',
-      optionA: { text: optA, icon: '🅰️', imageData: null },
-      optionB: { text: optB, icon: '🅱️', imageData: null }
+      optionA: {
+        text: optA,
+        icon: dom.liveOptA.dataset.icon || '🅰️',
+        imageData: dom.liveOptA.dataset.image || null
+      },
+      optionB: {
+        text: optB,
+        icon: dom.liveOptB.dataset.icon || '🅱️',
+        imageData: dom.liveOptB.dataset.image || null
+      }
     });
     state.liveEvents = await getLiveEvents();
     renderLiveEvents();
