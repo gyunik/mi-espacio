@@ -109,48 +109,12 @@ export const TEMPLATE_PACKS = [
 ];
 
 export const DEFAULT_QUICK_QUESTIONS = [
-  {
-    id: 'qq-1',
-    title: '🍨 Plan de tarde',
-    optionA: { text: '¿Querés helado?', icon: '🍨', imageData: './assets/cards/helado.svg' },
-    optionB: { text: '¿Querés ver una peli?', icon: '🎬', imageData: './assets/cards/serie.svg' },
-    createdAt: 1700000001
-  },
-  {
-    id: 'qq-2',
-    title: '🚶‍♀️ Salir o casa',
-    optionA: { text: '¿Querés salir a caminar?', icon: '🚶‍♀️', imageData: './assets/cards/caminar.svg' },
-    optionB: { text: '¿Preferís quedarte en casa?', icon: '🏠', imageData: './assets/cards/casa.svg' },
-    createdAt: 1700000002
-  },
-  {
-    id: 'qq-3',
-    title: '💧 Agua o comida',
-    optionA: { text: '¿Querés tomar agua?', icon: '💧', imageData: './assets/cards/agua.svg' },
-    optionB: { text: '¿Tenés hambre?', icon: '🍽️', imageData: './assets/cards/comida.svg' },
-    createdAt: 1700000003
-  },
-  {
-    id: 'qq-4',
-    title: '🎧 Música o serie',
-    optionA: { text: '¿Querés escuchar música?', icon: '🎵', imageData: './assets/cards/musica.svg' },
-    optionB: { text: '¿Querés ver una serie?', icon: '🎬', imageData: './assets/cards/serie.svg' },
-    createdAt: 1700000004
-  },
-  {
-    id: 'qq-5',
-    title: '⏸️ Pausa o seguir',
-    optionA: { text: '¿Necesitás una pausa?', icon: '⏸️', imageData: './assets/cards/pausa.svg' },
-    optionB: { text: '¿Querés auriculares?', icon: '🎧', imageData: './assets/cards/auriculares.svg' },
-    createdAt: 1700000005
-  },
-  {
-    id: 'qq-6',
-    title: '🚪 Pieza o familia',
-    optionA: { text: '¿Querés estar en tu pieza?', icon: '🚪', imageData: './assets/cards/pieza.svg' },
-    optionB: { text: '¿Querés hablar con mamá?', icon: '👩', imageData: './assets/cards/mama.svg' },
-    createdAt: 1700000006
-  }
+  { id: 'qq-1', title: '¿Querés cenar?', icon: '🍽️', imageData: './assets/cards/comida.svg', createdAt: 1700000001 },
+  { id: 'qq-2', title: '¿Querés tomar agua?', icon: '💧', imageData: './assets/cards/agua.svg', createdAt: 1700000002 },
+  { id: 'qq-3', title: '¿Querés escuchar música?', icon: '🎵', imageData: './assets/cards/musica.svg', createdAt: 1700000003 },
+  { id: 'qq-4', title: '¿Salimos a caminar?', icon: '🚶‍♀️', imageData: './assets/cards/caminar.svg', createdAt: 1700000004 },
+  { id: 'qq-5', title: '¿Necesitás una pausa?', icon: '⏸️', imageData: './assets/cards/pausa.svg', createdAt: 1700000005 },
+  { id: 'qq-6', title: '¿Estás bien?', icon: '✨', imageData: './assets/cards/tranquila.svg', createdAt: 1700000006 }
 ];
 
 /* ==========================================================================
@@ -471,14 +435,14 @@ export async function sendTeenRequest({ label, category = 'general' }) {
 /**
  * Familia envía una pregunta de 2 opciones al dispositivo del adolescente.
  */
-export async function sendParentQuestion({ title, optionA, optionB }) {
+export async function sendParentQuestion({ questionText, icon = '❓', imageData = null }) {
   const ev = {
     id: `ev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     type: 'parent_question',
-    title: title || 'Pregunta de Familia',
-    optionA,
-    optionB,
-    status: 'pending', // 'pending' -> 'answered'
+    questionText: (questionText || '').trim(),
+    icon,
+    imageData,
+    status: 'pending', // 'pending' -> 'answered' -> 'seen'
     answer: null,
     answerText: null,
     createdAt: Date.now()

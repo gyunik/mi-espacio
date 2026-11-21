@@ -699,6 +699,64 @@ select:focus-visible {
   flex: 1;
 }
 
+.ask-question-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 18px 16px;
+  margin-bottom: 14px;
+  background-color: var(--bg-card);
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  border-radius: var(--radius-lg);
+}
+
+.ask-question-box__visual {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(11, 18, 32, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ask-question-box__visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ask-question-box__text {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.ask-card--yes {
+  border-color: rgba(16, 185, 129, 0.48);
+  background-color: rgba(16, 185, 129, 0.08);
+}
+
+.ask-card--yes .ask-card__visual {
+  color: var(--emerald);
+  font-weight: 800;
+}
+
+.ask-card--no {
+  border-color: rgba(244, 63, 94, 0.45);
+  background-color: rgba(244, 63, 94, 0.08);
+}
+
+.ask-card--no .ask-card__visual {
+  color: var(--rose);
+  font-weight: 800;
+}
+
 .ask-split {
   display: grid;
   grid-template-columns: 1fr;
@@ -1176,7 +1234,65 @@ select:focus-visible {
     grid-template-columns: 1fr 1fr;
   }
 
-  .ask-split {
+  .ask-question-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 18px 16px;
+  margin-bottom: 14px;
+  background-color: var(--bg-card);
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  border-radius: var(--radius-lg);
+}
+
+.ask-question-box__visual {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(11, 18, 32, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ask-question-box__visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ask-question-box__text {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.ask-card--yes {
+  border-color: rgba(16, 185, 129, 0.48);
+  background-color: rgba(16, 185, 129, 0.08);
+}
+
+.ask-card--yes .ask-card__visual {
+  color: var(--emerald);
+  font-weight: 800;
+}
+
+.ask-card--no {
+  border-color: rgba(244, 63, 94, 0.45);
+  background-color: rgba(244, 63, 94, 0.08);
+}
+
+.ask-card--no .ask-card__visual {
+  color: var(--rose);
+  font-weight: 800;
+}
+
+.ask-split {
     grid-template-columns: 1fr 1fr;
     min-height: 360px;
   }

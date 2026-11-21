@@ -65,8 +65,9 @@ const state = {
   activeCategory: 'all',
   phraseTokens: [],
   ask: {
-    optionA: { text: '¿Querés helado?', icon: '🍨', imageData: './assets/cards/helado.svg' },
-    optionB: { text: '¿Querés ver una peli?', icon: '🎬', imageData: './assets/cards/serie.svg' },
+    questionText: '¿Querés cenar?',
+    icon: '🍽️',
+    imageData: './assets/cards/comida.svg',
     readingSequenceId: 0
   },
   form: {
@@ -144,22 +145,18 @@ function cacheDom() {
   dom.categoryFilters = document.getElementById('category-filters');
   dom.cardsGrid = document.getElementById('cards-grid');
 
-  // Te Pregunto
+  // Te Pregunto (Sí / No)
   dom.btnToggleAskSetup = document.getElementById('btn-toggle-ask-setup');
   dom.askSetupBody = document.getElementById('ask-setup-body');
   dom.askDailyChips = document.getElementById('ask-daily-chips');
-  dom.askInputA = document.getElementById('ask-input-a');
-  dom.askInputB = document.getElementById('ask-input-b');
+  dom.askQuestionInput = document.getElementById('ask-question-input');
+  dom.askQuestionVisual = document.getElementById('ask-question-visual');
+  dom.askQuestionText = document.getElementById('ask-question-text');
   dom.askSelectA = document.getElementById('ask-select-a');
-  dom.askSelectB = document.getElementById('ask-select-b');
   dom.btnReadOptions = document.getElementById('btn-read-options');
   dom.btnResetAsk = document.getElementById('btn-reset-ask');
   dom.askCardA = document.getElementById('ask-card-a');
   dom.askCardB = document.getElementById('ask-card-b');
-  dom.askVisualA = document.getElementById('ask-visual-a');
-  dom.askVisualB = document.getElementById('ask-visual-b');
-  dom.askTextA = document.getElementById('ask-text-a');
-  dom.askTextB = document.getElementById('ask-text-b');
 
   // Explorar / Plantillas
   dom.templatesGrid = document.getElementById('templates-grid');
@@ -182,10 +179,9 @@ function cacheDom() {
   };
   dom.liveQuestionForm = document.getElementById('live-question-form');
   dom.liveDailyChips = document.getElementById('live-daily-chips');
-  dom.liveOptA = document.getElementById('live-opt-a');
-  dom.liveOptB = document.getElementById('live-opt-b');
+  dom.liveQuestionInput = document.getElementById('live-question-input');
   dom.liveSelectA = document.getElementById('live-select-a');
-  dom.liveSelectB = document.getElementById('live-select-b');
+  dom.btnRestoreStarter = document.getElementById('btn-restore-starter');
   dom.btnClearEvents = document.getElementById('btn-clear-events');
   dom.liveEventsList = document.getElementById('live-events-list');
 
@@ -326,20 +322,17 @@ function startBoardSubscription() {
 
   state.unsubscribeBoard = subscribeToBoard(activeCode, {
     onCards: async (cards) => {
-      if (cards.length === 0) {
-        if (!seededCloudBoards.has(activeCode)) {
-          seededCloudBoards.add(activeCode);
-          if (state.cards.length === 0) {
-            const seeded = await ensureSeedData();
-            state.cards = seeded.cards;
-          }
-          for (const c of state.cards) {
-            await saveCard(c);
-          }
-          renderCardsGrid();
-          populateAskCardSelectors();
-          renderManageCardsList();
-        }
+      // Si el tablero en la nube está vacío o incompleto (<=1 tarjeta), subir las 12 base sin cortar el bucle
+      if (cards.length <= 1 && !seededCloudBoards.has(activeCode)) {
+        seededCloudBoards.add(activeCode);
+        await importTemplatePack('pack-adolescente');
+        await importTemplatePack('pack-emociones');
+        const fullLocal = await getCards();
+        await Promise.all(fullLocal.map((c) => saveCard(c)));
+        state.cards = fullLocal;
+        renderCardsGrid();
+        populateAskCardSelectors();
+        renderManageCardsList();
         return;
       }
       state.cards = cards;
@@ -348,13 +341,10 @@ function startBoardSubscription() {
       renderManageCardsList();
     },
     onQuestions: async (questions) => {
-      if (questions.length === 0) {
-        if (state.quickQuestions.length > 0 && !seededCloudBoards.has(`q-${activeCode}`)) {
-          seededCloudBoards.add(`q-${activeCode}`);
-          for (const q of state.quickQuestions) {
-            await saveQuickQuestion(q);
-          }
-        }
+      if (questions.length <= 1 && !seededCloudBoards.has(`q-${activeCode}`)) {
+        seededCloudBoards.add(`q-${activeCode}`);
+        const toUpload = [...state.quickQuestions];
+        await Promise.all(toUpload.map((q) => saveQuickQuestion(q)));
         return;
       }
       state.quickQuestions = questions;
@@ -376,8 +366,9 @@ function handleIncomingLiveEvents(events) {
     (e) => e.type === 'parent_question' && e.status === 'pending'
   );
   if (pendingQuestion) {
+    const qText = pendingQuestion.questionText || pendingQuestion.optionA?.text || 'Pregunta nueva';
     dom.incomingBanner.hidden = false;
-    dom.incomingQuestionText.textContent = `Pregunta de Familia: "${pendingQuestion.optionA?.text}" o "${pendingQuestion.optionB?.text}" — Tocar para responder`;
+    dom.incomingQuestionText.textContent = `Pregunta de Familia: "${qText}" — Tocar para responder SÍ o NO`;
     if (state.settings.role === 'communicator' && navigator.vibrate) {
       navigator.vibrate(60);
     }
@@ -497,14 +488,13 @@ function bindPhraseBar() {
     if (!pending) return;
 
     state.activeIncomingQuestionId = pending.id;
-    state.ask.optionA = { ...pending.optionA };
-    state.ask.optionB = { ...pending.optionB };
-    dom.askInputA.value = pending.optionA.text || '';
-    dom.askInputB.value = pending.optionB.text || '';
+    state.ask.questionText = pending.questionText || pending.optionA?.text || '¿Todo bien?';
+    state.ask.icon = pending.icon || '❓';
+    state.ask.imageData = pending.imageData || null;
+    dom.askQuestionInput.value = state.ask.questionText;
     resetAskSelection();
     renderAskCards();
 
-    // Cambiar a pestaña Te Pregunto
     const askNav = document.querySelector('[data-comm-tab="ask"]');
     askNav?.click();
   });
@@ -638,23 +628,17 @@ function bindAskMode() {
     const willShow = dom.askSetupBody.hidden;
     dom.askSetupBody.hidden = !willShow;
     dom.btnToggleAskSetup.setAttribute('aria-expanded', String(willShow));
-    dom.btnToggleAskSetup.textContent = willShow ? 'Ocultar opciones' : 'Editar opciones';
+    dom.btnToggleAskSetup.textContent = willShow ? 'Ocultar edición' : 'Cambiar pregunta';
   });
 
-  dom.askInputA.addEventListener('input', () => {
-    state.ask.optionA.text = dom.askInputA.value;
-    state.ask.optionA.imageData = null;
+  dom.askQuestionInput.addEventListener('input', () => {
+    state.ask.questionText = dom.askQuestionInput.value;
+    state.ask.imageData = null;
+    state.ask.icon = '❓';
     renderAskCards();
   });
 
-  dom.askInputB.addEventListener('input', () => {
-    state.ask.optionB.text = dom.askInputB.value;
-    state.ask.optionB.imageData = null;
-    renderAskCards();
-  });
-
-  dom.askSelectA.addEventListener('change', () => applyCardToAsk('A', dom.askSelectA.value));
-  dom.askSelectB.addEventListener('change', () => applyCardToAsk('B', dom.askSelectB.value));
+  dom.askSelectA.addEventListener('change', () => applyCardToAsk(dom.askSelectA.value));
 
   dom.btnReadOptions.addEventListener('click', readAskOptionsSequentially);
   dom.btnResetAsk.addEventListener('click', () => {
@@ -672,17 +656,20 @@ function renderAskDailyChips() {
   if (dom.liveDailyChips) dom.liveDailyChips.innerHTML = '';
 
   state.quickQuestions.forEach((qq) => {
+    const qText = qq.title || qq.optionA?.text || '¿Todo bien?';
+    const qIcon = qq.icon || qq.optionA?.icon || '❓';
+    const qImg = qq.imageData || qq.optionA?.imageData || null;
+
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'chip-btn';
-    chip.textContent = qq.title;
+    chip.textContent = `${qIcon} ${qText}`;
     chip.addEventListener('click', () => {
-      state.ask.optionA = { ...qq.optionA };
-      state.ask.optionB = { ...qq.optionB };
-      dom.askInputA.value = qq.optionA.text;
-      dom.askInputB.value = qq.optionB.text;
+      state.ask.questionText = qText;
+      state.ask.icon = qIcon;
+      state.ask.imageData = qImg;
+      dom.askQuestionInput.value = qText;
       dom.askSelectA.value = '';
-      dom.askSelectB.value = '';
       resetAskSelection();
       renderAskCards();
     });
@@ -692,14 +679,11 @@ function renderAskDailyChips() {
       const liveChip = document.createElement('button');
       liveChip.type = 'button';
       liveChip.className = 'chip-btn';
-      liveChip.textContent = qq.title;
+      liveChip.textContent = `${qIcon} ${qText}`;
       liveChip.addEventListener('click', () => {
-        dom.liveOptA.value = qq.optionA.text;
-        dom.liveOptB.value = qq.optionB.text;
-        dom.liveOptA.dataset.icon = qq.optionA.icon || '🅰️';
-        dom.liveOptA.dataset.image = qq.optionA.imageData || '';
-        dom.liveOptB.dataset.icon = qq.optionB.icon || '🅱️';
-        dom.liveOptB.dataset.image = qq.optionB.imageData || '';
+        dom.liveQuestionInput.value = qText;
+        dom.liveQuestionInput.dataset.icon = qIcon;
+        dom.liveQuestionInput.dataset.image = qImg || '';
       });
       dom.liveDailyChips.appendChild(liveChip);
     }
@@ -738,25 +722,22 @@ function toQuestionForm(text) {
   return `¿${clean}?`;
 }
 
-function applyCardToAsk(side, cardId) {
+function applyCardToAsk(cardId) {
   if (!cardId) return;
   const card = state.cards.find((c) => c.id === cardId);
   if (!card) return;
 
-  const target = side === 'A' ? state.ask.optionA : state.ask.optionB;
-  const input = side === 'A' ? dom.askInputA : dom.askInputB;
   const questionText = toQuestionForm(card.text);
-
-  target.text = questionText;
-  target.icon = card.icon;
-  target.imageData = card.imageData;
-  input.value = questionText;
+  state.ask.questionText = questionText;
+  state.ask.icon = card.icon || '❓';
+  state.ask.imageData = card.imageData || null;
+  dom.askQuestionInput.value = questionText;
   resetAskSelection();
   renderAskCards();
 }
 
 function populateAskCardSelectors() {
-  [dom.askSelectA, dom.askSelectB, dom.liveSelectA, dom.liveSelectB].forEach((sel) => {
+  [dom.askSelectA, dom.liveSelectA].forEach((sel) => {
     if (!sel) return;
     sel.innerHTML = '<option value="">Elegir pregunta...</option>';
     state.cards.forEach((c) => {
@@ -769,10 +750,12 @@ function populateAskCardSelectors() {
 }
 
 function renderAskCards() {
-  renderAskVisual(dom.askVisualA, state.ask.optionA);
-  renderAskVisual(dom.askVisualB, state.ask.optionB);
-  dom.askTextA.textContent = state.ask.optionA.text || 'Opción A';
-  dom.askTextB.textContent = state.ask.optionB.text || 'Opción B';
+  dom.askQuestionText.textContent = state.ask.questionText || '¿Todo bien?';
+  renderAskVisual(dom.askQuestionVisual, {
+    text: state.ask.questionText,
+    icon: state.ask.icon,
+    imageData: state.ask.imageData
+  });
 }
 
 function renderAskVisual(el, opt) {
@@ -780,10 +763,10 @@ function renderAskVisual(el, opt) {
   if (opt.imageData) {
     const img = document.createElement('img');
     img.src = opt.imageData;
-    img.alt = opt.text;
+    img.alt = opt.text || '';
     el.appendChild(img);
   } else {
-    el.textContent = opt.icon || '💬';
+    el.textContent = opt.icon || '❓';
   }
 }
 
@@ -793,49 +776,39 @@ function resetAskSelection() {
 
 async function readAskOptionsSequentially() {
   resetAskSelection();
-  const seqId = ++state.ask.readingSequenceId;
-
-  const tA = (state.ask.optionA.text || '').trim();
-  const tB = (state.ask.optionB.text || '').trim();
-
-  if (tA) {
-    dom.askCardA.classList.add('is-reading');
-    await speak(tA, ttsOptions());
-    dom.askCardA.classList.remove('is-reading');
-  }
-  if (state.ask.readingSequenceId !== seqId) return;
-
-  await new Promise((r) => setTimeout(r, 420));
-  if (state.ask.readingSequenceId !== seqId) return;
-
-  if (tB) {
-    dom.askCardB.classList.add('is-reading');
-    await speak(tB, ttsOptions());
-    dom.askCardB.classList.remove('is-reading');
+  const qText = (state.ask.questionText || '').trim();
+  if (qText) {
+    await speak(qText, ttsOptions());
   }
 }
 
 async function chooseAskOption(side) {
   state.ask.readingSequenceId += 1;
-  const chosenCard = side === 'A' ? dom.askCardA : dom.askCardB;
-  const otherCard = side === 'A' ? dom.askCardB : dom.askCardA;
-  const chosenText = side === 'A' ? state.ask.optionA.text : state.ask.optionB.text;
+  const isYes = side === 'A';
+  const chosenCard = isYes ? dom.askCardA : dom.askCardB;
+  const otherCard = isYes ? dom.askCardB : dom.askCardA;
+  const answerLabel = isYes ? 'SÍ' : 'NO';
 
   chosenCard.classList.remove('is-reading', 'is-dimmed');
   chosenCard.classList.add('is-chosen');
   otherCard.classList.remove('is-reading', 'is-chosen');
   otherCard.classList.add('is-dimmed');
 
-  const clean = (chosenText || '').replace(/[¿?]/g, '').trim();
-  await logUsageEvent({ actionType: 'choice', label: `Eligió: ${clean}`, category: 'te_pregunto' });
+  await logUsageEvent({
+    actionType: 'choice',
+    label: `${state.ask.questionText} → ${answerLabel}`,
+    category: 'te_pregunto'
+  });
 
   if (state.activeIncomingQuestionId) {
-    await answerParentQuestion(state.activeIncomingQuestionId, side, clean);
+    await answerParentQuestion(state.activeIncomingQuestionId, side, answerLabel);
     state.activeIncomingQuestionId = null;
     dom.incomingBanner.hidden = true;
+  } else {
+    dispatchTeenRequest(`${state.ask.questionText} → ${answerLabel}`, 'te_pregunto');
   }
 
-  await speak(clean || `Opción ${side}`, ttsOptions());
+  await speak(isYes ? 'Sí' : 'No', ttsOptions());
 }
 
 /* ==========================================================================
@@ -915,40 +888,29 @@ function bindFamilyMode() {
   dom.liveSelectA.addEventListener('change', () => {
     const card = state.cards.find((c) => c.id === dom.liveSelectA.value);
     if (!card) return;
-    dom.liveOptA.value = toQuestionForm(card.text);
-    dom.liveOptA.dataset.icon = card.icon || '🅰️';
-    dom.liveOptA.dataset.image = card.imageData || '';
-  });
-
-  dom.liveSelectB.addEventListener('change', () => {
-    const card = state.cards.find((c) => c.id === dom.liveSelectB.value);
-    if (!card) return;
-    dom.liveOptB.value = toQuestionForm(card.text);
-    dom.liveOptB.dataset.icon = card.icon || '🅱️';
-    dom.liveOptB.dataset.image = card.imageData || '';
+    dom.liveQuestionInput.value = toQuestionForm(card.text);
+    dom.liveQuestionInput.dataset.icon = card.icon || '❓';
+    dom.liveQuestionInput.dataset.image = card.imageData || '';
   });
 
   dom.liveQuestionForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const optA = dom.liveOptA.value.trim();
-    const optB = dom.liveOptB.value.trim();
-    if (!optA || !optB) return;
+    const qText = dom.liveQuestionInput.value.trim();
+    if (!qText) return;
 
     await sendParentQuestion({
-      title: 'Pregunta de Familia',
-      optionA: {
-        text: optA,
-        icon: dom.liveOptA.dataset.icon || '🅰️',
-        imageData: dom.liveOptA.dataset.image || null
-      },
-      optionB: {
-        text: optB,
-        icon: dom.liveOptB.dataset.icon || '🅱️',
-        imageData: dom.liveOptB.dataset.image || null
-      }
+      questionText: qText,
+      icon: dom.liveQuestionInput.dataset.icon || '❓',
+      imageData: dom.liveQuestionInput.dataset.image || null
     });
     state.liveEvents = await getLiveEvents();
     renderLiveEvents();
+  });
+
+  dom.btnRestoreStarter?.addEventListener('click', async () => {
+    await importTemplatePack('pack-adolescente');
+    await importTemplatePack('pack-emociones');
+    await refreshAllData();
   });
 
   dom.btnClearEvents.addEventListener('click', async () => {
@@ -1264,10 +1226,11 @@ function renderManageQuestionsList() {
     const item = document.createElement('div');
     item.className = 'manage-item';
 
+    const qText = qq.title || qq.optionA?.text || 'Pregunta';
     const info = document.createElement('div');
     info.innerHTML = `
-      <div class="manage-item__text">${escapeHtml(qq.title)}</div>
-      <div class="manage-item__cat">${escapeHtml(qq.optionA.text)} vs ${escapeHtml(qq.optionB.text)}</div>
+      <div class="manage-item__text">${escapeHtml(qq.icon || '❓')} ${escapeHtml(qText)}</div>
+      <div class="manage-item__cat">Respuesta rápida: SÍ / NO</div>
     `;
 
     const actions = document.createElement('div');
@@ -1278,7 +1241,11 @@ function renderManageQuestionsList() {
     sendBtn.className = 'btn btn--accent btn--sm';
     sendBtn.textContent = '📤 Enviar';
     sendBtn.addEventListener('click', async () => {
-      await sendParentQuestion(qq);
+      await sendParentQuestion({
+        questionText: qText,
+        icon: qq.icon || '❓',
+        imageData: qq.imageData || null
+      });
       state.liveEvents = await getLiveEvents();
       renderLiveEvents();
       sendBtn.textContent = '✓ Enviada';
@@ -1333,6 +1300,7 @@ function renderLiveEvents() {
         <div class="manage-item__cat">${time} · ${ev.status === 'seen' ? 'Visto ✓✓' : 'Nuevo aviso'}</div>
       `;
     } else {
+      const qLabel = ev.questionText || `${ev.optionA?.text || ''} / ${ev.optionB?.text || ''}`;
       const statusText =
         ev.status === 'answered'
           ? `Respondió: "${escapeHtml(ev.answerText)}" ✓`
@@ -1340,7 +1308,7 @@ function renderLiveEvents() {
             ? 'Visto ✓✓'
             : 'Esperando respuesta...';
       left.innerHTML = `
-        <div class="manage-item__text">❓ ${escapeHtml(ev.optionA?.text)} / ${escapeHtml(ev.optionB?.text)}</div>
+        <div class="manage-item__text">❓ ${escapeHtml(qLabel)}</div>
         <div class="manage-item__cat">${time} · ${statusText}</div>
       `;
     }

@@ -155,43 +155,30 @@
           <div class="ask-setup__header">
             <h2 class="section-title">Te Pregunto</h2>
             <button type="button" id="btn-toggle-ask-setup" class="btn btn--ghost btn--sm" aria-expanded="true">
-              Ocultar opciones
+              Ocultar edición
             </button>
           </div>
 
           <div id="ask-setup-body" class="ask-setup__body">
-            <!-- Preguntas rápidas del día creadas por Familia / Equipo -->
             <div class="ask-daily-wrap">
-              <span class="field-label">Preguntas del día / rápidas:</span>
+              <span class="field-label">Preguntas rápidas (Sí / No):</span>
               <div id="ask-daily-chips" class="ask-presets"></div>
             </div>
 
-            <div class="ask-inputs">
-              <div class="ask-input-group">
-                <label for="ask-input-a" class="field-label">Opción A</label>
-                <div class="input-with-select">
-                  <input id="ask-input-a" type="text" class="input" value="¿Querés helado?" maxlength="60" />
-                  <select id="ask-select-a" class="select select--compact" aria-label="Elegir tarjeta para Opción A">
-                    <option value="">Tarjeta...</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="ask-input-group">
-                <label for="ask-input-b" class="field-label">Opción B</label>
-                <div class="input-with-select">
-                  <input id="ask-input-b" type="text" class="input" value="¿Querés ver una peli?" maxlength="60" />
-                  <select id="ask-select-b" class="select select--compact" aria-label="Elegir tarjeta para Opción B">
-                    <option value="">Tarjeta...</option>
-                  </select>
-                </div>
+            <div class="ask-input-group">
+              <label for="ask-question-input" class="field-label">Pregunta para responder Sí o No</label>
+              <div class="input-with-select">
+                <input id="ask-question-input" type="text" class="input" value="¿Querés cenar?" maxlength="70" />
+                <select id="ask-select-a" class="select select--compact" aria-label="Elegir pregunta de tarjeta">
+                  <option value="">Elegir...</option>
+                </select>
               </div>
             </div>
           </div>
 
           <div class="ask-controls">
             <button type="button" id="btn-read-options" class="btn btn--accent btn--lg">
-              🔊 Leer opciones
+              🔊 Leer pregunta
             </button>
             <button type="button" id="btn-reset-ask" class="btn btn--ghost btn--lg">
               Reiniciar
@@ -199,17 +186,23 @@
           </div>
         </div>
 
-        <div class="ask-split" aria-label="Opciones visuales para elegir">
-          <button type="button" id="ask-card-a" class="ask-card" data-option="A">
-            <div id="ask-visual-a" class="ask-card__visual">🍨</div>
-            <span id="ask-text-a" class="ask-card__text">¿Querés helado?</span>
-            <span class="ask-card__badge" aria-hidden="true">Elegido ✓</span>
+        <!-- Pregunta grande y clara + 2 respuestas gigantes: SÍ / NO -->
+        <div id="ask-question-banner" class="ask-question-box">
+          <div id="ask-question-visual" class="ask-question-box__visual">🍽️</div>
+          <h3 id="ask-question-text" class="ask-question-box__text">¿Querés cenar?</h3>
+        </div>
+
+        <div class="ask-split" aria-label="Responder Sí o No">
+          <button type="button" id="ask-card-a" class="ask-card ask-card--yes" data-option="A">
+            <div id="ask-visual-a" class="ask-card__visual">✓</div>
+            <span id="ask-text-a" class="ask-card__text">SÍ</span>
+            <span class="ask-card__badge" aria-hidden="true">Respondido ✓</span>
           </button>
 
-          <button type="button" id="ask-card-b" class="ask-card" data-option="B">
-            <div id="ask-visual-b" class="ask-card__visual">🎬</div>
-            <span id="ask-text-b" class="ask-card__text">¿Querés ver una peli?</span>
-            <span class="ask-card__badge" aria-hidden="true">Elegido ✓</span>
+          <button type="button" id="ask-card-b" class="ask-card ask-card--no" data-option="B">
+            <div id="ask-visual-b" class="ask-card__visual">✕</div>
+            <span id="ask-text-b" class="ask-card__text">NO</span>
+            <span class="ask-card__badge" aria-hidden="true">Respondido ✓</span>
           </button>
         </div>
       </section>
@@ -285,9 +278,9 @@
       <!-- Sub-vista 0: En Vivo (Avisos del adolescente y envío directo de preguntas) -->
       <section id="fam-view-live" class="tab-view is-active">
         <form id="live-question-form" class="panel">
-          <h2 class="panel__title">Enviar Pregunta Ahora al Comunicador</h2>
+          <h2 class="panel__title">Enviar Pregunta (Sí / No) al Comunicador</h2>
           <p class="muted-text" style="margin-bottom: 12px;">
-            Elegí una pregunta rápida o armá 2 opciones. Le aparece un aviso calmo y visual en su pantalla.
+            Escribí o elegí una pregunta simple. En su pantalla le aparece un aviso calmo para responder <strong>SÍ</strong> o <strong>NO</strong>.
           </p>
 
           <div class="ask-daily-wrap" style="margin-bottom: 12px;">
@@ -295,26 +288,16 @@
             <div id="live-daily-chips" class="ask-presets"></div>
           </div>
 
-          <div class="form-grid">
-            <div class="form-field">
-              <label for="live-opt-a" class="field-label">Opción A</label>
-              <div class="input-with-select">
-                <input id="live-opt-a" type="text" class="input" value="¿Cenamos ahora?" maxlength="55" required />
-                <select id="live-select-a" class="select select--compact" aria-label="Elegir pregunta para Opción A">
-                  <option value="">Elegir...</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-field">
-              <label for="live-opt-b" class="field-label">Opción B</label>
-              <div class="input-with-select">
-                <input id="live-opt-b" type="text" class="input" value="¿Preferís en 20 minutos?" maxlength="55" required />
-                <select id="live-select-b" class="select select--compact" aria-label="Elegir pregunta para Opción B">
-                  <option value="">Elegir...</option>
-                </select>
-              </div>
+          <div class="form-field">
+            <label for="live-question-input" class="field-label">Pregunta</label>
+            <div class="input-with-select">
+              <input id="live-question-input" type="text" class="input" value="¿Querés cenar?" maxlength="70" required />
+              <select id="live-select-a" class="select select--compact" aria-label="Elegir pregunta de tarjeta">
+                <option value="">Elegir...</option>
+              </select>
             </div>
           </div>
+
           <div class="form-actions">
             <button type="submit" class="btn btn--emerald">📤 Enviar pregunta ahora</button>
           </div>
@@ -392,7 +375,10 @@
         </form>
 
         <div class="panel">
-          <h2 class="panel__title">Tarjetas en el Tablero (<span id="cards-count">0</span>)</h2>
+          <div class="ask-setup__header" style="margin-bottom: 12px;">
+            <h2 class="panel__title" style="margin: 0;">Tarjetas en el Tablero (<span id="cards-count">0</span>)</h2>
+            <button type="button" id="btn-restore-starter" class="btn btn--accent btn--sm">✨ Cargar 12 tarjetas base</button>
+          </div>
           <div id="manage-cards-list" class="manage-list"></div>
         </div>
       </section>
