@@ -440,18 +440,19 @@ async function showBrowserNotification(title, body) {
 let sentTimer = null;
 async function dispatchTeenRequest(label, category) {
   if (!state.settings.notifyFamilyOnTap) return;
+  dom.commSentStatus.textContent = `Enviando "${label}"...`;
+  dom.commSentStatus.hidden = false;
   try {
     await sendTeenRequest({ label, category });
     dom.commSentStatus.textContent = `Enviado a Familia: "${label}" ✓`;
   } catch (err) {
     console.error('Error enviando aviso a Familia:', err);
-    dom.commSentStatus.textContent = 'No se pudo enviar el aviso (revisá conexión)';
+    dom.commSentStatus.textContent = `Error al enviar: ${err?.message || 'sin conexión'}`;
   }
-  dom.commSentStatus.hidden = false;
   clearTimeout(sentTimer);
   sentTimer = setTimeout(() => {
     dom.commSentStatus.hidden = true;
-  }, 5000);
+  }, 6000);
 }
 
 /* ==========================================================================
@@ -464,8 +465,8 @@ function bindQuickBar() {
       dom.quickButtons.forEach((b) => b.classList.remove('is-speaking'));
       btn.classList.add('is-speaking');
 
-      await logUsageEvent({ actionType: 'quick', label: phrase, category: 'respuesta_rapida' });
       dispatchTeenRequest(phrase, 'respuesta_rapida');
+      logUsageEvent({ actionType: 'quick', label: phrase, category: 'respuesta_rapida' });
       await speak(phrase, ttsOptions());
       btn.classList.remove('is-speaking');
     });
@@ -642,8 +643,8 @@ function renderCardsGrid() {
         renderPhraseBar();
       }
 
-      await logUsageEvent({ actionType: 'card', label: card.text, category: card.category });
       dispatchTeenRequest(card.text, card.category);
+      logUsageEvent({ actionType: 'card', label: card.text, category: card.category });
       await speakCard(card, ttsOptions());
       btn.classList.remove('is-speaking');
     });

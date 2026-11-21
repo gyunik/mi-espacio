@@ -176,12 +176,23 @@ function openDatabase() {
       }
     };
 
+    const timer = setTimeout(() => reject(new Error('IndexedDB timeout')), 1500);
+
+    request.onblocked = () => {
+      clearTimeout(timer);
+      reject(new Error('IndexedDB bloqueada por otra pestaña'));
+    };
+
     request.onsuccess = () => {
+      clearTimeout(timer);
       const db = request.result;
       db.onversionchange = () => db.close();
       resolve(db);
     };
-    request.onerror = () => reject(request.error);
+    request.onerror = () => {
+      clearTimeout(timer);
+      reject(request.error);
+    };
   });
 }
 
