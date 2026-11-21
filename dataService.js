@@ -325,19 +325,26 @@ export async function getQuickQuestions() {
 }
 
 export async function saveQuickQuestion(question) {
+  const isChoice = Boolean(question.optionA?.text && question.optionB?.text);
   const payload = {
     id: question.id || `qq-${Date.now()}`,
     title: (question.title || '').trim() || 'Pregunta del día',
-    optionA: {
-      text: (question.optionA?.text || '').trim(),
-      icon: question.optionA?.icon || '🅰️',
-      imageData: question.optionA?.imageData || null
-    },
-    optionB: {
-      text: (question.optionB?.text || '').trim(),
-      icon: question.optionB?.icon || '🅱️',
-      imageData: question.optionB?.imageData || null
-    },
+    icon: question.icon || question.optionA?.icon || '❓',
+    imageData: question.imageData || question.optionA?.imageData || null,
+    optionA: isChoice
+      ? {
+          text: (question.optionA?.text || '').trim(),
+          icon: question.optionA?.icon || '🅰️',
+          imageData: question.optionA?.imageData || null
+        }
+      : null,
+    optionB: isChoice
+      ? {
+          text: (question.optionB?.text || '').trim(),
+          icon: question.optionB?.icon || '🅱️',
+          imageData: question.optionB?.imageData || null
+        }
+      : null,
     createdAt: question.createdAt || Date.now()
   };
 
