@@ -110,8 +110,23 @@
     </header>
 
     <main class="main-content">
+      <!-- Aviso calmo cuando Familia envía una pregunta en tiempo real -->
+      <button type="button" id="incoming-question-banner" class="incoming-banner" hidden>
+        <span class="incoming-banner__dot" aria-hidden="true"></span>
+        <span id="incoming-question-text" class="incoming-banner__text">Tenés una pregunta nueva de Familia — Tocar para responder</span>
+      </button>
+
+      <!-- Confirmación tranquila cuando el adolescente envía un aviso -->
+      <div id="comm-sent-status" class="sent-pill" aria-live="polite" hidden></div>
+
       <!-- Pestaña 1: Mi Voz -->
       <section id="comm-view-voice" class="tab-view is-active" role="tabpanel">
+        <div class="voice-toolbar">
+          <button type="button" id="btn-toggle-remote-notify" class="chip-btn is-active" aria-pressed="true">
+            📡 Avisar a Familia: Activado
+          </button>
+        </div>
+
         <div id="phrase-bar" class="phrase-bar" aria-label="Tira de frase">
           <div id="phrase-tokens" class="phrase-bar__tokens" aria-live="polite">
             <span class="phrase-bar__placeholder">Tocá las tarjetas para armar una frase...</span>
@@ -246,9 +261,10 @@
         <div class="pairing-banner__info">
           <span class="field-label">Código de vinculación del tablero:</span>
           <strong id="display-pairing-code" class="pairing-code">000000</strong>
-          <span class="sync-pill">● Almacenamiento Local (Firebase Ready)</span>
+          <span id="sync-status-pill" class="sync-pill">● Modo Local (pestañas)</span>
         </div>
         <div class="pairing-banner__actions">
+          <button type="button" id="btn-enable-notifications" class="btn btn--accent btn--sm">🔔 Activar alertas</button>
           <button type="button" id="btn-copy-code" class="btn btn--ghost btn--sm">Copiar</button>
           <button type="button" id="btn-new-code" class="btn btn--ghost btn--sm">Nuevo código</button>
         </div>
@@ -256,16 +272,48 @@
 
       <!-- Sub-navegación del equipo -->
       <div class="family-tabs" role="tablist">
-        <button type="button" class="category-pill is-active" data-fam-tab="cards">Tarjetas y Voz</button>
+        <button type="button" class="category-pill is-active" data-fam-tab="live">En Vivo <span id="live-badge" class="tab-badge" hidden>0</span></button>
+        <button type="button" class="category-pill" data-fam-tab="cards">Tarjetas y Voz</button>
         <button type="button" class="category-pill" data-fam-tab="questions">Preguntas del Día</button>
-        <button type="button" class="category-pill" data-fam-tab="history">Historial de Hoy</button>
+        <button type="button" class="category-pill" data-fam-tab="history">Historial</button>
         <button type="button" class="category-pill" data-fam-tab="settings">Ajustes</button>
       </div>
     </header>
 
     <main class="main-content main-content--family">
+      <!-- Sub-vista 0: En Vivo (Avisos del adolescente y envío directo de preguntas) -->
+      <section id="fam-view-live" class="tab-view is-active">
+        <form id="live-question-form" class="panel">
+          <h2 class="panel__title">Enviar Pregunta Ahora al Comunicador</h2>
+          <p class="muted-text" style="margin-bottom: 12px;">
+            Le aparece un aviso calmo y visual en su pantalla para que elija entre 2 opciones.
+          </p>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="live-opt-a" class="field-label">Opción A</label>
+              <input id="live-opt-a" type="text" class="input" value="¿Cenamos ahora?" maxlength="55" required />
+            </div>
+            <div class="form-field">
+              <label for="live-opt-b" class="field-label">Opción B</label>
+              <input id="live-opt-b" type="text" class="input" value="¿Preferís en 20 minutos?" maxlength="55" required />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--emerald">📤 Enviar pregunta ahora</button>
+          </div>
+        </form>
+
+        <div class="panel">
+          <div class="ask-setup__header" style="margin-bottom: 12px;">
+            <h2 class="panel__title" style="margin: 0;">Avisos y Respuestas en Tiempo Real</h2>
+            <button type="button" id="btn-clear-events" class="btn btn--ghost btn--sm">Limpiar</button>
+          </div>
+          <div id="live-events-list" class="manage-list"></div>
+        </div>
+      </section>
+
       <!-- Sub-vista 1: Tarjetas y Notas de Voz -->
-      <section id="fam-view-cards" class="tab-view is-active">
+      <section id="fam-view-cards" class="tab-view" hidden>
         <form id="card-form" class="panel">
           <h2 id="form-title" class="panel__title">Nueva Tarjeta</h2>
           <input type="hidden" id="card-id" value="" />

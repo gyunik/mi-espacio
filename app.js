@@ -18,6 +18,9 @@ import {
 import {
   CATEGORIES,
   TEMPLATE_PACKS,
+  isFirebaseConfigured,
+  initBackend,
+  subscribeToBoard,
   ensureSeedData,
   getCards,
   saveCard,
@@ -26,6 +29,12 @@ import {
   getQuickQuestions,
   saveQuickQuestion,
   removeQuickQuestion,
+  getLiveEvents,
+  sendTeenRequest,
+  sendParentQuestion,
+  answerParentQuestion,
+  markEventSeen,
+  clearLiveEvents,
   logUsageEvent,
   getTodayUsageLogs,
   clearUsageLogs,
@@ -46,8 +55,13 @@ const state = {
   cards: [],
   quickQuestions: [],
   usageLogs: [],
+  liveEvents: [],
+  activeIncomingQuestionId: null,
+  lastNotifiedEventId: null,
+  unsubscribeBoard: null,
+  firebaseReady: false,
   commTab: 'voice',
-  famTab: 'cards',
+  famTab: 'live',
   activeCategory: 'all',
   phraseTokens: [],
   ask: {
@@ -79,11 +93,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   initSpeech((voices) => populateVoiceSelect(voices));
 
+  state.firebaseReady = await initBackend();
   const seeded = await ensureSeedData();
   state.cards = seeded.cards;
   state.quickQuestions = seeded.quickQuestions;
+  state.liveEvents = seeded.liveEvents || [];
   state.usageLogs = await getTodayUsageLogs();
 
+  startBoardSubscription();
   applySettingsToUI();
   renderAllViews();
   applyRoleScreen(state.settings.role);
@@ -113,7 +130,11 @@ function cacheDom() {
     templates: document.getElementById('comm-view-templates')
   };
 
-  // Mi Voz
+  // Mi Voz & Doble vía en vivo
+  dom.incomingBanner = document.getElementById('incoming-question-banner');
+  dom.incomingQuestionText = document.getElementById('incoming-question-text');
+  dom.commSentStatus = document.getElementById('comm-sent-status');
+  dom.btnToggleRemoteNotify = document.getElementById('btn-toggle-remote-notify');
   dom.phraseBar = document.getElementById('phrase-bar');
   dom.phraseTokens = document.getElementById('phrase-tokens');
   dom.btnPlayPhrase = document.getElementById('btn-play-phrase');
@@ -145,15 +166,24 @@ function cacheDom() {
   // Familia / Equipo
   dom.btnSwitchToComm = document.getElementById('btn-switch-to-comm');
   dom.displayPairingCode = document.getElementById('display-pairing-code');
+  dom.syncStatusPill = document.getElementById('sync-status-pill');
+  dom.btnEnableNotifications = document.getElementById('btn-enable-notifications');
+  dom.liveBadge = document.getElementById('live-badge');
   dom.btnCopyCode = document.getElementById('btn-copy-code');
   dom.btnNewCode = document.getElementById('btn-new-code');
   dom.famTabBtns = document.querySelectorAll('[data-fam-tab]');
   dom.famViews = {
+    live: document.getElementById('fam-view-live'),
     cards: document.getElementById('fam-view-cards'),
     questions: document.getElementById('fam-view-questions'),
     history: document.getElementById('fam-view-history'),
     settings: document.getElementById('fam-view-settings')
   };
+  dom.liveQuestionForm = document.getElementById('live-question-form');
+  dom.liveOptA = document.getElementById('live-opt-a');
+  dom.liveOptB = document.getElementById('live-opt-b');
+  dom.btnClearEvents = document.getElementById('btn-clear-events');
+  dom.liveEventsList = document.getElementById('live-events-list');
 
   // Formulario Tarjetas + MediaRecorder
   dom.cardForm = document.getElementById('card-form');
@@ -224,6 +254,7 @@ function bindRoleGate() {
       updates.pairingCode = code;
     }
     state.settings = saveSettings(updates);
+    startBoardSubscription();
     applySettingsToUI();
     applyRoleScreen('family');
   });
@@ -270,8 +301,112 @@ async function applyRoleScreen(role) {
 
   if (role === 'family') {
     state.usageLogs = await getTodayUsageLogs();
+    state.liveEvents = await getLiveEvents();
     renderUsageLogs();
+    renderLiveEvents();
   }
+}
+
+/* ==========================================================================
+   SINCRONIZACIÓN EN TIEMPO REAL Y NOTIFICACIONES
+   ========================================================================== */
+function startBoardSubscription() {
+  if (state.unsubscribeBoard) {
+    state.unsubscribeBoard();
+    state.unsubscribeBoard = null;
+  }
+
+  state.unsubscribeBoard = subscribeToBoard(state.settings.pairingCode, {
+    onCards: (cards) => {
+      state.cards = cards;
+      renderCardsGrid();
+      populateAskCardSelectors();
+      renderManageCardsList();
+    },
+    onQuestions: (questions) => {
+      state.quickQuestions = questions;
+      renderAskDailyChips();
+      renderManageQuestionsList();
+    },
+    onLiveEvents: (events) => {
+      handleIncomingLiveEvents(events);
+    }
+  });
+}
+
+function handleIncomingLiveEvents(events) {
+  state.liveEvents = events || [];
+  renderLiveEvents();
+
+  // 1. Modo Comunicador: mostrar aviso calmo si hay pregunta pendiente de Familia
+  const pendingQuestion = state.liveEvents.find(
+    (e) => e.type === 'parent_question' && e.status === 'pending'
+  );
+  if (pendingQuestion) {
+    dom.incomingBanner.hidden = false;
+    dom.incomingQuestionText.textContent = `Pregunta de Familia: "${pendingQuestion.optionA?.text}" o "${pendingQuestion.optionB?.text}" — Tocar para responder`;
+    if (state.settings.role === 'communicator' && navigator.vibrate) {
+      navigator.vibrate(60);
+    }
+  } else {
+    dom.incomingBanner.hidden = true;
+  }
+
+  // 2. Modo Comunicador: actualizar confirmación si Familia marcó "Visto"
+  const latestReq = state.liveEvents.find((e) => e.type === 'teen_request');
+  if (latestReq && latestReq.status === 'seen' && !dom.commSentStatus.hidden) {
+    dom.commSentStatus.textContent = `Familia vio: "${latestReq.label}" ✓✓`;
+  }
+
+  // 3. Modo Familia: disparar notificación nativa si llegó un pedido nuevo o respuesta
+  const newestAlert = state.liveEvents.find(
+    (e) =>
+      (e.type === 'teen_request' && e.status === 'sent') ||
+      (e.type === 'parent_question' && e.status === 'answered')
+  );
+  if (
+    state.settings.role === 'family' &&
+    newestAlert &&
+    newestAlert.id !== state.lastNotifiedEventId
+  ) {
+    state.lastNotifiedEventId = newestAlert.id;
+    const body =
+      newestAlert.type === 'teen_request'
+        ? `Pedido: "${newestAlert.label}"`
+        : `Respondió: "${newestAlert.answerText}"`;
+    showBrowserNotification('Mi Espacio — Nuevo aviso', body);
+  }
+}
+
+async function showBrowserNotification(title, body) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    if (reg && reg.showNotification) {
+      await reg.showNotification(title, {
+        body,
+        icon: './icons/icon.svg',
+        badge: './icons/icon.svg',
+        tag: 'mi-espacio-aviso'
+      });
+      return;
+    }
+  } catch {}
+  try {
+    new Notification(title, { body, icon: './icons/icon.svg' });
+  } catch {}
+}
+
+let sentTimer = null;
+async function dispatchTeenRequest(label, category) {
+  if (!state.settings.notifyFamilyOnTap) return;
+  await sendTeenRequest({ label, category });
+  dom.commSentStatus.textContent = `Enviado a Familia: "${label}" ✓`;
+  dom.commSentStatus.hidden = false;
+  clearTimeout(sentTimer);
+  sentTimer = setTimeout(() => {
+    dom.commSentStatus.hidden = true;
+  }, 5000);
 }
 
 /* ==========================================================================
@@ -285,6 +420,7 @@ function bindQuickBar() {
       btn.classList.add('is-speaking');
 
       await logUsageEvent({ actionType: 'quick', label: phrase, category: 'respuesta_rapida' });
+      dispatchTeenRequest(phrase, 'respuesta_rapida');
       await speak(phrase, ttsOptions());
       btn.classList.remove('is-speaking');
     });
@@ -315,6 +451,31 @@ function bindCommunicatorNav() {
 }
 
 function bindPhraseBar() {
+  dom.btnToggleRemoteNotify.addEventListener('click', () => {
+    const next = !state.settings.notifyFamilyOnTap;
+    state.settings = saveSettings({ notifyFamilyOnTap: next });
+    applySettingsToUI();
+  });
+
+  dom.incomingBanner.addEventListener('click', () => {
+    const pending = state.liveEvents.find(
+      (e) => e.type === 'parent_question' && e.status === 'pending'
+    );
+    if (!pending) return;
+
+    state.activeIncomingQuestionId = pending.id;
+    state.ask.optionA = { ...pending.optionA };
+    state.ask.optionB = { ...pending.optionB };
+    dom.askInputA.value = pending.optionA.text || '';
+    dom.askInputB.value = pending.optionB.text || '';
+    resetAskSelection();
+    renderAskCards();
+
+    // Cambiar a pestaña Te Pregunto
+    const askNav = document.querySelector('[data-comm-tab="ask"]');
+    askNav?.click();
+  });
+
   dom.btnPlayPhrase.addEventListener('click', async () => {
     if (state.phraseTokens.length === 0) return;
     await speak(state.phraseTokens.join('. '), ttsOptions());
@@ -427,6 +588,7 @@ function renderCardsGrid() {
       }
 
       await logUsageEvent({ actionType: 'card', label: card.text, category: card.category });
+      dispatchTeenRequest(card.text, card.category);
       await speakCard(card, ttsOptions());
       btn.classList.remove('is-speaking');
     });
@@ -614,6 +776,13 @@ async function chooseAskOption(side) {
 
   const clean = (chosenText || '').replace(/[¿?]/g, '').trim();
   await logUsageEvent({ actionType: 'choice', label: `Eligió: ${clean}`, category: 'te_pregunto' });
+
+  if (state.activeIncomingQuestionId) {
+    await answerParentQuestion(state.activeIncomingQuestionId, side, clean);
+    state.activeIncomingQuestionId = null;
+    dom.incomingBanner.hidden = true;
+  }
+
   await speak(clean || `Opción ${side}`, ttsOptions());
 }
 
@@ -681,6 +850,37 @@ function bindFamilyMode() {
     applyRoleScreen('communicator');
   });
 
+  dom.btnEnableNotifications.addEventListener('click', async () => {
+    if (typeof Notification === 'undefined') {
+      dom.btnEnableNotifications.textContent = 'No soportado';
+      return;
+    }
+    const res = await Notification.requestPermission();
+    dom.btnEnableNotifications.textContent =
+      res === 'granted' ? '🔔 Alertas activas' : '🔕 Permiso denegado';
+  });
+
+  dom.liveQuestionForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const optA = dom.liveOptA.value.trim();
+    const optB = dom.liveOptB.value.trim();
+    if (!optA || !optB) return;
+
+    await sendParentQuestion({
+      title: 'Pregunta de Familia',
+      optionA: { text: optA, icon: '🅰️', imageData: null },
+      optionB: { text: optB, icon: '🅱️', imageData: null }
+    });
+    state.liveEvents = await getLiveEvents();
+    renderLiveEvents();
+  });
+
+  dom.btnClearEvents.addEventListener('click', async () => {
+    await clearLiveEvents();
+    state.liveEvents = [];
+    renderLiveEvents();
+  });
+
   dom.btnCopyCode.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(state.settings.pairingCode);
@@ -710,6 +910,10 @@ function bindFamilyMode() {
       if (target === 'history') {
         state.usageLogs = await getTodayUsageLogs();
         renderUsageLogs();
+      }
+      if (target === 'live') {
+        state.liveEvents = await getLiveEvents();
+        renderLiveEvents();
       }
     });
   });
@@ -833,6 +1037,7 @@ function bindFamilyMode() {
     if (code.length === 6) {
       state.settings = saveSettings({ pairingCode: code });
       dom.joinCodeInput.value = '';
+      startBoardSubscription();
       applySettingsToUI();
     }
   });
@@ -989,6 +1194,21 @@ function renderManageQuestionsList() {
       <div class="manage-item__cat">${escapeHtml(qq.optionA.text)} vs ${escapeHtml(qq.optionB.text)}</div>
     `;
 
+    const actions = document.createElement('div');
+    actions.className = 'manage-item__actions';
+
+    const sendBtn = document.createElement('button');
+    sendBtn.type = 'button';
+    sendBtn.className = 'btn btn--accent btn--sm';
+    sendBtn.textContent = '📤 Enviar';
+    sendBtn.addEventListener('click', async () => {
+      await sendParentQuestion(qq);
+      state.liveEvents = await getLiveEvents();
+      renderLiveEvents();
+      sendBtn.textContent = '✓ Enviada';
+      setTimeout(() => (sendBtn.textContent = '📤 Enviar'), 1800);
+    });
+
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'btn btn--danger btn--sm';
@@ -998,8 +1218,73 @@ function renderManageQuestionsList() {
       await refreshAllData();
     });
 
-    item.append(info, delBtn);
+    actions.append(sendBtn, delBtn);
+    item.append(info, actions);
     dom.manageQuestionsList.appendChild(item);
+  });
+}
+
+function renderLiveEvents() {
+  const unreadCount = state.liveEvents.filter(
+    (e) =>
+      (e.type === 'teen_request' && e.status === 'sent') ||
+      (e.type === 'parent_question' && e.status === 'answered')
+  ).length;
+
+  dom.liveBadge.hidden = unreadCount === 0;
+  dom.liveBadge.textContent = String(unreadCount);
+
+  dom.liveEventsList.innerHTML = '';
+  if (state.liveEvents.length === 0) {
+    dom.liveEventsList.innerHTML =
+      '<p class="muted-text">Aún no hay avisos ni preguntas enviadas hoy.</p>';
+    return;
+  }
+
+  state.liveEvents.forEach((ev) => {
+    const item = document.createElement('div');
+    item.className = 'manage-item';
+
+    const time = new Date(ev.createdAt).toLocaleTimeString('es-AR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const left = document.createElement('div');
+    if (ev.type === 'teen_request') {
+      left.innerHTML = `
+        <div class="manage-item__text">📣 ${escapeHtml(ev.label)}</div>
+        <div class="manage-item__cat">${time} · ${ev.status === 'seen' ? 'Visto ✓✓' : 'Nuevo aviso'}</div>
+      `;
+    } else {
+      const statusText =
+        ev.status === 'answered'
+          ? `Respondió: "${escapeHtml(ev.answerText)}" ✓`
+          : ev.status === 'seen'
+            ? 'Visto ✓✓'
+            : 'Esperando respuesta...';
+      left.innerHTML = `
+        <div class="manage-item__text">❓ ${escapeHtml(ev.optionA?.text)} / ${escapeHtml(ev.optionB?.text)}</div>
+        <div class="manage-item__cat">${time} · ${statusText}</div>
+      `;
+    }
+
+    item.appendChild(left);
+
+    if (ev.status === 'sent' || ev.status === 'answered') {
+      const seenBtn = document.createElement('button');
+      seenBtn.type = 'button';
+      seenBtn.className = 'btn btn--emerald btn--sm';
+      seenBtn.textContent = 'Visto ✓';
+      seenBtn.addEventListener('click', async () => {
+        await markEventSeen(ev.id);
+        state.liveEvents = await getLiveEvents();
+        renderLiveEvents();
+      });
+      item.appendChild(seenBtn);
+    }
+
+    dom.liveEventsList.appendChild(item);
   });
 }
 
@@ -1049,6 +1334,23 @@ function populateVoiceSelect(voices) {
 function applySettingsToUI() {
   const code = state.settings.pairingCode || '000000';
   dom.displayPairingCode.textContent = `${code.slice(0, 3)}-${code.slice(3)}`;
+  dom.syncStatusPill.textContent = state.firebaseReady
+    ? '● Conectado a Firebase en tiempo real'
+    : isFirebaseConfigured()
+      ? '● Sin conexión (modo local)'
+      : '● Modo Local (sincroniza entre pestañas)';
+
+  const notifyOn = Boolean(state.settings.notifyFamilyOnTap);
+  dom.btnToggleRemoteNotify.classList.toggle('is-active', notifyOn);
+  dom.btnToggleRemoteNotify.setAttribute('aria-pressed', String(notifyOn));
+  dom.btnToggleRemoteNotify.textContent = notifyOn
+    ? '📡 Avisar a Familia: Activado'
+    : '📡 Avisar a Familia: Solo voz local';
+
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    dom.btnEnableNotifications.textContent = '🔔 Alertas activas';
+  }
+
   dom.settingRate.value = String(state.settings.speechRate);
   dom.rateValue.textContent = `${Number(state.settings.speechRate).toFixed(2)}x`;
   dom.settingPhraseBar.checked = Boolean(state.settings.showPhraseBar);
@@ -1066,6 +1368,7 @@ function renderAllViews() {
   renderManageCardsList();
   renderManageQuestionsList();
   renderUsageLogs();
+  renderLiveEvents();
 }
 
 async function refreshAllData() {

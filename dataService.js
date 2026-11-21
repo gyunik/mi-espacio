@@ -1,34 +1,37 @@
 /**
- * dataService.js — Capa de Servicios de Datos (Local IndexedDB/localStorage + Estructura Firebase-Ready)
+ * dataService.js — Capa de Servicios de Datos (Local IndexedDB + BroadcastChannel + Firebase Firestore)
  *
- * Diseñada para funcionar 100% offline en este MVP mediante IndexedDB + localStorage,
- * manteniendo un esquema JSON y una interfaz de métodos compatible con:
- *  - Firebase Authentication (anónimo / email)
- *  - Cloud Firestore (colecciones: boards/{pairingCode}/cards, quickQuestions, usageLogs)
- *  - Firebase Storage (fotos y notas de voz)
+ * - Si firebaseConfig.js tiene credenciales reales: sincroniza en tiempo real con
+ *   Firebase Authentication (anónimo) y Cloud Firestore bajo boards/{pairingCode}.
+ * - Si aún está en modo local: usa IndexedDB + BroadcastChannel para probar la
+ *   comunicación de doble vía en tiempo real entre dos pestañas del navegador.
  */
 
+import { firebaseConfig } from './firebaseConfig.js';
+
 const DB_NAME = 'mi_espacio_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_CARDS = 'cards';
 const STORE_QUESTIONS = 'quickQuestions';
 const STORE_LOGS = 'usageLogs';
+const STORE_EVENTS = 'liveEvents';
 const SETTINGS_KEY = 'mi_espacio_settings_v1';
 
-/**
- * Placeholder de configuración para conectar Firebase sin reescribir la UI.
- * Para activar sincronización remota en tiempo real, completar las credenciales
- * e implementar el adaptador Firestore dentro de este módulo.
- */
-export const FIREBASE_CONFIG = {
-  enabled: false,
-  apiKey: 'TU_API_KEY',
-  authDomain: 'tu-proyecto.firebaseapp.com',
-  projectId: 'tu-proyecto',
-  storageBucket: 'tu-proyecto.appspot.com',
-  messagingSenderId: '000000000000',
-  appId: '1:000000000000:web:000000000000'
-};
+const syncChannel = typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel('mi-espacio-sync')
+  : null;
+
+let fb = null; // Instancias cargadas dinámicamente si Firebase está configurado
+
+export function isFirebaseConfigured() {
+  return Boolean(
+    firebaseConfig &&
+    firebaseConfig.apiKey &&
+    !firebaseConfig.apiKey.startsWith('TU_') &&
+    firebaseConfig.projectId &&
+    !firebaseConfig.projectId.startsWith('tu-')
+  );
+}
 
 export const CATEGORIES = [
   { id: 'all', label: 'Todas' },
@@ -39,17 +42,15 @@ export const CATEGORIES = [
 ];
 
 export const DEFAULT_SETTINGS = {
-  role: null, // 'communicator' | 'family' | null (primer inicio)
-  pairingCode: '', // Código de vinculación de 6 dígitos
+  role: null,
+  pairingCode: '',
   speechRate: 0.95,
   voiceURI: '',
   showPhraseBar: true,
+  notifyFamilyOnTap: true,
   seeded: false
 };
 
-/**
- * Biblioteca de plantillas listas para importar con un clic ("Explorar / Plantillas").
- */
 export const TEMPLATE_PACKS = [
   {
     id: 'pack-adolescente',
@@ -107,9 +108,6 @@ export const TEMPLATE_PACKS = [
   }
 ];
 
-/**
- * Preguntas rápidas iniciales para el modo "Te Pregunto".
- */
 export const DEFAULT_QUICK_QUESTIONS = [
   {
     id: 'qq-1',
@@ -156,6 +154,34 @@ export const DEFAULT_QUICK_QUESTIONS = [
 ];
 
 /* ==========================================================================
+   Inicialización Firebase (opcional, cero dependencias locales)
+   ========================================================================== */
+export async function initBackend() {
+  if (!isFirebaseConfigured() || fb) return Boolean(fb);
+
+  try {
+    const [{ initializeApp }, authMod, fsMod] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'),
+      import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js')
+    ]);
+
+    const app = initializeApp(firebaseConfig);
+    const auth = authMod.getAuth(app);
+    if (!auth.currentUser) {
+      await authMod.signInAnonymously(auth);
+    }
+    const db = fsMod.getFirestore(app);
+    fb = { db, ...fsMod };
+    return true;
+  } catch (err) {
+    console.warn('No se pudo conectar a Firebase, usando modo local:', err);
+    fb = null;
+    return false;
+  }
+}
+
+/* ==========================================================================
    IndexedDB Helpers
    ========================================================================== */
 function openDatabase() {
@@ -180,6 +206,10 @@ function openDatabase() {
         const logs = db.createObjectStore(STORE_LOGS, { keyPath: 'id' });
         logs.createIndex('timestamp', 'timestamp', { unique: false });
       }
+      if (!db.objectStoreNames.contains(STORE_EVENTS)) {
+        const ev = db.createObjectStore(STORE_EVENTS, { keyPath: 'id' });
+        ev.createIndex('createdAt', 'createdAt', { unique: false });
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -191,8 +221,7 @@ async function getAllFromStore(storeName) {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
-    const req = store.getAll();
+    const req = tx.objectStore(storeName).getAll();
     req.onsuccess = () => resolve(req.result || []);
     req.onerror = () => reject(req.error);
   });
@@ -202,8 +231,7 @@ async function putInStore(storeName, item) {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    const req = store.put(item);
+    const req = tx.objectStore(storeName).put(item);
     req.onsuccess = () => resolve(item);
     req.onerror = () => reject(req.error);
   });
@@ -213,15 +241,20 @@ async function deleteFromStore(storeName, id) {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    const req = store.delete(id);
+    const req = tx.objectStore(storeName).delete(id);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
   });
 }
 
+function notifyLocalSync(topic) {
+  if (syncChannel) {
+    syncChannel.postMessage({ topic, ts: Date.now() });
+  }
+}
+
 /* ==========================================================================
-   Configuración y Código de Vinculación de 6 dígitos
+   Configuración y Código de Vinculación
    ========================================================================== */
 export function generatePairingCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -253,7 +286,7 @@ export function saveSettings(partial) {
 }
 
 /* ==========================================================================
-   Tarjetas (CRUD + Importación de Plantillas)
+   Tarjetas y Preguntas (Local + Firestore Sync)
    ========================================================================== */
 export async function getCards() {
   try {
@@ -275,11 +308,25 @@ export async function saveCard(card) {
     authorRole: card.authorRole || 'family',
     createdAt: card.createdAt || Date.now()
   };
-  return putInStore(STORE_CARDS, payload);
+
+  await putInStore(STORE_CARDS, payload);
+  notifyLocalSync('cards');
+
+  if (fb) {
+    const { pairingCode } = getSettings();
+    await fb.setDoc(fb.doc(fb.db, 'boards', pairingCode, 'cards', payload.id), payload);
+  }
+  return payload;
 }
 
 export async function removeCard(id) {
-  return deleteFromStore(STORE_CARDS, id);
+  await deleteFromStore(STORE_CARDS, id);
+  notifyLocalSync('cards');
+
+  if (fb) {
+    const { pairingCode } = getSettings();
+    await fb.deleteDoc(fb.doc(fb.db, 'boards', pairingCode, 'cards', id));
+  }
 }
 
 export async function importTemplatePack(packId) {
@@ -304,43 +351,6 @@ export async function importTemplatePack(packId) {
   return importedCount;
 }
 
-export async function ensureSeedData() {
-  const settings = getSettings();
-  const cards = await getCards();
-  const questions = await getQuickQuestions();
-
-  if (!settings.seeded && cards.length === 0) {
-    // Cargar Pack Adolescente + Pack Emociones como base inicial
-    await importTemplatePack('pack-adolescente');
-    await importTemplatePack('pack-emociones');
-    saveSettings({ seeded: true });
-  } else if (cards.length > 0) {
-    // Enriquecer tarjetas precargadas que aún no tengan imagen asignada
-    const allTemplates = TEMPLATE_PACKS.flatMap((p) => p.cards);
-    const byText = new Map(allTemplates.map((t) => [t.text.toLowerCase(), t.imageData]));
-    for (const c of cards) {
-      if (!c.imageData && byText.has(c.text.toLowerCase())) {
-        await saveCard({ ...c, imageData: byText.get(c.text.toLowerCase()) });
-      }
-    }
-  }
-
-  const existingQuestionIds = new Set(questions.map((q) => q.id));
-  for (const q of DEFAULT_QUICK_QUESTIONS) {
-    if (!existingQuestionIds.has(q.id)) {
-      await putInStore(STORE_QUESTIONS, q);
-    }
-  }
-
-  return {
-    cards: await getCards(),
-    quickQuestions: await getQuickQuestions()
-  };
-}
-
-/* ==========================================================================
-   Preguntas Rápidas del Día (Modo Familia -> Modo Comunicador "Te Pregunto")
-   ========================================================================== */
 export async function getQuickQuestions() {
   try {
     const list = await getAllFromStore(STORE_QUESTIONS);
@@ -366,29 +376,227 @@ export async function saveQuickQuestion(question) {
     },
     createdAt: question.createdAt || Date.now()
   };
-  return putInStore(STORE_QUESTIONS, payload);
+
+  await putInStore(STORE_QUESTIONS, payload);
+  notifyLocalSync('questions');
+
+  if (fb) {
+    const { pairingCode } = getSettings();
+    await fb.setDoc(fb.doc(fb.db, 'boards', pairingCode, 'quickQuestions', payload.id), payload);
+  }
+  return payload;
 }
 
 export async function removeQuickQuestion(id) {
-  return deleteFromStore(STORE_QUESTIONS, id);
+  await deleteFromStore(STORE_QUESTIONS, id);
+  notifyLocalSync('questions');
+
+  if (fb) {
+    const { pairingCode } = getSettings();
+    await fb.deleteDoc(fb.doc(fb.db, 'boards', pairingCode, 'quickQuestions', id));
+  }
+}
+
+export async function ensureSeedData() {
+  const settings = getSettings();
+  const cards = await getCards();
+  const questions = await getQuickQuestions();
+
+  if (!settings.seeded && cards.length === 0) {
+    await importTemplatePack('pack-adolescente');
+    await importTemplatePack('pack-emociones');
+    saveSettings({ seeded: true });
+  } else if (cards.length > 0) {
+    const allTemplates = TEMPLATE_PACKS.flatMap((p) => p.cards);
+    const byText = new Map(allTemplates.map((t) => [t.text.toLowerCase(), t.imageData]));
+    for (const c of cards) {
+      if (!c.imageData && byText.has(c.text.toLowerCase())) {
+        await saveCard({ ...c, imageData: byText.get(c.text.toLowerCase()) });
+      }
+    }
+  }
+
+  const existingQuestionIds = new Set(questions.map((q) => q.id));
+  for (const q of DEFAULT_QUICK_QUESTIONS) {
+    if (!existingQuestionIds.has(q.id)) {
+      await putInStore(STORE_QUESTIONS, q);
+    }
+  }
+
+  return {
+    cards: await getCards(),
+    quickQuestions: await getQuickQuestions(),
+    liveEvents: await getLiveEvents()
+  };
 }
 
 /* ==========================================================================
-   Historial Simple de Uso (Qué botones tocó hoy)
+   COMUNICACIÓN EN VIVO DE DOBLE VÍA (Avisos Adolescente <-> Preguntas Familia)
+   ========================================================================== */
+export async function getLiveEvents() {
+  try {
+    const list = await getAllFromStore(STORE_EVENTS);
+    return list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 30);
+  } catch {
+    return [];
+  }
+}
+
+async function saveLiveEvent(eventObj) {
+  await putInStore(STORE_EVENTS, eventObj);
+  notifyLocalSync('events');
+
+  if (fb) {
+    const { pairingCode } = getSettings();
+    await fb.setDoc(fb.doc(fb.db, 'boards', pairingCode, 'events', eventObj.id), eventObj);
+  }
+  return eventObj;
+}
+
+/**
+ * El adolescente envía un pedido/aviso silencioso a Familia.
+ */
+export async function sendTeenRequest({ label, category = 'general' }) {
+  const ev = {
+    id: `ev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    type: 'teen_request',
+    label,
+    category,
+    status: 'sent', // 'sent' -> 'seen'
+    createdAt: Date.now()
+  };
+  return saveLiveEvent(ev);
+}
+
+/**
+ * Familia envía una pregunta de 2 opciones al dispositivo del adolescente.
+ */
+export async function sendParentQuestion({ title, optionA, optionB }) {
+  const ev = {
+    id: `ev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    type: 'parent_question',
+    title: title || 'Pregunta de Familia',
+    optionA,
+    optionB,
+    status: 'pending', // 'pending' -> 'answered'
+    answer: null,
+    answerText: null,
+    createdAt: Date.now()
+  };
+  return saveLiveEvent(ev);
+}
+
+/**
+ * El adolescente responde una pregunta enviada por Familia.
+ */
+export async function answerParentQuestion(eventId, side, answerText) {
+  const all = await getLiveEvents();
+  const target = all.find((e) => e.id === eventId);
+  if (!target) return null;
+
+  const updated = {
+    ...target,
+    status: 'answered',
+    answer: side,
+    answerText,
+    answeredAt: Date.now()
+  };
+  return saveLiveEvent(updated);
+}
+
+/**
+ * Familia marca un aviso o respuesta como "Visto".
+ */
+export async function markEventSeen(eventId) {
+  const all = await getLiveEvents();
+  const target = all.find((e) => e.id === eventId);
+  if (!target) return null;
+
+  const updated = {
+    ...target,
+    status: 'seen',
+    seenAt: Date.now()
+  };
+  return saveLiveEvent(updated);
+}
+
+export async function clearLiveEvents() {
+  const db = await openDatabase();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_EVENTS, 'readwrite');
+    tx.objectStore(STORE_EVENTS).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  notifyLocalSync('events');
+}
+
+/**
+ * Suscripción en tiempo real (Firestore si está configurado, o BroadcastChannel local).
+ */
+export function subscribeToBoard(pairingCode, callbacks = {}) {
+  const unsubs = [];
+
+  if (fb && pairingCode) {
+    const cardsRef = fb.collection(fb.db, 'boards', pairingCode, 'cards');
+    unsubs.push(
+      fb.onSnapshot(cardsRef, (snap) => {
+        const cards = snap.docs
+          .map((d) => d.data())
+          .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        callbacks.onCards?.(cards);
+      })
+    );
+
+    const qqRef = fb.collection(fb.db, 'boards', pairingCode, 'quickQuestions');
+    unsubs.push(
+      fb.onSnapshot(qqRef, (snap) => {
+        const list = snap.docs
+          .map((d) => d.data())
+          .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        callbacks.onQuestions?.(list);
+      })
+    );
+
+    const evQuery = fb.query(
+      fb.collection(fb.db, 'boards', pairingCode, 'events'),
+      fb.orderBy('createdAt', 'desc'),
+      fb.limit(30)
+    );
+    unsubs.push(
+      fb.onSnapshot(evQuery, (snap) => {
+        const events = snap.docs.map((d) => d.data());
+        callbacks.onLiveEvents?.(events);
+      })
+    );
+  } else if (syncChannel) {
+    const handler = async (msg) => {
+      const topic = msg?.data?.topic;
+      if (topic === 'cards') callbacks.onCards?.(await getCards());
+      if (topic === 'questions') callbacks.onQuestions?.(await getQuickQuestions());
+      if (topic === 'events') callbacks.onLiveEvents?.(await getLiveEvents());
+    };
+    syncChannel.addEventListener('message', handler);
+    unsubs.push(() => syncChannel.removeEventListener('message', handler));
+  }
+
+  return () => unsubs.forEach((fn) => fn());
+}
+
+/* ==========================================================================
+   Historial Simple de Uso
    ========================================================================== */
 export async function logUsageEvent({ actionType, label, category = 'general' }) {
   const entry = {
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    actionType, // 'quick' | 'card' | 'choice'
+    actionType,
     label,
     category,
     timestamp: Date.now()
   };
   try {
     await putInStore(STORE_LOGS, entry);
-  } catch (err) {
-    console.warn('No se pudo registrar historial:', err);
-  }
+  } catch {}
   return entry;
 }
 
@@ -397,10 +605,8 @@ export async function getTodayUsageLogs() {
     const all = await getAllFromStore(STORE_LOGS);
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    const minTs = startOfDay.getTime();
-
     return all
-      .filter((item) => item.timestamp >= minTs)
+      .filter((item) => item.timestamp >= startOfDay.getTime())
       .sort((a, b) => b.timestamp - a.timestamp);
   } catch {
     return [];
@@ -418,7 +624,7 @@ export async function clearUsageLogs() {
 }
 
 /* ==========================================================================
-   Compresión de Imágenes Locales (listo para IndexedDB o Firebase Storage)
+   Compresión de Imágenes Locales
    ========================================================================== */
 export function compressImageFile(file, maxSize = 480, quality = 0.82) {
   return new Promise((resolve, reject) => {
