@@ -435,13 +435,23 @@ export async function sendTeenRequest({ label, category = 'general' }) {
 /**
  * Familia envía una pregunta de 2 opciones al dispositivo del adolescente.
  */
-export async function sendParentQuestion({ questionText, icon = '❓', imageData = null }) {
+export async function sendParentQuestion({
+  kind = 'yesno',
+  questionText = '',
+  icon = '❓',
+  imageData = null,
+  optionA = null,
+  optionB = null
+}) {
   const ev = {
     id: `ev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     type: 'parent_question',
+    kind, // 'yesno' | 'choice'
     questionText: (questionText || '').trim(),
     icon,
     imageData,
+    optionA,
+    optionB,
     status: 'pending', // 'pending' -> 'answered' -> 'seen'
     answer: null,
     answerText: null,

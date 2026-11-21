@@ -65,11 +65,15 @@ const state = {
   activeCategory: 'all',
   phraseTokens: [],
   ask: {
+    kind: 'yesno', // 'yesno' | 'choice'
     questionText: '¿Querés cenar?',
     icon: '🍽️',
     imageData: './assets/cards/comida.svg',
+    optionA: { text: 'Tostadas', icon: '🥪', imageData: null },
+    optionB: { text: 'Fruta', icon: '🍎', imageData: null },
     readingSequenceId: 0
   },
+  liveQuestionMode: 'yesno',
   form: {
     editingId: null,
     selectedIcon: '💬',
@@ -157,6 +161,10 @@ function cacheDom() {
   dom.btnResetAsk = document.getElementById('btn-reset-ask');
   dom.askCardA = document.getElementById('ask-card-a');
   dom.askCardB = document.getElementById('ask-card-b');
+  dom.askVisualA = document.getElementById('ask-visual-a');
+  dom.askVisualB = document.getElementById('ask-visual-b');
+  dom.askTextA = document.getElementById('ask-text-a');
+  dom.askTextB = document.getElementById('ask-text-b');
 
   // Explorar / Plantillas
   dom.templatesGrid = document.getElementById('templates-grid');
@@ -178,8 +186,14 @@ function cacheDom() {
     settings: document.getElementById('fam-view-settings')
   };
   dom.liveQuestionForm = document.getElementById('live-question-form');
+  dom.btnModeYesNo = document.getElementById('btn-mode-yesno');
+  dom.btnModeChoice = document.getElementById('btn-mode-choice');
+  dom.liveYesNoFields = document.getElementById('live-yesno-fields');
+  dom.liveChoiceFields = document.getElementById('live-choice-fields');
   dom.liveDailyChips = document.getElementById('live-daily-chips');
   dom.liveQuestionInput = document.getElementById('live-question-input');
+  dom.liveChoiceA = document.getElementById('live-choice-a');
+  dom.liveChoiceB = document.getElementById('live-choice-b');
   dom.liveSelectA = document.getElementById('live-select-a');
   dom.btnRestoreStarter = document.getElementById('btn-restore-starter');
   dom.btnClearEvents = document.getElementById('btn-clear-events');
@@ -366,9 +380,12 @@ function handleIncomingLiveEvents(events) {
     (e) => e.type === 'parent_question' && e.status === 'pending'
   );
   if (pendingQuestion) {
-    const qText = pendingQuestion.questionText || pendingQuestion.optionA?.text || 'Pregunta nueva';
+    const isChoice = pendingQuestion.kind === 'choice' && pendingQuestion.optionA && pendingQuestion.optionB;
+    const label = isChoice
+      ? `"${pendingQuestion.optionA.text}" o "${pendingQuestion.optionB.text}"`
+      : `"${pendingQuestion.questionText || pendingQuestion.optionA?.text || 'Pregunta nueva'}"`;
     dom.incomingBanner.hidden = false;
-    dom.incomingQuestionText.textContent = `Pregunta de Familia: "${qText}" — Tocar para responder SÍ o NO`;
+    dom.incomingQuestionText.textContent = `Pregunta de Familia: ${label} — Tocar para responder`;
     if (state.settings.role === 'communicator' && navigator.vibrate) {
       navigator.vibrate(60);
     }
@@ -488,9 +505,20 @@ function bindPhraseBar() {
     if (!pending) return;
 
     state.activeIncomingQuestionId = pending.id;
-    state.ask.questionText = pending.questionText || pending.optionA?.text || '¿Todo bien?';
-    state.ask.icon = pending.icon || '❓';
-    state.ask.imageData = pending.imageData || null;
+    const isChoice = pending.kind === 'choice' && pending.optionA && pending.optionB;
+    if (isChoice) {
+      state.ask.kind = 'choice';
+      state.ask.questionText = pending.questionText || '¿Cuál elegís?';
+      state.ask.icon = '🔀';
+      state.ask.imageData = null;
+      state.ask.optionA = { ...pending.optionA };
+      state.ask.optionB = { ...pending.optionB };
+    } else {
+      state.ask.kind = 'yesno';
+      state.ask.questionText = pending.questionText || pending.optionA?.text || '¿Todo bien?';
+      state.ask.icon = pending.icon || '❓';
+      state.ask.imageData = pending.imageData || null;
+    }
     dom.askQuestionInput.value = state.ask.questionText;
     resetAskSelection();
     renderAskCards();
@@ -656,6 +684,7 @@ function renderAskDailyChips() {
   if (dom.liveDailyChips) dom.liveDailyChips.innerHTML = '';
 
   state.quickQuestions.forEach((qq) => {
+    const isChoiceQQ = Boolean(qq.optionA?.text && qq.optionB?.text);
     const qText = qq.title || qq.optionA?.text || '¿Todo bien?';
     const qIcon = qq.icon || qq.optionA?.icon || '❓';
     const qImg = qq.imageData || qq.optionA?.imageData || null;
@@ -663,11 +692,21 @@ function renderAskDailyChips() {
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'chip-btn';
-    chip.textContent = `${qIcon} ${qText}`;
+    chip.textContent = isChoiceQQ ? qText : `${qIcon} ${qText}`;
     chip.addEventListener('click', () => {
-      state.ask.questionText = qText;
-      state.ask.icon = qIcon;
-      state.ask.imageData = qImg;
+      if (isChoiceQQ) {
+        state.ask.kind = 'choice';
+        state.ask.questionText = qText;
+        state.ask.icon = '🔀';
+        state.ask.imageData = null;
+        state.ask.optionA = { ...qq.optionA };
+        state.ask.optionB = { ...qq.optionB };
+      } else {
+        state.ask.kind = 'yesno';
+        state.ask.questionText = qText;
+        state.ask.icon = qIcon;
+        state.ask.imageData = qImg;
+      }
       dom.askQuestionInput.value = qText;
       dom.askSelectA.value = '';
       resetAskSelection();
@@ -679,11 +718,18 @@ function renderAskDailyChips() {
       const liveChip = document.createElement('button');
       liveChip.type = 'button';
       liveChip.className = 'chip-btn';
-      liveChip.textContent = `${qIcon} ${qText}`;
+      liveChip.textContent = isChoiceQQ ? qText : `${qIcon} ${qText}`;
       liveChip.addEventListener('click', () => {
-        dom.liveQuestionInput.value = qText;
-        dom.liveQuestionInput.dataset.icon = qIcon;
-        dom.liveQuestionInput.dataset.image = qImg || '';
+        if (isChoiceQQ) {
+          dom.btnModeChoice.click();
+          dom.liveChoiceA.value = qq.optionA.text;
+          dom.liveChoiceB.value = qq.optionB.text;
+        } else {
+          dom.btnModeYesNo.click();
+          dom.liveQuestionInput.value = qText;
+          dom.liveQuestionInput.dataset.icon = qIcon;
+          dom.liveQuestionInput.dataset.image = qImg || '';
+        }
       });
       dom.liveDailyChips.appendChild(liveChip);
     }
@@ -756,6 +802,22 @@ function renderAskCards() {
     icon: state.ask.icon,
     imageData: state.ask.imageData
   });
+
+  if (state.ask.kind === 'choice') {
+    dom.askCardA.classList.remove('ask-card--yes');
+    dom.askCardB.classList.remove('ask-card--no');
+    renderAskVisual(dom.askVisualA, state.ask.optionA);
+    renderAskVisual(dom.askVisualB, state.ask.optionB);
+    dom.askTextA.textContent = state.ask.optionA.text || 'Opción A';
+    dom.askTextB.textContent = state.ask.optionB.text || 'Opción B';
+  } else {
+    dom.askCardA.classList.add('ask-card--yes');
+    dom.askCardB.classList.add('ask-card--no');
+    dom.askVisualA.textContent = '✓';
+    dom.askVisualB.textContent = '✕';
+    dom.askTextA.textContent = 'SÍ';
+    dom.askTextB.textContent = 'NO';
+  }
 }
 
 function renderAskVisual(el, opt) {
@@ -776,18 +838,42 @@ function resetAskSelection() {
 
 async function readAskOptionsSequentially() {
   resetAskSelection();
-  const qText = (state.ask.questionText || '').trim();
-  if (qText) {
-    await speak(qText, ttsOptions());
+  const seqId = ++state.ask.readingSequenceId;
+
+  if (state.ask.kind === 'choice') {
+    const tA = (state.ask.optionA.text || '').trim();
+    const tB = (state.ask.optionB.text || '').trim();
+    if (tA) {
+      dom.askCardA.classList.add('is-reading');
+      await speak(tA, ttsOptions());
+      dom.askCardA.classList.remove('is-reading');
+    }
+    if (state.ask.readingSequenceId !== seqId) return;
+    await new Promise((r) => setTimeout(r, 380));
+    if (state.ask.readingSequenceId !== seqId) return;
+    if (tB) {
+      dom.askCardB.classList.add('is-reading');
+      await speak(tB, ttsOptions());
+      dom.askCardB.classList.remove('is-reading');
+    }
+  } else {
+    const qText = (state.ask.questionText || '').trim();
+    if (qText) {
+      await speak(qText, ttsOptions());
+    }
   }
 }
 
 async function chooseAskOption(side) {
   state.ask.readingSequenceId += 1;
-  const isYes = side === 'A';
-  const chosenCard = isYes ? dom.askCardA : dom.askCardB;
-  const otherCard = isYes ? dom.askCardB : dom.askCardA;
-  const answerLabel = isYes ? 'SÍ' : 'NO';
+  const isA = side === 'A';
+  const chosenCard = isA ? dom.askCardA : dom.askCardB;
+  const otherCard = isA ? dom.askCardB : dom.askCardA;
+
+  const isChoice = state.ask.kind === 'choice';
+  const answerLabel = isChoice
+    ? (isA ? state.ask.optionA.text : state.ask.optionB.text)
+    : (isA ? 'SÍ' : 'NO');
 
   chosenCard.classList.remove('is-reading', 'is-dimmed');
   chosenCard.classList.add('is-chosen');
@@ -796,7 +882,7 @@ async function chooseAskOption(side) {
 
   await logUsageEvent({
     actionType: 'choice',
-    label: `${state.ask.questionText} → ${answerLabel}`,
+    label: isChoice ? `Eligió: ${answerLabel}` : `${state.ask.questionText} → ${answerLabel}`,
     category: 'te_pregunto'
   });
 
@@ -805,10 +891,13 @@ async function chooseAskOption(side) {
     state.activeIncomingQuestionId = null;
     dom.incomingBanner.hidden = true;
   } else {
-    dispatchTeenRequest(`${state.ask.questionText} → ${answerLabel}`, 'te_pregunto');
+    dispatchTeenRequest(
+      isChoice ? `Eligió: ${answerLabel}` : `${state.ask.questionText} → ${answerLabel}`,
+      'te_pregunto'
+    );
   }
 
-  await speak(isYes ? 'Sí' : 'No', ttsOptions());
+  await speak(isChoice ? answerLabel : (isA ? 'Sí' : 'No'), ttsOptions());
 }
 
 /* ==========================================================================
@@ -885,6 +974,22 @@ function bindFamilyMode() {
       res === 'granted' ? '🔔 Alertas activas' : '🔕 Permiso denegado';
   });
 
+  dom.btnModeYesNo.addEventListener('click', () => {
+    state.liveQuestionMode = 'yesno';
+    dom.btnModeYesNo.classList.add('is-active');
+    dom.btnModeChoice.classList.remove('is-active');
+    dom.liveYesNoFields.hidden = false;
+    dom.liveChoiceFields.hidden = true;
+  });
+
+  dom.btnModeChoice.addEventListener('click', () => {
+    state.liveQuestionMode = 'choice';
+    dom.btnModeChoice.classList.add('is-active');
+    dom.btnModeYesNo.classList.remove('is-active');
+    dom.liveYesNoFields.hidden = true;
+    dom.liveChoiceFields.hidden = false;
+  });
+
   dom.liveSelectA.addEventListener('change', () => {
     const card = state.cards.find((c) => c.id === dom.liveSelectA.value);
     if (!card) return;
@@ -895,14 +1000,28 @@ function bindFamilyMode() {
 
   dom.liveQuestionForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const qText = dom.liveQuestionInput.value.trim();
-    if (!qText) return;
 
-    await sendParentQuestion({
-      questionText: qText,
-      icon: dom.liveQuestionInput.dataset.icon || '❓',
-      imageData: dom.liveQuestionInput.dataset.image || null
-    });
+    if (state.liveQuestionMode === 'choice') {
+      const a = dom.liveChoiceA.value.trim();
+      const b = dom.liveChoiceB.value.trim();
+      if (!a || !b) return;
+      await sendParentQuestion({
+        kind: 'choice',
+        questionText: '¿Cuál preferís?',
+        optionA: { text: a, icon: '🅰️', imageData: null },
+        optionB: { text: b, icon: '🅱️', imageData: null }
+      });
+    } else {
+      const qText = dom.liveQuestionInput.value.trim();
+      if (!qText) return;
+      await sendParentQuestion({
+        kind: 'yesno',
+        questionText: qText,
+        icon: dom.liveQuestionInput.dataset.icon || '❓',
+        imageData: dom.liveQuestionInput.dataset.image || null
+      });
+    }
+
     state.liveEvents = await getLiveEvents();
     renderLiveEvents();
   });
@@ -1226,12 +1345,18 @@ function renderManageQuestionsList() {
     const item = document.createElement('div');
     item.className = 'manage-item';
 
+    const isChoiceQQ = Boolean(qq.optionA?.text && qq.optionB?.text);
     const qText = qq.title || qq.optionA?.text || 'Pregunta';
     const info = document.createElement('div');
-    info.innerHTML = `
-      <div class="manage-item__text">${escapeHtml(qq.icon || '❓')} ${escapeHtml(qText)}</div>
-      <div class="manage-item__cat">Respuesta rápida: SÍ / NO</div>
-    `;
+    info.innerHTML = isChoiceQQ
+      ? `
+        <div class="manage-item__text">${escapeHtml(qText)}</div>
+        <div class="manage-item__cat">${escapeHtml(qq.optionA.text)} vs ${escapeHtml(qq.optionB.text)}</div>
+      `
+      : `
+        <div class="manage-item__text">${escapeHtml(qq.icon || '❓')} ${escapeHtml(qText)}</div>
+        <div class="manage-item__cat">Respuesta rápida: SÍ / NO</div>
+      `;
 
     const actions = document.createElement('div');
     actions.className = 'manage-item__actions';
@@ -1241,11 +1366,21 @@ function renderManageQuestionsList() {
     sendBtn.className = 'btn btn--accent btn--sm';
     sendBtn.textContent = '📤 Enviar';
     sendBtn.addEventListener('click', async () => {
-      await sendParentQuestion({
-        questionText: qText,
-        icon: qq.icon || '❓',
-        imageData: qq.imageData || null
-      });
+      if (isChoiceQQ) {
+        await sendParentQuestion({
+          kind: 'choice',
+          questionText: qText,
+          optionA: qq.optionA,
+          optionB: qq.optionB
+        });
+      } else {
+        await sendParentQuestion({
+          kind: 'yesno',
+          questionText: qText,
+          icon: qq.icon || '❓',
+          imageData: qq.imageData || null
+        });
+      }
       state.liveEvents = await getLiveEvents();
       renderLiveEvents();
       sendBtn.textContent = '✓ Enviada';
@@ -1300,7 +1435,10 @@ function renderLiveEvents() {
         <div class="manage-item__cat">${time} · ${ev.status === 'seen' ? 'Visto ✓✓' : 'Nuevo aviso'}</div>
       `;
     } else {
-      const qLabel = ev.questionText || `${ev.optionA?.text || ''} / ${ev.optionB?.text || ''}`;
+      const qLabel =
+        ev.kind === 'choice' && ev.optionA && ev.optionB
+          ? `${ev.optionA.text} / ${ev.optionB.text}`
+          : (ev.questionText || `${ev.optionA?.text || ''} / ${ev.optionB?.text || ''}`);
       const statusText =
         ev.status === 'answered'
           ? `Respondió: "${escapeHtml(ev.answerText)}" ✓`

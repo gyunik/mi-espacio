@@ -278,23 +278,39 @@
       <!-- Sub-vista 0: En Vivo (Avisos del adolescente y envío directo de preguntas) -->
       <section id="fam-view-live" class="tab-view is-active">
         <form id="live-question-form" class="panel">
-          <h2 class="panel__title">Enviar Pregunta (Sí / No) al Comunicador</h2>
-          <p class="muted-text" style="margin-bottom: 12px;">
-            Escribí o elegí una pregunta simple. En su pantalla le aparece un aviso calmo para responder <strong>SÍ</strong> o <strong>NO</strong>.
-          </p>
+          <div class="ask-setup__header" style="margin-bottom: 10px;">
+            <h2 class="panel__title" style="margin: 0;">Enviar Pregunta al Comunicador</h2>
+            <div class="mode-switch" role="group" aria-label="Tipo de pregunta">
+              <button type="button" id="btn-mode-yesno" class="chip-btn is-active">Sí / No</button>
+              <button type="button" id="btn-mode-choice" class="chip-btn">2 Opciones</button>
+            </div>
+          </div>
 
           <div class="ask-daily-wrap" style="margin-bottom: 12px;">
             <span class="field-label">Preguntas rápidas listas:</span>
             <div id="live-daily-chips" class="ask-presets"></div>
           </div>
 
-          <div class="form-field">
-            <label for="live-question-input" class="field-label">Pregunta</label>
+          <!-- Modo 1: Pregunta única Sí / No -->
+          <div id="live-yesno-fields" class="form-field">
+            <label for="live-question-input" class="field-label">Pregunta (responde SÍ o NO)</label>
             <div class="input-with-select">
-              <input id="live-question-input" type="text" class="input" value="¿Querés cenar?" maxlength="70" required />
+              <input id="live-question-input" type="text" class="input" value="¿Querés cenar?" maxlength="70" />
               <select id="live-select-a" class="select select--compact" aria-label="Elegir pregunta de tarjeta">
                 <option value="">Elegir...</option>
               </select>
+            </div>
+          </div>
+
+          <!-- Modo 2: Elegir entre 2 opciones concretas -->
+          <div id="live-choice-fields" class="form-grid" hidden>
+            <div class="form-field">
+              <label for="live-choice-a" class="field-label">Opción A</label>
+              <input id="live-choice-a" type="text" class="input" value="Tostadas" placeholder="Ej: Tostadas" maxlength="50" />
+            </div>
+            <div class="form-field">
+              <label for="live-choice-b" class="field-label">Opción B</label>
+              <input id="live-choice-b" type="text" class="input" value="Fruta" placeholder="Ej: Fruta" maxlength="50" />
             </div>
           </div>
 
