@@ -176,7 +176,11 @@ function openDatabase() {
       }
     };
 
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     request.onerror = () => reject(request.error);
   });
 }
@@ -414,13 +418,18 @@ export async function getLiveEvents() {
 }
 
 async function saveLiveEvent(eventObj) {
-  await putInStore(STORE_EVENTS, eventObj);
-  notifyLocalSync('events');
-
+  // Escribir primero en Firestore para que un fallo local de IndexedDB nunca bloquee el envío en vivo
   if (fb) {
     const { pairingCode } = getSettings();
     await fb.setDoc(fb.doc(fb.db, 'boards', pairingCode, 'events', eventObj.id), eventObj);
   }
+
+  try {
+    await putInStore(STORE_EVENTS, eventObj);
+  } catch (err) {
+    console.warn('IndexedDB liveEvents local omitido:', err);
+  }
+  notifyLocalSync('events');
   return eventObj;
 }
 

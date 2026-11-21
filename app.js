@@ -440,8 +440,13 @@ async function showBrowserNotification(title, body) {
 let sentTimer = null;
 async function dispatchTeenRequest(label, category) {
   if (!state.settings.notifyFamilyOnTap) return;
-  await sendTeenRequest({ label, category });
-  dom.commSentStatus.textContent = `Enviado a Familia: "${label}" ✓`;
+  try {
+    await sendTeenRequest({ label, category });
+    dom.commSentStatus.textContent = `Enviado a Familia: "${label}" ✓`;
+  } catch (err) {
+    console.error('Error enviando aviso a Familia:', err);
+    dom.commSentStatus.textContent = 'No se pudo enviar el aviso (revisá conexión)';
+  }
   dom.commSentStatus.hidden = false;
   clearTimeout(sentTimer);
   sentTimer = setTimeout(() => {
