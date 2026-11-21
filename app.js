@@ -317,13 +317,26 @@ function startBoardSubscription() {
   }
 
   state.unsubscribeBoard = subscribeToBoard(state.settings.pairingCode, {
-    onCards: (cards) => {
+    onCards: async (cards) => {
+      if (cards.length === 0 && state.cards.length > 0) {
+        // Tablero nuevo en Firebase: subir las tarjetas locales iniciales en lugar de vaciar la pantalla
+        for (const c of state.cards) {
+          await saveCard(c);
+        }
+        return;
+      }
       state.cards = cards;
       renderCardsGrid();
       populateAskCardSelectors();
       renderManageCardsList();
     },
-    onQuestions: (questions) => {
+    onQuestions: async (questions) => {
+      if (questions.length === 0 && state.quickQuestions.length > 0) {
+        for (const q of state.quickQuestions) {
+          await saveQuickQuestion(q);
+        }
+        return;
+      }
       state.quickQuestions = questions;
       renderAskDailyChips();
       renderManageQuestionsList();
