@@ -490,34 +490,56 @@ export async function sendParentQuestion({ title, optionA, optionB }) {
  * El adolescente responde una pregunta enviada por Familia.
  */
 export async function answerParentQuestion(eventId, side, answerText) {
-  const all = await getLiveEvents();
-  const target = all.find((e) => e.id === eventId);
-  if (!target) return null;
-
-  const updated = {
-    ...target,
+  const patch = {
     status: 'answered',
     answer: side,
     answerText,
     answeredAt: Date.now()
   };
-  return saveLiveEvent(updated);
+
+  if (fb) {
+    const { pairingCode } = getSettings();
+    await fb.setDoc(
+      fb.doc(fb.db, 'boards', pairingCode, 'events', eventId),
+      patch,
+      { merge: true }
+    );
+  }
+
+  const all = await getLiveEvents();
+  const target = all.find((e) => e.id === eventId);
+  if (target) {
+    await putInStore(STORE_EVENTS, { ...target, ...patch });
+    notifyLocalSync('events');
+  }
+  return patch;
 }
 
 /**
  * Familia marca un aviso o respuesta como "Visto".
  */
 export async function markEventSeen(eventId) {
-  const all = await getLiveEvents();
-  const target = all.find((e) => e.id === eventId);
-  if (!target) return null;
-
-  const updated = {
-    ...target,
+  const patch = {
     status: 'seen',
     seenAt: Date.now()
   };
-  return saveLiveEvent(updated);
+
+  if (fb) {
+    const { pairingCode } = getSettings();
+    await fb.setDoc(
+      fb.doc(fb.db, 'boards', pairingCode, 'events', eventId),
+      patch,
+      { merge: true }
+    );
+  }
+
+  const all = await getLiveEvents();
+  const target = all.find((e) => e.id === eventId);
+  if (target) {
+    await putInStore(STORE_EVENTS, { ...target, ...patch });
+    notifyLocalSync('events');
+  }
+  return patch;
 }
 
 export async function clearLiveEvents() {
@@ -529,6 +551,12 @@ export async function clearLiveEvents() {
     tx.onerror = () => reject(tx.error);
   });
   notifyLocalSync('events');
+
+  if (fb) {
+    const { pairingCode } = getSettings();
+    const snap = await fb.getDocs(fb.collection(fb.db, 'boards', pairingCode, 'events'));
+    await Promise.all(snap.docs.map((d) => fb.deleteDoc(d.ref)));
+  }
 }
 
 /**
