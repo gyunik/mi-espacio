@@ -195,7 +195,6 @@ function cacheDom() {
   dom.liveChoiceA = document.getElementById('live-choice-a');
   dom.liveChoiceB = document.getElementById('live-choice-b');
   dom.liveSelectA = document.getElementById('live-select-a');
-  dom.btnRestoreStarter = document.getElementById('btn-restore-starter');
   dom.btnClearEvents = document.getElementById('btn-clear-events');
   dom.liveEventsList = document.getElementById('live-events-list');
 
@@ -1024,12 +1023,6 @@ function bindFamilyMode() {
 
     state.liveEvents = await getLiveEvents();
     renderLiveEvents();
-  });
-
-  dom.btnRestoreStarter?.addEventListener('click', async () => {
-    await importTemplatePack('pack-adolescente');
-    await importTemplatePack('pack-emociones');
-    await refreshAllData();
   });
 
   dom.btnClearEvents.addEventListener('click', async () => {
