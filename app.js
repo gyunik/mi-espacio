@@ -134,6 +134,7 @@ function cacheDom() {
   dom.incomingBanner = document.getElementById('incoming-question-banner');
   dom.incomingQuestionText = document.getElementById('incoming-question-text');
   dom.commSentStatus = document.getElementById('comm-sent-status');
+  dom.commChannelPill = document.getElementById('comm-channel-pill');
   dom.btnToggleRemoteNotify = document.getElementById('btn-toggle-remote-notify');
   dom.phraseBar = document.getElementById('phrase-bar');
   dom.phraseTokens = document.getElementById('phrase-tokens');
@@ -313,18 +314,31 @@ async function applyRoleScreen(role) {
 /* ==========================================================================
    SINCRONIZACIÓN EN TIEMPO REAL Y NOTIFICACIONES
    ========================================================================== */
+const seededCloudBoards = new Set();
+
 function startBoardSubscription() {
   if (state.unsubscribeBoard) {
     state.unsubscribeBoard();
     state.unsubscribeBoard = null;
   }
 
-  state.unsubscribeBoard = subscribeToBoard(state.settings.pairingCode, {
+  const activeCode = state.settings.pairingCode;
+
+  state.unsubscribeBoard = subscribeToBoard(activeCode, {
     onCards: async (cards) => {
-      if (cards.length === 0 && state.cards.length > 0) {
-        // Tablero nuevo en Firebase: subir las tarjetas locales iniciales en lugar de vaciar la pantalla
-        for (const c of state.cards) {
-          await saveCard(c);
+      if (cards.length === 0) {
+        if (!seededCloudBoards.has(activeCode)) {
+          seededCloudBoards.add(activeCode);
+          if (state.cards.length === 0) {
+            const seeded = await ensureSeedData();
+            state.cards = seeded.cards;
+          }
+          for (const c of state.cards) {
+            await saveCard(c);
+          }
+          renderCardsGrid();
+          populateAskCardSelectors();
+          renderManageCardsList();
         }
         return;
       }
@@ -334,9 +348,12 @@ function startBoardSubscription() {
       renderManageCardsList();
     },
     onQuestions: async (questions) => {
-      if (questions.length === 0 && state.quickQuestions.length > 0) {
-        for (const q of state.quickQuestions) {
-          await saveQuickQuestion(q);
+      if (questions.length === 0) {
+        if (state.quickQuestions.length > 0 && !seededCloudBoards.has(`q-${activeCode}`)) {
+          seededCloudBoards.add(`q-${activeCode}`);
+          for (const q of state.quickQuestions) {
+            await saveQuickQuestion(q);
+          }
         }
         return;
       }
@@ -1392,12 +1409,20 @@ function populateVoiceSelect(voices) {
 
 function applySettingsToUI() {
   const code = state.settings.pairingCode || '000000';
-  dom.displayPairingCode.textContent = `${code.slice(0, 3)}-${code.slice(3)}`;
+  const formattedCode = `${code.slice(0, 3)}-${code.slice(3)}`;
+  dom.displayPairingCode.textContent = formattedCode;
   dom.syncStatusPill.textContent = state.firebaseReady
     ? '● Conectado a Firebase en tiempo real'
     : isFirebaseConfigured()
       ? '● Sin conexión (modo local)'
       : '● Modo Local (sincroniza entre pestañas)';
+
+  if (dom.commChannelPill) {
+    dom.commChannelPill.textContent = state.firebaseReady
+      ? `● Canal ${formattedCode}`
+      : `○ Canal ${formattedCode} (local)`;
+    dom.commChannelPill.classList.toggle('is-online', state.firebaseReady);
+  }
 
   const notifyOn = Boolean(state.settings.notifyFamilyOnTap);
   dom.btnToggleRemoteNotify.classList.toggle('is-active', notifyOn);
