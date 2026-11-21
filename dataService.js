@@ -135,7 +135,9 @@ export async function initBackend() {
     if (!auth.currentUser) {
       await authMod.signInAnonymously(auth);
     }
-    const db = fsMod.getFirestore(app);
+    const db = fsMod.initializeFirestore(app, {
+      experimentalForceLongPolling: true
+    });
     fb = { db, ...fsMod };
     return true;
   } catch (err) {
