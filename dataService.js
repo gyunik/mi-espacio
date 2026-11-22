@@ -524,11 +524,12 @@ export async function answerParentQuestion(eventId, side, answerText) {
 /**
  * Familia responde a un pedido del adolescente con audio y/o texto.
  */
-export async function replyToTeenRequest(eventId, { replyText = '', replyAudioData = null }) {
+export async function replyToTeenRequest(eventId, { replyText = '', replyAudioData = null, replyImageData = null }) {
   const patch = {
     status: 'replied',
     replyText: (replyText || '').trim(),
     replyAudioData: replyAudioData || null,
+    replyImageData: replyImageData || null,
     repliedAt: Date.now()
   };
 

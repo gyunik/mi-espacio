@@ -12,7 +12,8 @@ import {
   playAudioDataUrl,
   stopAllAudio,
   isAudioRecordingSupported,
-  startVoiceRecording
+  startVoiceRecording,
+  startLiveTranscript
 } from './speech.js';
 
 import {
@@ -65,6 +66,7 @@ const state = {
   activeTeenReplyId: null,
   familyReply: {
     recorder: null,
+    transcriber: null,
     isRecording: false,
     audioData: null,
     autoStopTimer: null
@@ -169,7 +171,9 @@ function cacheDom() {
 
   // Modal de respuesta de Familia en Modo Comunicador
   dom.teenReplyModal = document.getElementById('teen-reply-modal');
+  dom.teenReplyOrigVisual = document.getElementById('teen-reply-orig-visual');
   dom.teenReplyContext = document.getElementById('teen-reply-context');
+  dom.teenReplyVisual = document.getElementById('teen-reply-visual');
   dom.teenReplyTitle = document.getElementById('teen-reply-title');
   dom.btnTeenPlayReply = document.getElementById('btn-teen-play-reply');
   dom.btnTeenAckReply = document.getElementById('btn-teen-ack-reply');
@@ -182,6 +186,7 @@ function cacheDom() {
   dom.btnFamRecord = document.getElementById('btn-fam-record');
   dom.btnFamPlayAudio = document.getElementById('btn-fam-play-audio');
   dom.btnFamSendAudio = document.getElementById('btn-fam-send-audio');
+  dom.famTranscriptInput = document.getElementById('fam-transcript-input');
   dom.famRecordStatus = document.getElementById('fam-record-status');
   dom.btnFamJustSeen = document.getElementById('btn-fam-just-seen');
   dom.btnFamCloseModal = document.getElementById('btn-fam-close-modal');
@@ -652,7 +657,38 @@ async function answerFromPushModal(side) {
 
 function openTeenReplyModal(ev) {
   state.activeTeenReplyId = ev.id;
-  dom.teenReplyContext.textContent = `Sobre: "${ev.label}"`;
+  dom.teenReplyContext.textContent = ev.label || 'Tu aviso';
+
+  // 1. Dibujo del pedido original al que está contestando
+  const origCard = state.cards.find(
+    (c) => c.text.toLowerCase() === (ev.label || '').toLowerCase()
+  );
+  dom.teenReplyOrigVisual.innerHTML = '';
+  if (origCard?.imageData) {
+    const img = document.createElement('img');
+    img.src = origCard.imageData;
+    img.alt = ev.label;
+    dom.teenReplyOrigVisual.appendChild(img);
+  } else {
+    dom.teenReplyOrigVisual.textContent = origCard?.icon || '📣';
+  }
+
+  // 2. Imagen representativa de la respuesta (Ya voy / 5 min / Ok / Voz)
+  let replyImg = ev.replyImageData || null;
+  if (!replyImg) {
+    const txt = (ev.replyText || '').toLowerCase();
+    if (txt.includes('ya voy')) replyImg = './assets/cards/ya-voy.svg';
+    else if (txt.includes('5 min')) replyImg = './assets/cards/cinco-min.svg';
+    else if (txt.includes('entendido') || txt.includes('ok')) replyImg = './assets/cards/entendido.svg';
+    else if (ev.replyAudioData) replyImg = './assets/cards/audio-familia.svg';
+    else replyImg = './assets/cards/entendido.svg';
+  }
+
+  dom.teenReplyVisual.innerHTML = '';
+  const rImg = document.createElement('img');
+  rImg.src = replyImg;
+  rImg.alt = ev.replyText || 'Respuesta de Familia';
+  dom.teenReplyVisual.appendChild(rImg);
 
   if (ev.replyAudioData) {
     dom.teenReplyTitle.textContent = ev.replyText || 'Tenés un mensaje de voz de Familia';
@@ -694,6 +730,10 @@ function openFamilyAlertModal(ev) {
 
 function resetFamilyReplyRecorder() {
   clearTimeout(state.familyReply.autoStopTimer);
+  if (state.familyReply.transcriber) {
+    state.familyReply.transcriber.stop();
+    state.familyReply.transcriber = null;
+  }
   state.familyReply.isRecording = false;
   state.familyReply.recorder = null;
   state.familyReply.audioData = null;
@@ -701,6 +741,7 @@ function resetFamilyReplyRecorder() {
   dom.btnFamRecord.classList.remove('btn--danger');
   dom.btnFamPlayAudio.hidden = true;
   dom.btnFamSendAudio.hidden = true;
+  if (dom.famTranscriptInput) dom.famTranscriptInput.value = '';
   dom.famRecordStatus.textContent = '';
 }
 
@@ -1270,6 +1311,10 @@ function bindFamilyMode() {
   const stopFamRecording = async () => {
     if (!state.familyReply.isRecording || !state.familyReply.recorder) return;
     clearTimeout(state.familyReply.autoStopTimer);
+    if (state.familyReply.transcriber) {
+      state.familyReply.transcriber.stop();
+      state.familyReply.transcriber = null;
+    }
     const dataUrl = await state.familyReply.recorder.stop();
     state.familyReply.isRecording = false;
     state.familyReply.recorder = null;
@@ -1278,7 +1323,7 @@ function bindFamilyMode() {
     dom.btnFamRecord.classList.remove('btn--danger');
     dom.btnFamPlayAudio.hidden = false;
     dom.btnFamSendAudio.hidden = false;
-    dom.famRecordStatus.textContent = 'Audio listo. Tocá "Enviar audio" para mandárselo.';
+    dom.famRecordStatus.textContent = 'Audio listo. Podés ajustar el texto y tocar "Enviar audio".';
   };
 
   dom.btnFamRecord.addEventListener('click', async () => {
@@ -1286,9 +1331,16 @@ function bindFamilyMode() {
       try {
         state.familyReply.recorder = await startVoiceRecording();
         state.familyReply.isRecording = true;
+        dom.famTranscriptInput.value = '';
+        state.familyReply.transcriber = startLiveTranscript({
+          lang: 'es-AR',
+          onUpdate: (text) => {
+            dom.famTranscriptInput.value = text;
+          }
+        });
         dom.btnFamRecord.textContent = '⏹ Detener grabación';
         dom.btnFamRecord.classList.add('btn--danger');
-        dom.famRecordStatus.textContent = 'Grabando... (máx. 15 seg)';
+        dom.famRecordStatus.textContent = 'Grabando y transcribiendo en vivo... (máx. 15 seg)';
         state.familyReply.autoStopTimer = setTimeout(stopFamRecording, 15000);
       } catch {
         dom.famRecordStatus.textContent = 'Permiso de micrófono denegado.';
@@ -1305,9 +1357,11 @@ function bindFamilyMode() {
   dom.btnFamSendAudio.addEventListener('click', async () => {
     if (!state.activeFamilyAlertId || !state.familyReply.audioData) return;
     dom.famRecordStatus.textContent = 'Enviando audio...';
+    const transcript = dom.famTranscriptInput.value.trim();
     await replyToTeenRequest(state.activeFamilyAlertId, {
-      replyText: 'Mensaje de voz de Familia',
-      replyAudioData: state.familyReply.audioData
+      replyText: transcript || 'Mensaje de voz de Familia',
+      replyAudioData: state.familyReply.audioData,
+      replyImageData: './assets/cards/audio-familia.svg'
     });
     resetFamilyReplyRecorder();
     dom.famAlertModal.hidden = true;
@@ -1319,7 +1373,8 @@ function bindFamilyMode() {
       if (!state.activeFamilyAlertId) return;
       await replyToTeenRequest(state.activeFamilyAlertId, {
         replyText: btn.dataset.quickReply,
-        replyAudioData: null
+        replyAudioData: null,
+        replyImageData: btn.dataset.quickReplyImg || './assets/cards/entendido.svg'
       });
       resetFamilyReplyRecorder();
       dom.famAlertModal.hidden = true;

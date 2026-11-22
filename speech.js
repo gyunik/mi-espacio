@@ -257,3 +257,57 @@ export async function startVoiceRecording() {
       })
   };
 }
+
+/**
+ * Inicia transcripción de voz en vivo (Web Speech Recognition API) en español.
+ * Devuelve un controlador con método stop(), o null si el navegador no lo soporta.
+ * @param {Object} options
+ * @param {string} [options.lang='es-AR']
+ * @param {Function} [options.onUpdate] Recibe el texto transcrito acumulado
+ */
+export function startLiveTranscript({ lang = 'es-AR', onUpdate } = {}) {
+  const Recognition =
+    typeof window !== 'undefined' &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  if (!Recognition) return null;
+
+  const rec = new Recognition();
+  rec.lang = lang;
+  rec.continuous = true;
+  rec.interimResults = true;
+
+  let finalText = '';
+
+  rec.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const piece = event.results[i][0]?.transcript || '';
+      if (event.results[i].isFinal) {
+        finalText += (finalText ? ' ' : '') + piece.trim();
+      } else {
+        interim += piece;
+      }
+    }
+    const combined = `${finalText} ${interim}`.trim();
+    if (typeof onUpdate === 'function') {
+      onUpdate(combined);
+    }
+  };
+
+  rec.onerror = () => {};
+
+  try {
+    rec.start();
+  } catch {
+    return null;
+  }
+
+  return {
+    stop: () => {
+      try {
+        rec.stop();
+      } catch {}
+    }
+  };
+}

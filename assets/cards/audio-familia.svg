@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Mensaje de voz de Familia">
+  <rect width="240" height="160" rx="16" fill="#0F172A"/>
+  <circle cx="120" cy="80" r="54" fill="#162032" stroke="#10B981" stroke-opacity="0.25" stroke-width="2"/>
+  
+    <line x1="84" y1="68" x2="84" y2="92" stroke="#38BDF8" stroke-width="6" stroke-linecap="round"/>
+    <line x1="102" y1="54" x2="102" y2="106" stroke="#10B981" stroke-width="6" stroke-linecap="round"/>
+    <line x1="120" y1="44" x2="120" y2="116" stroke="#38BDF8" stroke-width="6" stroke-linecap="round"/>
+    <line x1="138" y1="54" x2="138" y2="106" stroke="#10B981" stroke-width="6" stroke-linecap="round"/>
+    <line x1="156" y1="68" x2="156" y2="92" stroke="#38BDF8" stroke-width="6" stroke-linecap="round"/>
+  
+</svg>

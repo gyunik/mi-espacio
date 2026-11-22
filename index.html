@@ -271,11 +271,20 @@
       <div class="push-modal__card push-modal__card--emerald">
         <div class="push-modal__top">
           <span class="push-modal__eyebrow push-modal__eyebrow--emerald">Respuesta de Familia</span>
-          <span id="teen-reply-context" class="muted-text"></span>
         </div>
 
+        <!-- Dibujo y texto del pedido original al que responde -->
+        <div class="reply-context-bar">
+          <div id="teen-reply-orig-visual" class="reply-context-bar__thumb">📣</div>
+          <div class="reply-context-bar__info">
+            <span class="reply-context-bar__label">Sobre tu aviso:</span>
+            <strong id="teen-reply-context" class="reply-context-bar__text">Necesito una pausa</strong>
+          </div>
+        </div>
+
+        <!-- Imagen grande representativa de la respuesta + texto claro / transcrito -->
         <div class="push-modal__hero">
-          <div class="reply-hero-icon" aria-hidden="true">💬</div>
+          <div id="teen-reply-visual" class="push-modal__visual push-modal__visual--sm">✓</div>
           <h2 id="teen-reply-title" class="push-modal__title">Familia respondió tu aviso</h2>
         </div>
 
@@ -561,9 +570,9 @@
           <h2 id="fam-alert-title" class="push-modal__title">Tengo hambre</h2>
         </div>
 
-        <!-- Responder con nota de voz real -->
+        <!-- Responder con nota de voz real + transcripción en vivo -->
         <div class="family-reply-box">
-          <span class="field-label">Responder con tu voz (hasta 15 seg):</span>
+          <span class="field-label">Responder con tu voz (se transcribe en vivo, máx. 15 seg):</span>
           <div class="voice-record-row">
             <button type="button" id="btn-fam-record" class="btn btn--accent">
               🎙️ Grabar respuesta
@@ -575,6 +584,13 @@
               📤 Enviar audio
             </button>
           </div>
+          <input
+            id="fam-transcript-input"
+            type="text"
+            class="input"
+            placeholder="Lo que decís aparece acá en texto en vivo..."
+            maxlength="140"
+          />
           <span id="fam-record-status" class="muted-text"></span>
         </div>
 
@@ -582,9 +598,9 @@
         <div class="family-reply-box">
           <span class="field-label">O respuesta rápida de 1 toque:</span>
           <div class="ask-presets">
-            <button type="button" class="btn btn--emerald btn--sm" data-quick-reply="Ya voy">Ya voy</button>
-            <button type="button" class="btn btn--emerald btn--sm" data-quick-reply="En 5 minutos voy">En 5 minutos</button>
-            <button type="button" class="btn btn--emerald btn--sm" data-quick-reply="Ok, entendido">Ok, entendido ✓</button>
+            <button type="button" class="btn btn--emerald btn--sm" data-quick-reply="Ya voy" data-quick-reply-img="./assets/cards/ya-voy.svg">🚶 Ya voy</button>
+            <button type="button" class="btn btn--emerald btn--sm" data-quick-reply="En 5 minutos voy" data-quick-reply-img="./assets/cards/cinco-min.svg">⏱️ En 5 minutos</button>
+            <button type="button" class="btn btn--emerald btn--sm" data-quick-reply="Ok, entendido" data-quick-reply-img="./assets/cards/entendido.svg">✓ Ok, entendido</button>
           </div>
         </div>
 
