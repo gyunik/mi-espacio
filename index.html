@@ -265,6 +265,29 @@
         </button>
       </div>
     </div>
+
+    <!-- MODAL CALMO EN MODO COMUNICADOR: Respuesta de Familia (audio o texto) -->
+    <div id="teen-reply-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="teen-reply-title" hidden>
+      <div class="push-modal__card push-modal__card--emerald">
+        <div class="push-modal__top">
+          <span class="push-modal__eyebrow push-modal__eyebrow--emerald">Respuesta de Familia</span>
+          <span id="teen-reply-context" class="muted-text"></span>
+        </div>
+
+        <div class="push-modal__hero">
+          <div class="reply-hero-icon" aria-hidden="true">💬</div>
+          <h2 id="teen-reply-title" class="push-modal__title">Familia respondió tu aviso</h2>
+        </div>
+
+        <button type="button" id="btn-teen-play-reply" class="btn btn--emerald btn--lg reply-play-btn">
+          ▶ Escuchar mensaje de Familia
+        </button>
+
+        <button type="button" id="btn-teen-ack-reply" class="btn btn--accent btn--lg">
+          Entendido ✓
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- ========================================================================
@@ -524,6 +547,53 @@
         </div>
       </section>
     </main>
+
+    <!-- MODAL GRANDE EN MODO FAMILIA: Aviso entrante del adolescente + respuesta con audio -->
+    <div id="family-alert-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="fam-alert-title" hidden>
+      <div class="push-modal__card push-modal__card--amber">
+        <div class="push-modal__top">
+          <span class="push-modal__eyebrow push-modal__eyebrow--amber">📣 Nuevo aviso del Comunicador</span>
+          <span id="fam-alert-time" class="muted-text"></span>
+        </div>
+
+        <div class="push-modal__hero">
+          <div id="fam-alert-visual" class="push-modal__visual push-modal__visual--sm">📣</div>
+          <h2 id="fam-alert-title" class="push-modal__title">Tengo hambre</h2>
+        </div>
+
+        <!-- Responder con nota de voz real -->
+        <div class="family-reply-box">
+          <span class="field-label">Responder con tu voz (hasta 15 seg):</span>
+          <div class="voice-record-row">
+            <button type="button" id="btn-fam-record" class="btn btn--accent">
+              🎙️ Grabar respuesta
+            </button>
+            <button type="button" id="btn-fam-play-audio" class="btn btn--ghost btn--sm" hidden>
+              ▶ Escuchar
+            </button>
+            <button type="button" id="btn-fam-send-audio" class="btn btn--emerald" hidden>
+              📤 Enviar audio
+            </button>
+          </div>
+          <span id="fam-record-status" class="muted-text"></span>
+        </div>
+
+        <!-- Respuestas rápidas de 1 toque -->
+        <div class="family-reply-box">
+          <span class="field-label">O respuesta rápida de 1 toque:</span>
+          <div class="ask-presets">
+            <button type="button" class="btn btn--emerald btn--sm" data-quick-reply="Ya voy">Ya voy</button>
+            <button type="button" class="btn btn--emerald btn--sm" data-quick-reply="En 5 minutos voy">En 5 minutos</button>
+            <button type="button" class="btn btn--emerald btn--sm" data-quick-reply="Ok, entendido">Ok, entendido ✓</button>
+          </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 4px;">
+          <button type="button" id="btn-fam-just-seen" class="btn btn--ghost">Solo marcar visto</button>
+          <button type="button" id="btn-fam-close-modal" class="btn btn--ghost">Cerrar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="./app.js"></script>

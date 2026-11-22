@@ -887,6 +887,56 @@ select:focus-visible {
   width: 100%;
 }
 
+.push-modal__card--emerald {
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
+.push-modal__eyebrow--emerald {
+  color: var(--emerald);
+}
+
+.push-modal__card--amber {
+  border-color: rgba(245, 158, 11, 0.65);
+}
+
+.push-modal__eyebrow--amber {
+  color: var(--amber);
+}
+
+.push-modal__visual--sm {
+  max-width: 220px;
+  height: 140px;
+  font-size: 3.8rem;
+}
+
+.family-reply-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+}
+
+.reply-hero-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background-color: var(--emerald-soft);
+  border: 2px solid rgba(16, 185, 129, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+}
+
+.reply-play-btn {
+  width: 100%;
+  min-height: 64px;
+  font-size: 1.15rem;
+}
+
 .ask-card--yes {
   border-color: rgba(16, 185, 129, 0.48);
   background-color: rgba(16, 185, 129, 0.08);
@@ -1570,6 +1620,56 @@ select:focus-visible {
 
 .push-modal__later {
   width: 100%;
+}
+
+.push-modal__card--emerald {
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
+.push-modal__eyebrow--emerald {
+  color: var(--emerald);
+}
+
+.push-modal__card--amber {
+  border-color: rgba(245, 158, 11, 0.65);
+}
+
+.push-modal__eyebrow--amber {
+  color: var(--amber);
+}
+
+.push-modal__visual--sm {
+  max-width: 220px;
+  height: 140px;
+  font-size: 3.8rem;
+}
+
+.family-reply-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+}
+
+.reply-hero-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background-color: var(--emerald-soft);
+  border: 2px solid rgba(16, 185, 129, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+}
+
+.reply-play-btn {
+  width: 100%;
+  min-height: 64px;
+  font-size: 1.15rem;
 }
 
 .ask-card--yes {

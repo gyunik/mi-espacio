@@ -33,6 +33,8 @@ import {
   sendTeenRequest,
   sendParentQuestion,
   answerParentQuestion,
+  replyToTeenRequest,
+  acknowledgeReply,
   markEventSeen,
   clearLiveEvents,
   logUsageEvent,
@@ -58,6 +60,15 @@ const state = {
   liveEvents: [],
   activeIncomingQuestionId: null,
   dismissedPushQuestionId: null,
+  activeFamilyAlertId: null,
+  dismissedFamilyAlertId: null,
+  activeTeenReplyId: null,
+  familyReply: {
+    recorder: null,
+    isRecording: false,
+    audioData: null,
+    autoStopTimer: null
+  },
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
   firebaseReady: false,
@@ -155,6 +166,26 @@ function cacheDom() {
   dom.pushAText = document.getElementById('push-a-text');
   dom.pushBText = document.getElementById('push-b-text');
   dom.btnPushDismiss = document.getElementById('btn-push-dismiss');
+
+  // Modal de respuesta de Familia en Modo Comunicador
+  dom.teenReplyModal = document.getElementById('teen-reply-modal');
+  dom.teenReplyContext = document.getElementById('teen-reply-context');
+  dom.teenReplyTitle = document.getElementById('teen-reply-title');
+  dom.btnTeenPlayReply = document.getElementById('btn-teen-play-reply');
+  dom.btnTeenAckReply = document.getElementById('btn-teen-ack-reply');
+
+  // Modal de aviso entrante en Modo Familia
+  dom.famAlertModal = document.getElementById('family-alert-modal');
+  dom.famAlertTime = document.getElementById('fam-alert-time');
+  dom.famAlertVisual = document.getElementById('fam-alert-visual');
+  dom.famAlertTitle = document.getElementById('fam-alert-title');
+  dom.btnFamRecord = document.getElementById('btn-fam-record');
+  dom.btnFamPlayAudio = document.getElementById('btn-fam-play-audio');
+  dom.btnFamSendAudio = document.getElementById('btn-fam-send-audio');
+  dom.famRecordStatus = document.getElementById('fam-record-status');
+  dom.btnFamJustSeen = document.getElementById('btn-fam-just-seen');
+  dom.btnFamCloseModal = document.getElementById('btn-fam-close-modal');
+  dom.famQuickReplyBtns = document.querySelectorAll('[data-quick-reply]');
   dom.phraseBar = document.getElementById('phrase-bar');
   dom.phraseTokens = document.getElementById('phrase-tokens');
   dom.btnPlayPhrase = document.getElementById('btn-play-phrase');
@@ -413,13 +444,35 @@ function handleIncomingLiveEvents(events) {
     dom.pushModal.hidden = true;
   }
 
-  // 2. Modo Comunicador: actualizar confirmación si Familia marcó "Visto"
+  // 2. Modo Comunicador: mostrar modal calmo cuando Familia respondió con audio o texto
+  const repliedReq = state.liveEvents.find(
+    (e) => e.type === 'teen_request' && e.status === 'replied'
+  );
+  if (state.settings.role === 'communicator' && repliedReq) {
+    openTeenReplyModal(repliedReq);
+  } else {
+    dom.teenReplyModal.hidden = true;
+  }
+
+  // 2b. Modo Comunicador: actualizar confirmación si Familia marcó "Visto"
   const latestReq = state.liveEvents.find((e) => e.type === 'teen_request');
-  if (latestReq && latestReq.status === 'seen' && !dom.commSentStatus.hidden) {
+  if (latestReq && (latestReq.status === 'seen' || latestReq.status === 'acknowledged') && !dom.commSentStatus.hidden) {
     dom.commSentStatus.textContent = `Familia vio: "${latestReq.label}" ✓✓`;
   }
 
-  // 3. Modo Familia: disparar notificación nativa si llegó un pedido nuevo o respuesta
+  // 3. Modo Familia: abrir modal grande de aviso entrante + disparar notificación nativa
+  const pendingTeenAlert = state.liveEvents.find(
+    (e) => e.type === 'teen_request' && e.status === 'sent'
+  );
+  if (
+    state.settings.role === 'family' &&
+    pendingTeenAlert &&
+    state.dismissedFamilyAlertId !== pendingTeenAlert.id &&
+    dom.famAlertModal.hidden
+  ) {
+    openFamilyAlertModal(pendingTeenAlert);
+  }
+
   const newestAlert = state.liveEvents.find(
     (e) =>
       (e.type === 'teen_request' && e.status === 'sent') ||
@@ -597,7 +650,80 @@ async function answerFromPushModal(side) {
   }, 700);
 }
 
+function openTeenReplyModal(ev) {
+  state.activeTeenReplyId = ev.id;
+  dom.teenReplyContext.textContent = `Sobre: "${ev.label}"`;
+
+  if (ev.replyAudioData) {
+    dom.teenReplyTitle.textContent = ev.replyText || 'Tenés un mensaje de voz de Familia';
+    dom.btnTeenPlayReply.textContent = '▶ Escuchar mensaje de Familia';
+  } else {
+    dom.teenReplyTitle.textContent = ev.replyText || 'Familia vio tu aviso';
+    dom.btnTeenPlayReply.textContent = '🔊 Escuchar respuesta';
+  }
+  dom.teenReplyModal.hidden = false;
+}
+
+function openFamilyAlertModal(ev) {
+  state.activeFamilyAlertId = ev.id;
+  resetFamilyReplyRecorder();
+
+  const time = new Date(ev.createdAt).toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  dom.famAlertTime.textContent = time;
+  dom.famAlertTitle.textContent = ev.label;
+
+  // Buscar imagen de tarjeta coincidente
+  const match = state.cards.find(
+    (c) => c.text.toLowerCase() === (ev.label || '').toLowerCase()
+  );
+  dom.famAlertVisual.innerHTML = '';
+  if (match?.imageData) {
+    const img = document.createElement('img');
+    img.src = match.imageData;
+    img.alt = ev.label;
+    dom.famAlertVisual.appendChild(img);
+  } else {
+    dom.famAlertVisual.textContent = match?.icon || '📣';
+  }
+
+  dom.famAlertModal.hidden = false;
+}
+
+function resetFamilyReplyRecorder() {
+  clearTimeout(state.familyReply.autoStopTimer);
+  state.familyReply.isRecording = false;
+  state.familyReply.recorder = null;
+  state.familyReply.audioData = null;
+  dom.btnFamRecord.textContent = '🎙️ Grabar respuesta';
+  dom.btnFamRecord.classList.remove('btn--danger');
+  dom.btnFamPlayAudio.hidden = true;
+  dom.btnFamSendAudio.hidden = true;
+  dom.famRecordStatus.textContent = '';
+}
+
 function bindPhraseBar() {
+  dom.btnTeenPlayReply.addEventListener('click', () => {
+    const ev = state.liveEvents.find((e) => e.id === state.activeTeenReplyId);
+    if (!ev) return;
+    if (ev.replyAudioData) {
+      playAudioDataUrl(ev.replyAudioData);
+    } else if (ev.replyText) {
+      speak(ev.replyText, ttsOptions());
+    }
+  });
+
+  dom.btnTeenAckReply.addEventListener('click', async () => {
+    const id = state.activeTeenReplyId;
+    dom.teenReplyModal.hidden = true;
+    state.activeTeenReplyId = null;
+    if (id) {
+      await acknowledgeReply(id);
+    }
+  });
+
   dom.btnToggleRemoteNotify.addEventListener('click', () => {
     const next = !state.settings.notifyFamilyOnTap;
     state.settings = saveSettings({ notifyFamilyOnTap: next });
@@ -1135,6 +1261,87 @@ function bindFamilyMode() {
     renderLiveEvents();
   });
 
+  // Controles del modal de respuesta de Familia (grabación de audio + respuestas rápidas)
+  if (!isAudioRecordingSupported()) {
+    dom.btnFamRecord.disabled = true;
+    dom.famRecordStatus.textContent = 'Micrófono no soportado en este navegador.';
+  }
+
+  const stopFamRecording = async () => {
+    if (!state.familyReply.isRecording || !state.familyReply.recorder) return;
+    clearTimeout(state.familyReply.autoStopTimer);
+    const dataUrl = await state.familyReply.recorder.stop();
+    state.familyReply.isRecording = false;
+    state.familyReply.recorder = null;
+    state.familyReply.audioData = dataUrl;
+    dom.btnFamRecord.textContent = '🎙️ Regrabar';
+    dom.btnFamRecord.classList.remove('btn--danger');
+    dom.btnFamPlayAudio.hidden = false;
+    dom.btnFamSendAudio.hidden = false;
+    dom.famRecordStatus.textContent = 'Audio listo. Tocá "Enviar audio" para mandárselo.';
+  };
+
+  dom.btnFamRecord.addEventListener('click', async () => {
+    if (!state.familyReply.isRecording) {
+      try {
+        state.familyReply.recorder = await startVoiceRecording();
+        state.familyReply.isRecording = true;
+        dom.btnFamRecord.textContent = '⏹ Detener grabación';
+        dom.btnFamRecord.classList.add('btn--danger');
+        dom.famRecordStatus.textContent = 'Grabando... (máx. 15 seg)';
+        state.familyReply.autoStopTimer = setTimeout(stopFamRecording, 15000);
+      } catch {
+        dom.famRecordStatus.textContent = 'Permiso de micrófono denegado.';
+      }
+    } else {
+      await stopFamRecording();
+    }
+  });
+
+  dom.btnFamPlayAudio.addEventListener('click', () => {
+    if (state.familyReply.audioData) playAudioDataUrl(state.familyReply.audioData);
+  });
+
+  dom.btnFamSendAudio.addEventListener('click', async () => {
+    if (!state.activeFamilyAlertId || !state.familyReply.audioData) return;
+    dom.famRecordStatus.textContent = 'Enviando audio...';
+    await replyToTeenRequest(state.activeFamilyAlertId, {
+      replyText: 'Mensaje de voz de Familia',
+      replyAudioData: state.familyReply.audioData
+    });
+    resetFamilyReplyRecorder();
+    dom.famAlertModal.hidden = true;
+    state.activeFamilyAlertId = null;
+  });
+
+  dom.famQuickReplyBtns.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!state.activeFamilyAlertId) return;
+      await replyToTeenRequest(state.activeFamilyAlertId, {
+        replyText: btn.dataset.quickReply,
+        replyAudioData: null
+      });
+      resetFamilyReplyRecorder();
+      dom.famAlertModal.hidden = true;
+      state.activeFamilyAlertId = null;
+    });
+  });
+
+  dom.btnFamJustSeen.addEventListener('click', async () => {
+    if (state.activeFamilyAlertId) {
+      await markEventSeen(state.activeFamilyAlertId);
+    }
+    resetFamilyReplyRecorder();
+    dom.famAlertModal.hidden = true;
+    state.activeFamilyAlertId = null;
+  });
+
+  dom.btnFamCloseModal.addEventListener('click', () => {
+    state.dismissedFamilyAlertId = state.activeFamilyAlertId;
+    resetFamilyReplyRecorder();
+    dom.famAlertModal.hidden = true;
+  });
+
   dom.btnCopyCode.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(state.settings.pairingCode);
@@ -1527,9 +1734,17 @@ function renderLiveEvents() {
 
     const left = document.createElement('div');
     if (ev.type === 'teen_request') {
+      const statusTxt =
+        ev.status === 'replied'
+          ? `Respondido${ev.replyAudioData ? ' con audio 🎙️' : `: "${escapeHtml(ev.replyText)}"`} ✓`
+          : ev.status === 'acknowledged'
+            ? 'Escuchado por el adolescente ✓✓'
+            : ev.status === 'seen'
+              ? 'Visto ✓✓'
+              : 'Nuevo aviso (sin responder)';
       left.innerHTML = `
         <div class="manage-item__text">📣 ${escapeHtml(ev.label)}</div>
-        <div class="manage-item__cat">${time} · ${ev.status === 'seen' ? 'Visto ✓✓' : 'Nuevo aviso'}</div>
+        <div class="manage-item__cat">${time} · ${statusTxt}</div>
       `;
     } else {
       const qLabel =
@@ -1550,7 +1765,14 @@ function renderLiveEvents() {
 
     item.appendChild(left);
 
-    if (ev.status === 'sent' || ev.status === 'answered') {
+    if (ev.type === 'teen_request' && ev.status === 'sent') {
+      const replyBtn = document.createElement('button');
+      replyBtn.type = 'button';
+      replyBtn.className = 'btn btn--accent btn--sm';
+      replyBtn.textContent = '🎙️ Responder';
+      replyBtn.addEventListener('click', () => openFamilyAlertModal(ev));
+      item.appendChild(replyBtn);
+    } else if (ev.status === 'answered') {
       const seenBtn = document.createElement('button');
       seenBtn.type = 'button';
       seenBtn.className = 'btn btn--emerald btn--sm';

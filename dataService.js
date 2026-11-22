@@ -522,6 +522,62 @@ export async function answerParentQuestion(eventId, side, answerText) {
 }
 
 /**
+ * Familia responde a un pedido del adolescente con audio y/o texto.
+ */
+export async function replyToTeenRequest(eventId, { replyText = '', replyAudioData = null }) {
+  const patch = {
+    status: 'replied',
+    replyText: (replyText || '').trim(),
+    replyAudioData: replyAudioData || null,
+    repliedAt: Date.now()
+  };
+
+  if (fb) {
+    const { pairingCode } = getSettings();
+    await fb.setDoc(
+      fb.doc(fb.db, 'boards', pairingCode, 'events', eventId),
+      patch,
+      { merge: true }
+    );
+  }
+
+  const all = await getLiveEvents();
+  const target = all.find((e) => e.id === eventId);
+  if (target) {
+    await putInStore(STORE_EVENTS, { ...target, ...patch });
+    notifyLocalSync('events');
+  }
+  return patch;
+}
+
+/**
+ * El adolescente confirma que ya leyó/escuchó la respuesta de Familia.
+ */
+export async function acknowledgeReply(eventId) {
+  const patch = {
+    status: 'acknowledged',
+    acknowledgedAt: Date.now()
+  };
+
+  if (fb) {
+    const { pairingCode } = getSettings();
+    await fb.setDoc(
+      fb.doc(fb.db, 'boards', pairingCode, 'events', eventId),
+      patch,
+      { merge: true }
+    );
+  }
+
+  const all = await getLiveEvents();
+  const target = all.find((e) => e.id === eventId);
+  if (target) {
+    await putInStore(STORE_EVENTS, { ...target, ...patch });
+    notifyLocalSync('events');
+  }
+  return patch;
+}
+
+/**
  * Familia marca un aviso o respuesta como "Visto".
  */
 export async function markEventSeen(eventId) {
