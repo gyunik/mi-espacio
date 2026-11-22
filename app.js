@@ -57,6 +57,7 @@ const state = {
   usageLogs: [],
   liveEvents: [],
   activeIncomingQuestionId: null,
+  dismissedPushQuestionId: null,
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
   firebaseReady: false,
@@ -141,6 +142,19 @@ function cacheDom() {
   dom.commSentStatus = document.getElementById('comm-sent-status');
   dom.commChannelPill = document.getElementById('comm-channel-pill');
   dom.btnToggleRemoteNotify = document.getElementById('btn-toggle-remote-notify');
+
+  // Modal push visual para pregunta entrante
+  dom.pushModal = document.getElementById('push-question-modal');
+  dom.pushVisual = document.getElementById('push-question-visual');
+  dom.pushTitle = document.getElementById('push-question-title');
+  dom.btnPushSpeak = document.getElementById('btn-push-speak');
+  dom.btnPushA = document.getElementById('btn-push-a');
+  dom.btnPushB = document.getElementById('btn-push-b');
+  dom.pushAVisual = document.getElementById('push-a-visual');
+  dom.pushBVisual = document.getElementById('push-b-visual');
+  dom.pushAText = document.getElementById('push-a-text');
+  dom.pushBText = document.getElementById('push-b-text');
+  dom.btnPushDismiss = document.getElementById('btn-push-dismiss');
   dom.phraseBar = document.getElementById('phrase-bar');
   dom.phraseTokens = document.getElementById('phrase-tokens');
   dom.btnPlayPhrase = document.getElementById('btn-play-phrase');
@@ -385,11 +399,18 @@ function handleIncomingLiveEvents(events) {
       : `"${pendingQuestion.questionText || pendingQuestion.optionA?.text || 'Pregunta nueva'}"`;
     dom.incomingBanner.hidden = false;
     dom.incomingQuestionText.textContent = `Pregunta de Familia: ${label} — Tocar para responder`;
-    if (state.settings.role === 'communicator' && navigator.vibrate) {
-      navigator.vibrate(60);
+
+    // Mostrar automáticamente el modal visual push en Modo Comunicador si aún no fue descartado
+    if (
+      state.settings.role === 'communicator' &&
+      state.dismissedPushQuestionId !== pendingQuestion.id
+    ) {
+      openPushQuestionModal(pendingQuestion);
+      if (navigator.vibrate) navigator.vibrate(60);
     }
   } else {
     dom.incomingBanner.hidden = true;
+    dom.pushModal.hidden = true;
   }
 
   // 2. Modo Comunicador: actualizar confirmación si Familia marcó "Visto"
@@ -491,6 +512,91 @@ function bindCommunicatorNav() {
   });
 }
 
+function openPushQuestionModal(question) {
+  state.activeIncomingQuestionId = question.id;
+  const isChoice = question.kind === 'choice' && question.optionA && question.optionB;
+
+  dom.btnPushA.classList.remove('is-chosen', 'is-dimmed');
+  dom.btnPushB.classList.remove('is-chosen', 'is-dimmed');
+
+  // Auto-buscar imagen de tarjeta si la pregunta coincide con alguna tarjeta conocida
+  let visualImg = question.imageData || null;
+  let visualIcon = question.icon || '❓';
+  if (!visualImg && question.questionText) {
+    const qLower = question.questionText.toLowerCase();
+    const match = state.cards.find((c) => {
+      const words = c.text.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+      return words.some((w) => qLower.includes(w));
+    });
+    if (match?.imageData) {
+      visualImg = match.imageData;
+      visualIcon = match.icon || visualIcon;
+    } else if (qLower.includes('cenar') || qLower.includes('comer') || qLower.includes('almorzar')) {
+      visualImg = './assets/cards/comida.svg';
+    }
+  }
+
+  dom.pushVisual.innerHTML = '';
+  if (visualImg) {
+    const img = document.createElement('img');
+    img.src = visualImg;
+    img.alt = question.questionText || '';
+    dom.pushVisual.appendChild(img);
+  } else {
+    dom.pushVisual.textContent = isChoice ? '🔀' : visualIcon;
+  }
+
+  if (isChoice) {
+    dom.pushTitle.textContent = question.questionText || '¿Cuál preferís?';
+    dom.btnPushA.classList.remove('push-answer-btn--yes');
+    dom.btnPushB.classList.remove('push-answer-btn--no');
+    renderAskVisual(dom.pushAVisual, question.optionA);
+    renderAskVisual(dom.pushBVisual, question.optionB);
+    dom.pushAText.textContent = question.optionA.text;
+    dom.pushBText.textContent = question.optionB.text;
+  } else {
+    dom.pushTitle.textContent = question.questionText || '¿Todo bien?';
+    dom.btnPushA.classList.add('push-answer-btn--yes');
+    dom.btnPushB.classList.add('push-answer-btn--no');
+    dom.pushAVisual.textContent = '✓';
+    dom.pushBVisual.textContent = '✕';
+    dom.pushAText.textContent = 'SÍ';
+    dom.pushBText.textContent = 'NO';
+  }
+
+  dom.pushModal.hidden = false;
+}
+
+async function answerFromPushModal(side) {
+  const pending = state.liveEvents.find(
+    (e) => e.id === state.activeIncomingQuestionId && e.type === 'parent_question'
+  );
+  if (!pending) {
+    dom.pushModal.hidden = true;
+    return;
+  }
+
+  const isA = side === 'A';
+  const isChoice = pending.kind === 'choice' && pending.optionA && pending.optionB;
+  const answerLabel = isChoice
+    ? (isA ? pending.optionA.text : pending.optionB.text)
+    : (isA ? 'SÍ' : 'NO');
+
+  const chosenBtn = isA ? dom.btnPushA : dom.btnPushB;
+  const otherBtn = isA ? dom.btnPushB : dom.btnPushA;
+  chosenBtn.classList.add('is-chosen');
+  otherBtn.classList.add('is-dimmed');
+
+  await answerParentQuestion(pending.id, side, answerLabel);
+  state.activeIncomingQuestionId = null;
+  dom.incomingBanner.hidden = true;
+  await speak(isChoice ? answerLabel : (isA ? 'Sí' : 'No'), ttsOptions());
+
+  setTimeout(() => {
+    dom.pushModal.hidden = true;
+  }, 700);
+}
+
 function bindPhraseBar() {
   dom.btnToggleRemoteNotify.addEventListener('click', () => {
     const next = !state.settings.notifyFamilyOnTap;
@@ -498,33 +604,30 @@ function bindPhraseBar() {
     applySettingsToUI();
   });
 
+  dom.btnPushSpeak.addEventListener('click', () => {
+    const pending = state.liveEvents.find((e) => e.id === state.activeIncomingQuestionId);
+    if (!pending) return;
+    const isChoice = pending.kind === 'choice' && pending.optionA && pending.optionB;
+    const text = isChoice
+      ? `${pending.optionA.text}, o ${pending.optionB.text}`
+      : (pending.questionText || '');
+    speak(text, ttsOptions());
+  });
+
+  dom.btnPushA.addEventListener('click', () => answerFromPushModal('A'));
+  dom.btnPushB.addEventListener('click', () => answerFromPushModal('B'));
+  dom.btnPushDismiss.addEventListener('click', () => {
+    state.dismissedPushQuestionId = state.activeIncomingQuestionId;
+    dom.pushModal.hidden = true;
+  });
+
   dom.incomingBanner.addEventListener('click', () => {
     const pending = state.liveEvents.find(
       (e) => e.type === 'parent_question' && e.status === 'pending'
     );
     if (!pending) return;
-
-    state.activeIncomingQuestionId = pending.id;
-    const isChoice = pending.kind === 'choice' && pending.optionA && pending.optionB;
-    if (isChoice) {
-      state.ask.kind = 'choice';
-      state.ask.questionText = pending.questionText || '¿Cuál elegís?';
-      state.ask.icon = '🔀';
-      state.ask.imageData = null;
-      state.ask.optionA = { ...pending.optionA };
-      state.ask.optionB = { ...pending.optionB };
-    } else {
-      state.ask.kind = 'yesno';
-      state.ask.questionText = pending.questionText || pending.optionA?.text || '¿Todo bien?';
-      state.ask.icon = pending.icon || '❓';
-      state.ask.imageData = pending.imageData || null;
-    }
-    dom.askQuestionInput.value = state.ask.questionText;
-    resetAskSelection();
-    renderAskCards();
-
-    const askNav = document.querySelector('[data-comm-tab="ask"]');
-    askNav?.click();
+    state.dismissedPushQuestionId = null;
+    openPushQuestionModal(pending);
   });
 
   dom.btnPlayPhrase.addEventListener('click', async () => {

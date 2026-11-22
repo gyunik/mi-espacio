@@ -233,6 +233,38 @@
         <span class="nav-btn__label">Explorar</span>
       </button>
     </nav>
+
+    <!-- MODAL PUSH VISUAL PARA PREGUNTA ENTRANTE DE FAMILIA -->
+    <div id="push-question-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="push-question-title" hidden>
+      <div class="push-modal__card">
+        <div class="push-modal__top">
+          <span class="push-modal__eyebrow">Pregunta de Familia</span>
+          <button type="button" id="btn-push-speak" class="btn btn--accent btn--sm">🔊 Escuchar</button>
+        </div>
+
+        <!-- Imagen grande (tan grande o más que los botones) + texto claro -->
+        <div class="push-modal__hero">
+          <div id="push-question-visual" class="push-modal__visual">🍽️</div>
+          <h2 id="push-question-title" class="push-modal__title">¿Querés cenar?</h2>
+        </div>
+
+        <!-- Botones de respuesta (SÍ / NO o 2 Opciones) -->
+        <div class="push-modal__answers">
+          <button type="button" id="btn-push-a" class="push-answer-btn push-answer-btn--yes">
+            <span id="push-a-visual" class="push-answer-btn__visual">✓</span>
+            <span id="push-a-text" class="push-answer-btn__text">SÍ</span>
+          </button>
+          <button type="button" id="btn-push-b" class="push-answer-btn push-answer-btn--no">
+            <span id="push-b-visual" class="push-answer-btn__visual">✕</span>
+            <span id="push-b-text" class="push-answer-btn__text">NO</span>
+          </button>
+        </div>
+
+        <button type="button" id="btn-push-dismiss" class="btn btn--ghost push-modal__later">
+          Responder más tarde
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- ========================================================================
