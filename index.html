@@ -318,9 +318,14 @@
       <section id="comm-view-voice" class="tab-view is-active" role="tabpanel">
         <div class="voice-toolbar">
           <span id="comm-channel-pill" class="channel-pill">Canal: ------</span>
-          <button type="button" id="btn-toggle-remote-notify" class="chip-btn is-active" aria-pressed="true">
-            📡 Avisar a Familia: Activado
-          </button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" id="btn-comm-enable-push" class="chip-btn" hidden>
+              🔔 Activar notificaciones
+            </button>
+            <button type="button" id="btn-toggle-remote-notify" class="chip-btn is-active" aria-pressed="true">
+              📡 Avisar a Familia: Activado
+            </button>
+          </div>
         </div>
 
         <div id="phrase-bar" class="phrase-bar" aria-label="Tira de frase">

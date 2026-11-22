@@ -7,7 +7,7 @@
  *   comunicación de doble vía en tiempo real entre dos pestañas del navegador.
  */
 
-import { firebaseConfig } from './firebaseConfig.js';
+import { firebaseConfig, pushConfig } from './firebaseConfig.js';
 
 const DB_NAME = 'mi_espacio_db';
 const DB_VERSION = 2;
@@ -151,6 +151,16 @@ export const DEFAULT_QUICK_QUESTIONS = [
 /* ==========================================================================
    Inicialización Firebase (opcional, cero dependencias locales)
    ========================================================================== */
+export function isPushConfigured() {
+  return Boolean(
+    pushConfig &&
+    pushConfig.vapidKey &&
+    !pushConfig.vapidKey.startsWith('TU_') &&
+    pushConfig.workerUrl &&
+    !pushConfig.workerUrl.startsWith('TU_')
+  );
+}
+
 export async function initBackend() {
   if (!isFirebaseConfigured() || fb) return Boolean(fb);
 
@@ -169,12 +179,83 @@ export async function initBackend() {
     const db = fsMod.initializeFirestore(app, {
       experimentalForceLongPolling: true
     });
-    fb = { db, ...fsMod };
+    fb = { app, db, ...fsMod };
     return true;
   } catch (err) {
     console.warn('No se pudo conectar a Firebase, usando modo local:', err);
     fb = null;
     return false;
+  }
+}
+
+/**
+ * Registra el token Push (FCM) de este dispositivo en Firestore bajo boards/{pairingCode}/devices
+ * para recibir notificaciones incluso con la app cerrada o estando en otra app.
+ */
+export async function registerPushToken(role) {
+  if (!fb || !isPushConfigured()) return null;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return null;
+
+  try {
+    const reg = await navigator.serviceWorker?.ready;
+    if (!reg) return null;
+
+    const msgMod = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js');
+    const supported = await msgMod.isSupported();
+    if (!supported) return null;
+
+    const messaging = msgMod.getMessaging(fb.app);
+    const token = await msgMod.getToken(messaging, {
+      vapidKey: pushConfig.vapidKey,
+      serviceWorkerRegistration: reg
+    });
+
+    if (token) {
+      const { pairingCode } = getSettings();
+      const docId = token.slice(-24).replace(/[^a-zA-Z0-9_-]/g, '');
+      await fb.setDoc(fb.doc(fb.db, 'boards', pairingCode, 'devices', docId), {
+        token,
+        role,
+        updatedAt: Date.now()
+      });
+      console.log('[Mi Espacio] Token Push registrado para rol:', role);
+    }
+    return token;
+  } catch (err) {
+    console.warn('No se pudo registrar token Push:', err);
+    return null;
+  }
+}
+
+/**
+ * Envía una notificación push en segundo plano a todos los dispositivos del rol destino
+ * dentro del mismo código de vinculación, a través del Cloudflare Worker.
+ */
+async function triggerBackgroundPush({ targetRole, title, body }) {
+  if (!fb || !isPushConfigured()) return;
+
+  try {
+    const { pairingCode } = getSettings();
+    const snap = await fb.getDocs(fb.collection(fb.db, 'boards', pairingCode, 'devices'));
+    const tokens = snap.docs
+      .map((d) => d.data())
+      .filter((d) => d.role === targetRole && d.token)
+      .map((d) => d.token);
+
+    if (tokens.length === 0) return;
+
+    await fetch(pushConfig.workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tokens,
+        title,
+        body,
+        url: window.location.origin + window.location.pathname
+      })
+    });
+  } catch (err) {
+    console.warn('Push en segundo plano omitido:', err);
   }
 }
 
@@ -495,11 +576,17 @@ export async function sendTeenRequest({ label, category = 'general' }) {
     status: 'sent', // 'sent' -> 'seen'
     createdAt: Date.now()
   };
-  return saveLiveEvent(ev);
+  const saved = await saveLiveEvent(ev);
+  triggerBackgroundPush({
+    targetRole: 'family',
+    title: 'Mi Espacio — Nuevo aviso',
+    body: label
+  });
+  return saved;
 }
 
 /**
- * Familia envía una pregunta de 2 opciones al dispositivo del adolescente.
+ * Familia envía una pregunta al dispositivo del adolescente.
  */
 export async function sendParentQuestion({
   kind = 'yesno',
@@ -523,7 +610,17 @@ export async function sendParentQuestion({
     answerText: null,
     createdAt: Date.now()
   };
-  return saveLiveEvent(ev);
+  const saved = await saveLiveEvent(ev);
+  const pushBody =
+    kind === 'choice' && optionA && optionB
+      ? `${optionA.text} o ${optionB.text}`
+      : (questionText || 'Tenés una pregunta nueva');
+  triggerBackgroundPush({
+    targetRole: 'communicator',
+    title: 'Mi Espacio — Pregunta de Familia',
+    body: pushBody
+  });
+  return saved;
 }
 
 /**
@@ -545,6 +642,12 @@ export async function answerParentQuestion(eventId, side, answerText) {
       { merge: true }
     );
   }
+
+  triggerBackgroundPush({
+    targetRole: 'family',
+    title: 'Mi Espacio — Respuesta recibida',
+    body: `Respondió: ${answerText}`
+  });
 
   const all = await getLiveEvents();
   const target = all.find((e) => e.id === eventId);
@@ -575,6 +678,12 @@ export async function replyToTeenRequest(eventId, { replyText = '', replyAudioDa
       { merge: true }
     );
   }
+
+  triggerBackgroundPush({
+    targetRole: 'communicator',
+    title: 'Mi Espacio — Respuesta de Familia',
+    body: replyText || 'Tenés un mensaje de voz de Familia'
+  });
 
   const all = await getLiveEvents();
   const target = all.find((e) => e.id === eventId);

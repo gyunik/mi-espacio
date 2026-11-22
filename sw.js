@@ -3,7 +3,7 @@
  * Cachea el App Shell para funcionamiento offline en Android / iOS / Desktop.
  */
 
-const CACHE_NAME = 'mi-espacio-v26';
+const CACHE_NAME = 'mi-espacio-v27';
 const APP_SHELL = [
   './',
   './index.html',
@@ -54,14 +54,39 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { notification: { title: 'Mi Espacio', body: event.data?.text() || 'Nuevo aviso' } };
+  }
+
+  const title = payload.notification?.title || payload.data?.title || 'Mi Espacio';
+  const body = payload.notification?.body || payload.data?.body || 'Tenés un nuevo aviso';
+  const url = payload.data?.url || './';
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: './icons/icon.svg',
+      badge: './icons/icon.svg',
+      tag: 'mi-espacio-push',
+      renotify: true,
+      data: { url }
+    })
+  );
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const targetUrl = event.notification.data?.url || './';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       if (clients.length > 0) {
         return clients[0].focus();
       }
-      return self.clients.openWindow('./');
+      return self.clients.openWindow(targetUrl);
     })
   );
 });

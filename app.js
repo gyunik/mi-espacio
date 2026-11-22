@@ -20,7 +20,9 @@ import {
   CATEGORIES,
   TEMPLATE_PACKS,
   isFirebaseConfigured,
+  isPushConfigured,
   initBackend,
+  registerPushToken,
   subscribeToBoard,
   ensureSeedData,
   getCards,
@@ -216,6 +218,7 @@ function cacheDom() {
   dom.incomingQuestionText = document.getElementById('incoming-question-text');
   dom.commSentStatus = document.getElementById('comm-sent-status');
   dom.commChannelPill = document.getElementById('comm-channel-pill');
+  dom.btnCommEnablePush = document.getElementById('btn-comm-enable-push');
   dom.btnToggleRemoteNotify = document.getElementById('btn-toggle-remote-notify');
 
   // Modal push visual para pregunta entrante
@@ -435,6 +438,9 @@ async function applyRoleScreen(role) {
     state.liveEvents = await getLiveEvents();
     renderUsageLogs();
     renderLiveEvents();
+    registerPushToken('family');
+  } else if (role === 'communicator') {
+    registerPushToken('communicator');
   }
 }
 
@@ -863,6 +869,15 @@ function bindPhraseBar() {
     state.activeTeenReplyId = null;
     if (id) {
       await acknowledgeReply(id);
+    }
+  });
+
+  dom.btnCommEnablePush?.addEventListener('click', async () => {
+    if (typeof Notification === 'undefined') return;
+    const res = await Notification.requestPermission();
+    if (res === 'granted') {
+      await registerPushToken('communicator');
+      dom.btnCommEnablePush.hidden = true;
     }
   });
 
@@ -1295,8 +1310,14 @@ function bindFamilyMode() {
       return;
     }
     const res = await Notification.requestPermission();
-    dom.btnEnableNotifications.textContent =
-      res === 'granted' ? '🔔 Alertas activas' : '🔕 Permiso denegado';
+    if (res === 'granted') {
+      await registerPushToken('family');
+      dom.btnEnableNotifications.textContent = isPushConfigured()
+        ? '🔔 Push activo'
+        : '🔔 Alertas activas';
+    } else {
+      dom.btnEnableNotifications.textContent = '🔕 Permiso denegado';
+    }
   });
 
   dom.btnModeYesNo.addEventListener('click', () => {
@@ -2027,7 +2048,12 @@ function applySettingsToUI() {
     : '📡 Avisar a Familia: Solo voz local';
 
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    dom.btnEnableNotifications.textContent = '🔔 Alertas activas';
+    dom.btnEnableNotifications.textContent = isPushConfigured()
+      ? '🔔 Push activo'
+      : '🔔 Alertas activas';
+    if (dom.btnCommEnablePush) dom.btnCommEnablePush.hidden = true;
+  } else if (dom.btnCommEnablePush && typeof Notification !== 'undefined') {
+    dom.btnCommEnablePush.hidden = false;
   }
 
   dom.settingRate.value = String(state.settings.speechRate);
