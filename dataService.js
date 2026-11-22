@@ -242,9 +242,12 @@ async function triggerBackgroundPush({ targetRole, title, body }) {
       .filter((d) => d.role === targetRole && d.token)
       .map((d) => d.token);
 
-    if (tokens.length === 0) return;
+    if (tokens.length === 0) {
+      console.log('[Mi Espacio] Push: no hay dispositivos registrados aún para rol:', targetRole);
+      return;
+    }
 
-    await fetch(pushConfig.workerUrl, {
+    const res = await fetch(pushConfig.workerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -254,6 +257,8 @@ async function triggerBackgroundPush({ targetRole, title, body }) {
         url: window.location.origin + window.location.pathname
       })
     });
+    const out = await res.json().catch(() => ({}));
+    console.log('[Mi Espacio] Push en segundo plano resultado:', out);
   } catch (err) {
     console.warn('Push en segundo plano omitido:', err);
   }
