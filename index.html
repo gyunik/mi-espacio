@@ -541,13 +541,18 @@
               📤 Enviar audio
             </button>
           </div>
-          <input
-            id="fam-transcript-input"
-            type="text"
-            class="input"
-            placeholder="Lo que decís aparece acá en texto en vivo..."
-            maxlength="140"
-          />
+          <div class="pin-row">
+            <input
+              id="fam-transcript-input"
+              type="text"
+              class="input"
+              placeholder="Lo que decís aparece acá en texto en vivo..."
+              maxlength="140"
+            />
+            <button type="button" id="btn-fam-dictate" class="btn btn--ghost btn--sm" title="Dictar solo texto (sin grabar audio)">
+              🗣️ Dictar
+            </button>
+          </div>
           <span id="fam-record-status" class="muted-text"></span>
         </div>
 

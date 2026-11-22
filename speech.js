@@ -265,12 +265,15 @@ export async function startVoiceRecording() {
  * @param {string} [options.lang='es-AR']
  * @param {Function} [options.onUpdate] Recibe el texto transcrito acumulado
  */
-export function startLiveTranscript({ lang = 'es-AR', onUpdate } = {}) {
+export function startLiveTranscript({ lang = 'es-AR', onUpdate, onError, onEnd } = {}) {
   const Recognition =
     typeof window !== 'undefined' &&
     (window.SpeechRecognition || window.webkitSpeechRecognition);
 
-  if (!Recognition) return null;
+  if (!Recognition) {
+    onError?.('unsupported');
+    return null;
+  }
 
   const rec = new Recognition();
   rec.lang = lang;
@@ -295,11 +298,19 @@ export function startLiveTranscript({ lang = 'es-AR', onUpdate } = {}) {
     }
   };
 
-  rec.onerror = () => {};
+  rec.onerror = (event) => {
+    console.warn('[SpeechRecognition] error:', event.error);
+    onError?.(event.error || 'unknown');
+  };
+
+  rec.onend = () => {
+    onEnd?.();
+  };
 
   try {
     rec.start();
-  } catch {
+  } catch (err) {
+    onError?.(err?.message || 'start-failed');
     return null;
   }
 

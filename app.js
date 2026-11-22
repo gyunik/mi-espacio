@@ -249,6 +249,7 @@ function cacheDom() {
   dom.btnFamPlayAudio = document.getElementById('btn-fam-play-audio');
   dom.btnFamSendAudio = document.getElementById('btn-fam-send-audio');
   dom.famTranscriptInput = document.getElementById('fam-transcript-input');
+  dom.btnFamDictate = document.getElementById('btn-fam-dictate');
   dom.famRecordStatus = document.getElementById('fam-record-status');
   dom.btnFamJustSeen = document.getElementById('btn-fam-just-seen');
   dom.btnFamCloseModal = document.getElementById('btn-fam-close-modal');
@@ -1361,26 +1362,71 @@ function bindFamilyMode() {
 
   dom.btnFamRecord.addEventListener('click', async () => {
     if (!state.familyReply.isRecording) {
+      dom.famTranscriptInput.value = '';
+      // Iniciar SpeechRecognition de forma SÍNCRONA en el clic (requisito de Chrome) antes de abrir MediaRecorder
+      state.familyReply.transcriber = startLiveTranscript({
+        lang: 'es-AR',
+        onUpdate: (text) => {
+          dom.famTranscriptInput.value = text;
+        },
+        onError: (errCode) => {
+          if (errCode === 'audio-capture') {
+            dom.famRecordStatus.textContent = 'Grabando audio (tu placa de sonido no permite transcribir a la vez; usá "🗣️ Dictar" o escribí el texto).';
+          }
+        }
+      });
+
       try {
         state.familyReply.recorder = await startVoiceRecording();
         state.familyReply.isRecording = true;
-        dom.famTranscriptInput.value = '';
-        state.familyReply.transcriber = startLiveTranscript({
-          lang: 'es-AR',
-          onUpdate: (text) => {
-            dom.famTranscriptInput.value = text;
-          }
-        });
         dom.btnFamRecord.textContent = '⏹ Detener grabación';
         dom.btnFamRecord.classList.add('btn--danger');
         dom.famRecordStatus.textContent = 'Grabando y transcribiendo en vivo... (máx. 15 seg)';
         state.familyReply.autoStopTimer = setTimeout(stopFamRecording, 15000);
       } catch {
+        if (state.familyReply.transcriber) {
+          state.familyReply.transcriber.stop();
+          state.familyReply.transcriber = null;
+        }
         dom.famRecordStatus.textContent = 'Permiso de micrófono denegado.';
       }
     } else {
       await stopFamRecording();
     }
+  });
+
+  // Botón independiente para dictar solo texto (sin conflicto de micrófono en Windows)
+  let dictateController = null;
+  dom.btnFamDictate?.addEventListener('click', () => {
+    if (dictateController) {
+      dictateController.stop();
+      dictateController = null;
+      dom.btnFamDictate.textContent = '🗣️ Dictar';
+      dom.btnFamDictate.classList.remove('btn--danger');
+      return;
+    }
+
+    dom.btnFamDictate.textContent = '⏹ Parar';
+    dom.btnFamDictate.classList.add('btn--danger');
+    dom.famRecordStatus.textContent = 'Escuchando dictado en vivo...';
+
+    dictateController = startLiveTranscript({
+      lang: 'es-AR',
+      onUpdate: (text) => {
+        dom.famTranscriptInput.value = text;
+      },
+      onError: (errCode) => {
+        dom.famRecordStatus.textContent = `Dictado no disponible (${errCode}). Podés escribir el texto directo.`;
+      },
+      onEnd: () => {
+        dictateController = null;
+        dom.btnFamDictate.textContent = '🗣️ Dictar';
+        dom.btnFamDictate.classList.remove('btn--danger');
+        if (dom.famTranscriptInput.value.trim()) {
+          dom.famRecordStatus.textContent = 'Texto dictado listo.';
+        }
+      }
+    });
   });
 
   dom.btnFamPlayAudio.addEventListener('click', () => {
