@@ -17,6 +17,6 @@ export const firebaseConfig = {
  * 2. workerUrl: URL de tu Cloudflare Worker desplegado con worker/push-worker.js.
  */
 export const pushConfig = {
-  vapidKey: "TU_VAPID_KEY",
-  workerUrl: "TU_WORKER_URL"
+  vapidKey: "BPgfEdRIb1EnXGdSfV3bX4Z0j9rG9n9j_20z5RcFMsWgyVAi22MwlL9-avMLBsHVtFoOxXRBqqtCnIf3wh2ccN4",
+  workerUrl: "https://mi-espacio-push.gpy1174.workers.dev"
 };
