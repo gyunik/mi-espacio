@@ -1168,6 +1168,13 @@ async function chooseAskOption(side) {
   }
 
   await speak(isChoice ? answerLabel : (isA ? 'Sí' : 'No'), ttsOptions());
+
+  // Volver automáticamente a "Mi Voz" y limpiar selección para que la tarjeta desaparezca tras responder
+  setTimeout(() => {
+    resetAskSelection();
+    const voiceNav = document.querySelector('[data-comm-tab="voice"]');
+    voiceNav?.click();
+  }, 850);
 }
 
 /* ==========================================================================
