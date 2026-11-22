@@ -48,62 +48,93 @@ export const DEFAULT_SETTINGS = {
   voiceURI: '',
   showPhraseBar: true,
   notifyFamilyOnTap: true,
-  seeded: false
+  seeded: false,
+  starterVersion: 0
 };
+
+export const CURRENT_STARTER_VERSION = 2;
 
 export const TEMPLATE_PACKS = [
   {
     id: 'pack-adolescente',
-    title: 'Pack Adolescente',
-    description: 'Autonomía diaria, privacidad y rutinas básicas para jóvenes.',
-    badge: 'Base recomendada',
+    title: 'Pack Necesidades y Rutina (14)',
+    description: 'Autonomía diaria, comida, descanso, clima y bienestar físico.',
+    badge: 'Necesidades',
     cards: [
-      { id: 'tpl-adol-1', text: 'Quiero tomar agua', category: 'necesidades', icon: '💧', imageData: './assets/cards/agua.svg' },
-      { id: 'tpl-adol-2', text: 'Tengo hambre', category: 'necesidades', icon: '🍽️', imageData: './assets/cards/comida.svg' },
-      { id: 'tpl-adol-3', text: 'Necesito ir al baño', category: 'necesidades', icon: '🚻', imageData: './assets/cards/bano.svg' },
-      { id: 'tpl-adol-4', text: 'Quiero estar en mi pieza', category: 'limites', icon: '🚪', imageData: './assets/cards/pieza.svg' },
-      { id: 'tpl-adol-5', text: 'Necesito mis auriculares', category: 'limites', icon: '🎧', imageData: './assets/cards/auriculares.svg' },
-      { id: 'tpl-adol-6', text: 'Quiero usar mi celular', category: 'ocio', icon: '📱', imageData: './assets/cards/celular.svg' }
+      { id: 'tpl-nec-1', text: 'Quiero tomar agua', category: 'necesidades', icon: '💧', imageData: './assets/cards/agua.svg' },
+      { id: 'tpl-nec-2', text: 'Tengo hambre', category: 'necesidades', icon: '🍽️', imageData: './assets/cards/comida.svg' },
+      { id: 'tpl-nec-3', text: 'Necesito ir al baño', category: 'necesidades', icon: '🚻', imageData: './assets/cards/bano.svg' },
+      { id: 'tpl-nec-4', text: 'Me duele algo', category: 'necesidades', icon: '🩹', imageData: './assets/cards/dolor.svg' },
+      { id: 'tpl-nec-5', text: 'Quiero volver a casa', category: 'necesidades', icon: '🏠', imageData: './assets/cards/casa.svg' },
+      { id: 'tpl-nec-6', text: 'Necesito ayuda', category: 'necesidades', icon: '🤝', imageData: './assets/cards/ayuda.svg' },
+      { id: 'tpl-nec-7', text: 'Tengo frío', category: 'necesidades', icon: '🧥', imageData: null },
+      { id: 'tpl-nec-8', text: 'Tengo calor', category: 'necesidades', icon: '☀️', imageData: null },
+      { id: 'tpl-nec-9', text: 'Quiero bañarme', category: 'necesidades', icon: '🛁', imageData: null },
+      { id: 'tpl-nec-10', text: 'Quiero cambiarme de ropa', category: 'necesidades', icon: '👕', imageData: null },
+      { id: 'tpl-nec-11', text: 'Estoy cansada, quiero dormir', category: 'necesidades', icon: '🛌', imageData: null },
+      { id: 'tpl-nec-12', text: 'No me siento bien', category: 'necesidades', icon: '🤒', imageData: null },
+      { id: 'tpl-nec-13', text: 'Quiero merendar', category: 'necesidades', icon: '🥪', imageData: null },
+      { id: 'tpl-nec-14', text: 'Quiero comer fruta', category: 'necesidades', icon: '🍎', imageData: null }
     ]
   },
   {
     id: 'pack-emociones',
-    title: 'Pack Emociones y Límites',
-    description: 'Expresión clara de sobrecarga sensorial, pausas y bienestar.',
+    title: 'Pack Emociones y Límites (14)',
+    description: 'Expresión clara de sobrecarga sensorial, pausas, espacio y calma.',
     badge: 'Regulación',
     cards: [
-      { id: 'tpl-emo-1', text: 'Hay mucho ruido', category: 'limites', icon: '🔇', imageData: './assets/cards/ruido.svg' },
-      { id: 'tpl-emo-2', text: 'Necesito una pausa', category: 'limites', icon: '⏸️', imageData: './assets/cards/pausa.svg' },
-      { id: 'tpl-emo-3', text: 'No me toquen ahora', category: 'limites', icon: '✋', imageData: './assets/cards/espacio.svg' },
-      { id: 'tpl-emo-4', text: 'Me siento abrumada', category: 'limites', icon: '🌊', imageData: './assets/cards/abrumada.svg' },
-      { id: 'tpl-emo-5', text: 'Me duele algo', category: 'necesidades', icon: '🩹', imageData: './assets/cards/dolor.svg' },
-      { id: 'tpl-emo-6', text: 'Estoy tranquila', category: 'limites', icon: '✨', imageData: './assets/cards/tranquila.svg' }
+      { id: 'tpl-lim-1', text: 'Quiero estar en mi pieza', category: 'limites', icon: '🚪', imageData: './assets/cards/pieza.svg' },
+      { id: 'tpl-lim-2', text: 'Necesito mis auriculares', category: 'limites', icon: '🎧', imageData: './assets/cards/auriculares.svg' },
+      { id: 'tpl-lim-3', text: 'Hay mucho ruido', category: 'limites', icon: '🔇', imageData: './assets/cards/ruido.svg' },
+      { id: 'tpl-lim-4', text: 'Necesito una pausa', category: 'limites', icon: '⏸️', imageData: './assets/cards/pausa.svg' },
+      { id: 'tpl-lim-5', text: 'No me toquen ahora', category: 'limites', icon: '✋', imageData: './assets/cards/espacio.svg' },
+      { id: 'tpl-lim-6', text: 'Me siento abrumada', category: 'limites', icon: '🌊', imageData: './assets/cards/abrumada.svg' },
+      { id: 'tpl-lim-7', text: 'Estoy tranquila', category: 'limites', icon: '✨', imageData: './assets/cards/tranquila.svg' },
+      { id: 'tpl-lim-8', text: 'Prefiero quedarme acá', category: 'limites', icon: '🛋️', imageData: './assets/cards/quedarme.svg' },
+      { id: 'tpl-lim-9', text: 'Hay mucha luz', category: 'limites', icon: '🕶️', imageData: null },
+      { id: 'tpl-lim-10', text: 'Estoy enojada', category: 'limites', icon: '😤', imageData: null },
+      { id: 'tpl-lim-11', text: 'Estoy triste', category: 'limites', icon: '😢', imageData: null },
+      { id: 'tpl-lim-12', text: 'Necesito respirar un momento', category: 'limites', icon: '🫁', imageData: null },
+      { id: 'tpl-lim-13', text: 'Por favor hablá más despacio', category: 'limites', icon: '⏱️', imageData: null },
+      { id: 'tpl-lim-14', text: 'No quiero hacer esto ahora', category: 'limites', icon: '🛑', imageData: null }
     ]
   },
   {
     id: 'pack-salidas',
-    title: 'Pack Salidas y Ocio',
-    description: 'Planes, música, series y decisiones para el tiempo libre.',
+    title: 'Pack Música, Ocio y Salidas (12)',
+    description: 'Planes, tecnología, música, series y tiempo libre.',
     badge: 'Tiempo libre',
     cards: [
-      { id: 'tpl-oci-1', text: 'Quiero escuchar música', category: 'ocio', icon: '🎵', imageData: './assets/cards/musica.svg' },
-      { id: 'tpl-oci-2', text: 'Quiero ver una serie', category: 'ocio', icon: '🎬', imageData: './assets/cards/serie.svg' },
-      { id: 'tpl-oci-3', text: 'Quiero salir a caminar', category: 'ocio', icon: '🚶‍♀️', imageData: './assets/cards/caminar.svg' },
-      { id: 'tpl-oci-4', text: 'Quiero volver a casa', category: 'necesidades', icon: '🏠', imageData: './assets/cards/casa.svg' },
-      { id: 'tpl-oci-5', text: 'Prefiero quedarme acá', category: 'limites', icon: '🛋️', imageData: './assets/cards/quedarme.svg' }
+      { id: 'tpl-oci-1', text: 'Quiero usar mi celular', category: 'ocio', icon: '📱', imageData: './assets/cards/celular.svg' },
+      { id: 'tpl-oci-2', text: 'Quiero escuchar música', category: 'ocio', icon: '🎵', imageData: './assets/cards/musica.svg' },
+      { id: 'tpl-oci-3', text: 'Quiero ver una serie', category: 'ocio', icon: '🎬', imageData: './assets/cards/serie.svg' },
+      { id: 'tpl-oci-4', text: 'Quiero salir a caminar', category: 'ocio', icon: '🚶‍♀️', imageData: './assets/cards/caminar.svg' },
+      { id: 'tpl-oci-5', text: 'Quiero comer helado', category: 'ocio', icon: '🍨', imageData: './assets/cards/helado.svg' },
+      { id: 'tpl-oci-6', text: 'Quiero usar la computadora', category: 'ocio', icon: '💻', imageData: null },
+      { id: 'tpl-oci-7', text: 'Quiero jugar videojuegos', category: 'ocio', icon: '🎮', imageData: null },
+      { id: 'tpl-oci-8', text: 'Quiero dibujar o pintar', category: 'ocio', icon: '🎨', imageData: null },
+      { id: 'tpl-oci-9', text: 'Quiero leer un rato', category: 'ocio', icon: '📚', imageData: null },
+      { id: 'tpl-oci-10', text: 'Quiero ir a la plaza', category: 'ocio', icon: '🌳', imageData: null },
+      { id: 'tpl-oci-11', text: 'Quiero dar una vuelta en auto', category: 'ocio', icon: '🚗', imageData: null },
+      { id: 'tpl-oci-12', text: 'Quiero tomar algo caliente', category: 'ocio', icon: '☕', imageData: null }
     ]
   },
   {
     id: 'pack-familia',
-    title: 'Pack Familia y Amigos',
-    description: 'Vínculos cercanos, familia a distancia y equipo terapéutico.',
+    title: 'Pack Familia, Amigos y Escuela (10)',
+    description: 'Vínculos cercanos, familia a distancia, mascota y escuela.',
     badge: 'Vínculos',
     cards: [
       { id: 'tpl-fam-1', text: 'Quiero hablar con mamá', category: 'familia', icon: '👩', imageData: './assets/cards/mama.svg' },
       { id: 'tpl-fam-2', text: 'Quiero hablar con papá', category: 'familia', icon: '👨', imageData: './assets/cards/papa.svg' },
       { id: 'tpl-fam-3', text: 'Mandar mensaje a mi familia', category: 'familia', icon: '💌', imageData: './assets/cards/mensaje.svg' },
       { id: 'tpl-fam-4', text: 'Quiero ver a mis amigos', category: 'familia', icon: '👥', imageData: './assets/cards/amigos.svg' },
-      { id: 'tpl-fam-5', text: 'Necesito ayuda', category: 'necesidades', icon: '🤝', imageData: './assets/cards/ayuda.svg' }
+      { id: 'tpl-fam-5', text: 'Quiero llamar por teléfono', category: 'familia', icon: '📞', imageData: null },
+      { id: 'tpl-fam-6', text: 'Quiero un abrazo', category: 'familia', icon: '❤️', imageData: null },
+      { id: 'tpl-fam-7', text: 'Quiero estar con mi mascota', category: 'familia', icon: '🐶', imageData: null },
+      { id: 'tpl-fam-8', text: 'Necesito ayuda con la tarea', category: 'familia', icon: '🏫', imageData: null },
+      { id: 'tpl-fam-9', text: 'Quiero hablar con mi abuela', category: 'familia', icon: '👵', imageData: null },
+      { id: 'tpl-fam-10', text: 'Gracias', category: 'familia', icon: '🙏', imageData: null }
     ]
   }
 ];
@@ -390,10 +421,12 @@ export async function ensureSeedData() {
   const cards = await getCards();
   const questions = await getQuickQuestions();
 
-  if (cards.length === 0) {
-    await importTemplatePack('pack-adolescente');
-    await importTemplatePack('pack-emociones');
-    saveSettings({ seeded: true });
+  if (cards.length === 0 || (settings.starterVersion || 0) < CURRENT_STARTER_VERSION) {
+    // Importar las 50 tarjetas base (sin duplicar las que ya existen ni borrar personalizadas)
+    for (const pack of TEMPLATE_PACKS) {
+      await importTemplatePack(pack.id);
+    }
+    saveSettings({ seeded: true, starterVersion: CURRENT_STARTER_VERSION });
   } else {
     const allTemplates = TEMPLATE_PACKS.flatMap((p) => p.cards);
     const byText = new Map(allTemplates.map((t) => [t.text.toLowerCase(), t.imageData]));
