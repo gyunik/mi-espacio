@@ -1497,6 +1497,10 @@ select:focus-visible {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.bottom-nav--two {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .nav-btn {
   display: flex;
   flex-direction: column;

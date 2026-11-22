@@ -149,88 +149,26 @@
         <div id="cards-grid" class="cards-grid" aria-live="polite"></div>
       </section>
 
-      <!-- Pestaña 2: Te Pregunto (Doble Vía) -->
-      <section id="comm-view-ask" class="tab-view" role="tabpanel" hidden>
-        <div class="ask-setup">
-          <div class="ask-setup__header">
-            <h2 class="section-title">Te Pregunto</h2>
-            <button type="button" id="btn-toggle-ask-setup" class="btn btn--ghost btn--sm" aria-expanded="true">
-              Ocultar edición
-            </button>
-          </div>
-
-          <div id="ask-setup-body" class="ask-setup__body">
-            <div class="ask-daily-wrap">
-              <span class="field-label">Preguntas rápidas (Sí / No):</span>
-              <div id="ask-daily-chips" class="ask-presets"></div>
-            </div>
-
-            <div class="ask-input-group">
-              <label for="ask-question-input" class="field-label">Pregunta para responder Sí o No</label>
-              <div class="input-with-select">
-                <input id="ask-question-input" type="text" class="input" value="¿Querés cenar?" maxlength="70" />
-                <select id="ask-select-a" class="select select--compact" aria-label="Elegir pregunta de tarjeta">
-                  <option value="">Elegir...</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div class="ask-controls">
-            <button type="button" id="btn-read-options" class="btn btn--accent btn--lg">
-              🔊 Leer pregunta
-            </button>
-            <button type="button" id="btn-reset-ask" class="btn btn--ghost btn--lg">
-              Reiniciar
-            </button>
-          </div>
-        </div>
-
-        <!-- Pregunta grande y clara + 2 respuestas gigantes: SÍ / NO -->
-        <div id="ask-question-banner" class="ask-question-box">
-          <div id="ask-question-visual" class="ask-question-box__visual">🍽️</div>
-          <h3 id="ask-question-text" class="ask-question-box__text">¿Querés cenar?</h3>
-        </div>
-
-        <div class="ask-split" aria-label="Responder Sí o No">
-          <button type="button" id="ask-card-a" class="ask-card ask-card--yes" data-option="A">
-            <div id="ask-visual-a" class="ask-card__visual">✓</div>
-            <span id="ask-text-a" class="ask-card__text">SÍ</span>
-            <span class="ask-card__badge" aria-hidden="true">Respondido ✓</span>
-          </button>
-
-          <button type="button" id="ask-card-b" class="ask-card ask-card--no" data-option="B">
-            <div id="ask-visual-b" class="ask-card__visual">✕</div>
-            <span id="ask-text-b" class="ask-card__text">NO</span>
-            <span class="ask-card__badge" aria-hidden="true">Respondido ✓</span>
-          </button>
-        </div>
-      </section>
-
-      <!-- Pestaña 3: Explorar / Plantillas -->
-      <section id="comm-view-templates" class="tab-view" role="tabpanel" hidden>
+      <!-- Pestaña 2: Mensajes de Familia (solo lectura, sin edición) -->
+      <section id="comm-view-messages" class="tab-view" role="tabpanel" hidden>
         <div class="templates-header">
-          <h2 class="section-title">Explorar Plantillas</h2>
+          <h2 class="section-title">Mensajes de Familia</h2>
           <p class="muted-text">
-            Importá paquetes de tarjetas listos para usar con un toque, sin borrar las actuales.
+            Acá quedan las preguntas pendientes y las respuestas de mamá o papá para volver a escucharlas cuando quieras.
           </p>
         </div>
-        <div id="templates-grid" class="templates-grid"></div>
+        <div id="comm-messages-list" class="manage-list"></div>
       </section>
     </main>
 
-    <nav class="bottom-nav" role="tablist" aria-label="Navegación del comunicador">
+    <nav class="bottom-nav bottom-nav--two" role="tablist" aria-label="Navegación del comunicador">
       <button type="button" class="nav-btn is-active" data-comm-tab="voice" role="tab" aria-selected="true">
         <span class="nav-btn__icon" aria-hidden="true">💬</span>
         <span class="nav-btn__label">Mi Voz</span>
       </button>
-      <button type="button" class="nav-btn" data-comm-tab="ask" role="tab" aria-selected="false">
-        <span class="nav-btn__icon" aria-hidden="true">🔀</span>
-        <span class="nav-btn__label">Te Pregunto</span>
-      </button>
-      <button type="button" class="nav-btn" data-comm-tab="templates" role="tab" aria-selected="false">
-        <span class="nav-btn__icon" aria-hidden="true">📦</span>
-        <span class="nav-btn__label">Explorar</span>
+      <button type="button" class="nav-btn" data-comm-tab="messages" role="tab" aria-selected="false">
+        <span class="nav-btn__icon" aria-hidden="true">📩</span>
+        <span class="nav-btn__label">Mensajes <span id="comm-msg-badge" class="tab-badge" hidden>0</span></span>
       </button>
     </nav>
 
@@ -333,6 +271,7 @@
         <button type="button" class="category-pill is-active" data-fam-tab="live">En Vivo <span id="live-badge" class="tab-badge" hidden>0</span></button>
         <button type="button" class="category-pill" data-fam-tab="cards">Tarjetas y Voz</button>
         <button type="button" class="category-pill" data-fam-tab="questions">Preguntas del Día</button>
+        <button type="button" class="category-pill" data-fam-tab="templates">Plantillas</button>
         <button type="button" class="category-pill" data-fam-tab="history">Historial</button>
         <button type="button" class="category-pill" data-fam-tab="settings">Ajustes</button>
       </div>
@@ -510,6 +449,17 @@
           <h2 class="panel__title">Preguntas Guardadas</h2>
           <div id="manage-questions-list" class="manage-list"></div>
         </div>
+      </section>
+
+      <!-- Sub-vista 2b: Plantillas (Packs de tarjetas) -->
+      <section id="fam-view-templates" class="tab-view" hidden>
+        <div class="templates-header">
+          <h2 class="section-title">Plantillas de Tarjetas</h2>
+          <p class="muted-text">
+            Importá paquetes de tarjetas listos para usar con un toque, sin borrar ni duplicar las actuales.
+          </p>
+        </div>
+        <div id="templates-grid" class="templates-grid"></div>
       </section>
 
       <!-- Sub-vista 3: Historial Simple de Uso -->

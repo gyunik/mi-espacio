@@ -169,7 +169,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindQuickBar();
   bindCommunicatorNav();
   bindPhraseBar();
-  bindAskMode();
   bindFamilyMode();
 
   initSpeech((voices) => populateVoiceSelect(voices));
@@ -203,13 +202,14 @@ function cacheDom() {
   dom.btnExitComm = document.getElementById('btn-exit-communicator');
   dom.exitHoldRing = document.getElementById('exit-hold-ring');
 
-  // Communicator Navigation & Views
+  // Communicator Navigation & Views (solo Mi Voz + Mensajes)
   dom.commNavBtns = document.querySelectorAll('[data-comm-tab]');
   dom.commViews = {
     voice: document.getElementById('comm-view-voice'),
-    ask: document.getElementById('comm-view-ask'),
-    templates: document.getElementById('comm-view-templates')
+    messages: document.getElementById('comm-view-messages')
   };
+  dom.commMessagesList = document.getElementById('comm-messages-list');
+  dom.commMsgBadge = document.getElementById('comm-msg-badge');
 
   // Mi Voz & Doble vía en vivo
   dom.incomingBanner = document.getElementById('incoming-question-banner');
@@ -261,24 +261,7 @@ function cacheDom() {
   dom.categoryFilters = document.getElementById('category-filters');
   dom.cardsGrid = document.getElementById('cards-grid');
 
-  // Te Pregunto (Sí / No)
-  dom.btnToggleAskSetup = document.getElementById('btn-toggle-ask-setup');
-  dom.askSetupBody = document.getElementById('ask-setup-body');
-  dom.askDailyChips = document.getElementById('ask-daily-chips');
-  dom.askQuestionInput = document.getElementById('ask-question-input');
-  dom.askQuestionVisual = document.getElementById('ask-question-visual');
-  dom.askQuestionText = document.getElementById('ask-question-text');
-  dom.askSelectA = document.getElementById('ask-select-a');
-  dom.btnReadOptions = document.getElementById('btn-read-options');
-  dom.btnResetAsk = document.getElementById('btn-reset-ask');
-  dom.askCardA = document.getElementById('ask-card-a');
-  dom.askCardB = document.getElementById('ask-card-b');
-  dom.askVisualA = document.getElementById('ask-visual-a');
-  dom.askVisualB = document.getElementById('ask-visual-b');
-  dom.askTextA = document.getElementById('ask-text-a');
-  dom.askTextB = document.getElementById('ask-text-b');
-
-  // Explorar / Plantillas
+  // Explorar / Plantillas (ahora en Modo Familia)
   dom.templatesGrid = document.getElementById('templates-grid');
 
   // Familia / Equipo
@@ -294,6 +277,7 @@ function cacheDom() {
     live: document.getElementById('fam-view-live'),
     cards: document.getElementById('fam-view-cards'),
     questions: document.getElementById('fam-view-questions'),
+    templates: document.getElementById('fam-view-templates'),
     history: document.getElementById('fam-view-history'),
     settings: document.getElementById('fam-view-settings')
   };
@@ -517,6 +501,7 @@ function startBoardSubscription() {
 function handleIncomingLiveEvents(events) {
   state.liveEvents = events || [];
   renderLiveEvents();
+  renderCommMessagesList();
 
   // 1. Modo Comunicador: mostrar aviso calmo si hay pregunta pendiente de Familia
   const pendingQuestion = state.liveEvents.find(
@@ -1013,39 +998,129 @@ function renderCardsGrid() {
 }
 
 /* ==========================================================================
-   MODO COMUNICADOR: Pestaña 2 — Te Pregunto (Doble Vía)
+   MODO COMUNICADOR: Pestaña 2 — Mensajes de Familia (solo lectura)
    ========================================================================== */
-function bindAskMode() {
-  dom.btnToggleAskSetup.addEventListener('click', () => {
-    const willShow = dom.askSetupBody.hidden;
-    dom.askSetupBody.hidden = !willShow;
-    dom.btnToggleAskSetup.setAttribute('aria-expanded', String(willShow));
-    dom.btnToggleAskSetup.textContent = willShow ? 'Ocultar edición' : 'Cambiar pregunta';
+function renderCommMessagesList() {
+  if (!dom.commMessagesList) return;
+
+  const pendingCount = state.liveEvents.filter(
+    (e) =>
+      (e.type === 'parent_question' && e.status === 'pending') ||
+      (e.type === 'teen_request' && e.status === 'replied')
+  ).length;
+
+  if (dom.commMsgBadge) {
+    dom.commMsgBadge.hidden = pendingCount === 0;
+    dom.commMsgBadge.textContent = String(pendingCount);
+  }
+
+  const relevant = state.liveEvents.filter(
+    (e) =>
+      e.type === 'parent_question' ||
+      (e.type === 'teen_request' && (e.replyText || e.replyAudioData))
+  );
+
+  dom.commMessagesList.innerHTML = '';
+  if (relevant.length === 0) {
+    dom.commMessagesList.innerHTML =
+      '<p class="muted-text">Todavía no hay mensajes ni preguntas de Familia.</p>';
+    return;
+  }
+
+  relevant.forEach((ev) => {
+    const item = document.createElement('div');
+    item.className = 'manage-item';
+
+    const time = new Date(ev.createdAt).toLocaleTimeString('es-AR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const left = document.createElement('div');
+    left.className = 'manage-item__info';
+
+    const thumb = document.createElement('div');
+    thumb.className = 'manage-item__thumb';
+
+    const textWrap = document.createElement('div');
+
+    if (ev.type === 'parent_question') {
+      const isChoice = ev.kind === 'choice' && ev.optionA && ev.optionB;
+      const qLabel = isChoice
+        ? `${ev.optionA.text} / ${ev.optionB.text}`
+        : (ev.questionText || 'Pregunta de Familia');
+
+      if (ev.imageData) {
+        const img = document.createElement('img');
+        img.src = ev.imageData;
+        img.alt = qLabel;
+        thumb.appendChild(img);
+      } else {
+        thumb.textContent = ev.icon || '❓';
+      }
+
+      const status =
+        ev.status === 'pending'
+          ? 'Sin responder'
+          : `Respondiste: "${escapeHtml(ev.answerText || '')}" ✓`;
+
+      textWrap.innerHTML = `
+        <div class="manage-item__text">${escapeHtml(qLabel)}</div>
+        <div class="manage-item__cat">${time} · ${status}</div>
+      `;
+      left.append(thumb, textWrap);
+      item.appendChild(left);
+
+      if (ev.status === 'pending') {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn--accent btn--sm';
+        btn.textContent = 'Responder';
+        btn.addEventListener('click', () => {
+          state.dismissedPushQuestionId = null;
+          openPushQuestionModal(ev);
+        });
+        item.appendChild(btn);
+      }
+    } else {
+      // Respuesta de Familia a un aviso del adolescente
+      if (ev.replyImageData) {
+        const img = document.createElement('img');
+        img.src = ev.replyImageData;
+        img.alt = ev.replyText || 'Respuesta';
+        thumb.appendChild(img);
+      } else {
+        thumb.textContent = ev.replyAudioData ? '🎙️' : '✓';
+      }
+
+      textWrap.innerHTML = `
+        <div class="manage-item__text">${escapeHtml(ev.replyText || 'Mensaje de voz de Familia')}</div>
+        <div class="manage-item__cat">${time} · Sobre: "${escapeHtml(ev.label)}"</div>
+      `;
+      left.append(thumb, textWrap);
+      item.appendChild(left);
+
+      const playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.className = 'btn btn--emerald btn--sm';
+      playBtn.textContent = '▶ Escuchar';
+      playBtn.addEventListener('click', () => {
+        if (ev.replyAudioData) {
+          playAudioDataUrl(ev.replyAudioData);
+        } else if (ev.replyText) {
+          speak(ev.replyText, ttsOptions());
+        }
+      });
+      item.appendChild(playBtn);
+    }
+
+    dom.commMessagesList.appendChild(item);
   });
-
-  dom.askQuestionInput.addEventListener('input', () => {
-    state.ask.questionText = dom.askQuestionInput.value;
-    state.ask.imageData = null;
-    state.ask.icon = '❓';
-    renderAskCards();
-  });
-
-  dom.askSelectA.addEventListener('change', () => applyCardToAsk(dom.askSelectA.value));
-
-  dom.btnReadOptions.addEventListener('click', readAskOptionsSequentially);
-  dom.btnResetAsk.addEventListener('click', () => {
-    stopAllAudio();
-    state.ask.readingSequenceId += 1;
-    resetAskSelection();
-  });
-
-  dom.askCardA.addEventListener('click', () => chooseAskOption('A'));
-  dom.askCardB.addEventListener('click', () => chooseAskOption('B'));
 }
 
 function renderAskDailyChips() {
-  dom.askDailyChips.innerHTML = '';
-  if (dom.liveDailyChips) dom.liveDailyChips.innerHTML = '';
+  if (!dom.liveDailyChips) return;
+  dom.liveDailyChips.innerHTML = '';
 
   state.quickQuestions.forEach((qq) => {
     const isChoiceQQ = Boolean(qq.optionA?.text && qq.optionB?.text);
@@ -1053,50 +1128,23 @@ function renderAskDailyChips() {
     const qIcon = qq.icon || qq.optionA?.icon || '❓';
     const qImg = qq.imageData || qq.optionA?.imageData || null;
 
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'chip-btn';
-    chip.textContent = isChoiceQQ ? qText : `${qIcon} ${qText}`;
-    chip.addEventListener('click', () => {
+    const liveChip = document.createElement('button');
+    liveChip.type = 'button';
+    liveChip.className = 'chip-btn';
+    liveChip.textContent = isChoiceQQ ? qText : `${qIcon} ${qText}`;
+    liveChip.addEventListener('click', () => {
       if (isChoiceQQ) {
-        state.ask.kind = 'choice';
-        state.ask.questionText = qText;
-        state.ask.icon = '🔀';
-        state.ask.imageData = null;
-        state.ask.optionA = { ...qq.optionA };
-        state.ask.optionB = { ...qq.optionB };
+        dom.btnModeChoice.click();
+        dom.liveChoiceA.value = qq.optionA.text;
+        dom.liveChoiceB.value = qq.optionB.text;
       } else {
-        state.ask.kind = 'yesno';
-        state.ask.questionText = qText;
-        state.ask.icon = qIcon;
-        state.ask.imageData = qImg;
+        dom.btnModeYesNo.click();
+        dom.liveQuestionInput.value = qText;
+        dom.liveQuestionInput.dataset.icon = qIcon;
+        dom.liveQuestionInput.dataset.image = qImg || '';
       }
-      dom.askQuestionInput.value = qText;
-      dom.askSelectA.value = '';
-      resetAskSelection();
-      renderAskCards();
     });
-    dom.askDailyChips.appendChild(chip);
-
-    if (dom.liveDailyChips) {
-      const liveChip = document.createElement('button');
-      liveChip.type = 'button';
-      liveChip.className = 'chip-btn';
-      liveChip.textContent = isChoiceQQ ? qText : `${qIcon} ${qText}`;
-      liveChip.addEventListener('click', () => {
-        if (isChoiceQQ) {
-          dom.btnModeChoice.click();
-          dom.liveChoiceA.value = qq.optionA.text;
-          dom.liveChoiceB.value = qq.optionB.text;
-        } else {
-          dom.btnModeYesNo.click();
-          dom.liveQuestionInput.value = qText;
-          dom.liveQuestionInput.dataset.icon = qIcon;
-          dom.liveQuestionInput.dataset.image = qImg || '';
-        }
-      });
-      dom.liveDailyChips.appendChild(liveChip);
-    }
+    dom.liveDailyChips.appendChild(liveChip);
   });
 }
 
@@ -1132,56 +1180,15 @@ function toQuestionForm(text) {
   return `¿${clean}?`;
 }
 
-function applyCardToAsk(cardId) {
-  if (!cardId) return;
-  const card = state.cards.find((c) => c.id === cardId);
-  if (!card) return;
-
-  const questionText = toQuestionForm(card.text);
-  state.ask.questionText = questionText;
-  state.ask.icon = card.icon || '❓';
-  state.ask.imageData = card.imageData || null;
-  dom.askQuestionInput.value = questionText;
-  resetAskSelection();
-  renderAskCards();
-}
-
 function populateAskCardSelectors() {
-  [dom.askSelectA, dom.liveSelectA].forEach((sel) => {
-    if (!sel) return;
-    sel.innerHTML = '<option value="">Elegir pregunta...</option>';
-    state.cards.forEach((c) => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = `${c.icon || ''} ${toQuestionForm(c.text)}`.trim();
-      sel.appendChild(opt);
-    });
+  if (!dom.liveSelectA) return;
+  dom.liveSelectA.innerHTML = '<option value="">Elegir pregunta...</option>';
+  state.cards.forEach((c) => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = `${c.icon || ''} ${toQuestionForm(c.text)}`.trim();
+    dom.liveSelectA.appendChild(opt);
   });
-}
-
-function renderAskCards() {
-  dom.askQuestionText.textContent = state.ask.questionText || '¿Todo bien?';
-  renderAskVisual(dom.askQuestionVisual, {
-    text: state.ask.questionText,
-    icon: state.ask.icon,
-    imageData: state.ask.imageData
-  });
-
-  if (state.ask.kind === 'choice') {
-    dom.askCardA.classList.remove('ask-card--yes');
-    dom.askCardB.classList.remove('ask-card--no');
-    renderAskVisual(dom.askVisualA, state.ask.optionA);
-    renderAskVisual(dom.askVisualB, state.ask.optionB);
-    dom.askTextA.textContent = state.ask.optionA.text || 'Opción A';
-    dom.askTextB.textContent = state.ask.optionB.text || 'Opción B';
-  } else {
-    dom.askCardA.classList.add('ask-card--yes');
-    dom.askCardB.classList.add('ask-card--no');
-    dom.askVisualA.textContent = '✓';
-    dom.askVisualB.textContent = '✕';
-    dom.askTextA.textContent = 'SÍ';
-    dom.askTextB.textContent = 'NO';
-  }
 }
 
 function renderAskVisual(el, opt) {
@@ -1194,81 +1201,6 @@ function renderAskVisual(el, opt) {
   } else {
     el.textContent = opt.icon || '❓';
   }
-}
-
-function resetAskSelection() {
-  [dom.askCardA, dom.askCardB].forEach((c) => c.classList.remove('is-reading', 'is-chosen', 'is-dimmed'));
-}
-
-async function readAskOptionsSequentially() {
-  resetAskSelection();
-  const seqId = ++state.ask.readingSequenceId;
-
-  if (state.ask.kind === 'choice') {
-    const tA = (state.ask.optionA.text || '').trim();
-    const tB = (state.ask.optionB.text || '').trim();
-    if (tA) {
-      dom.askCardA.classList.add('is-reading');
-      await speak(tA, ttsOptions());
-      dom.askCardA.classList.remove('is-reading');
-    }
-    if (state.ask.readingSequenceId !== seqId) return;
-    await new Promise((r) => setTimeout(r, 380));
-    if (state.ask.readingSequenceId !== seqId) return;
-    if (tB) {
-      dom.askCardB.classList.add('is-reading');
-      await speak(tB, ttsOptions());
-      dom.askCardB.classList.remove('is-reading');
-    }
-  } else {
-    const qText = (state.ask.questionText || '').trim();
-    if (qText) {
-      await speak(qText, ttsOptions());
-    }
-  }
-}
-
-async function chooseAskOption(side) {
-  state.ask.readingSequenceId += 1;
-  const isA = side === 'A';
-  const chosenCard = isA ? dom.askCardA : dom.askCardB;
-  const otherCard = isA ? dom.askCardB : dom.askCardA;
-
-  const isChoice = state.ask.kind === 'choice';
-  const answerLabel = isChoice
-    ? (isA ? state.ask.optionA.text : state.ask.optionB.text)
-    : (isA ? 'SÍ' : 'NO');
-
-  chosenCard.classList.remove('is-reading', 'is-dimmed');
-  chosenCard.classList.add('is-chosen');
-  otherCard.classList.remove('is-reading', 'is-chosen');
-  otherCard.classList.add('is-dimmed');
-
-  await logUsageEvent({
-    actionType: 'choice',
-    label: isChoice ? `Eligió: ${answerLabel}` : `${state.ask.questionText} → ${answerLabel}`,
-    category: 'te_pregunto'
-  });
-
-  if (state.activeIncomingQuestionId) {
-    await answerParentQuestion(state.activeIncomingQuestionId, side, answerLabel);
-    state.activeIncomingQuestionId = null;
-    dom.incomingBanner.hidden = true;
-  } else {
-    dispatchTeenRequest(
-      isChoice ? `Eligió: ${answerLabel}` : `${state.ask.questionText} → ${answerLabel}`,
-      'te_pregunto'
-    );
-  }
-
-  await speak(isChoice ? answerLabel : (isA ? 'Sí' : 'No'), ttsOptions());
-
-  // Volver automáticamente a "Mi Voz" y limpiar selección para que la tarjeta desaparezca tras responder
-  setTimeout(() => {
-    resetAskSelection();
-    const voiceNav = document.querySelector('[data-comm-tab="voice"]');
-    voiceNav?.click();
-  }, 850);
 }
 
 /* ==========================================================================
@@ -2038,7 +1970,7 @@ function renderAllViews() {
   renderCardsGrid();
   populateAskCardSelectors();
   renderAskDailyChips();
-  renderAskCards();
+  renderCommMessagesList();
   renderTemplatesGrid();
   renderIconPicker();
   renderManageCardsList();
