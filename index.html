@@ -722,18 +722,18 @@
           <h2 id="fam-alert-title" class="push-modal__title">Tengo hambre</h2>
         </div>
 
-        <!-- Responder con nota de voz real + transcripción en vivo -->
+        <!-- Responder hablando (transcripción en vivo tipo ListeningLab) o con nota de voz -->
         <div class="family-reply-box">
-          <span class="field-label">Responder con tu voz (se transcribe en vivo, máx. 15 seg):</span>
+          <span class="field-label">Responder hablando (transcripción en vivo):</span>
           <div class="voice-record-row">
-            <button type="button" id="btn-fam-record" class="btn btn--accent">
-              🎙️ Grabar respuesta
+            <button type="button" id="btn-fam-dictate" class="btn btn--accent">
+              🗣️ Hablar (transcribir en vivo)
+            </button>
+            <button type="button" id="btn-fam-record" class="btn btn--ghost btn--sm">
+              🎙️ Grabar nota de voz
             </button>
             <button type="button" id="btn-fam-play-audio" class="btn btn--ghost btn--sm" hidden>
               ▶ Escuchar
-            </button>
-            <button type="button" id="btn-fam-send-audio" class="btn btn--emerald" hidden>
-              📤 Enviar audio
             </button>
           </div>
           <div class="pin-row">
@@ -741,11 +741,11 @@
               id="fam-transcript-input"
               type="text"
               class="input"
-              placeholder="Lo que decís aparece acá en texto en vivo..."
-              maxlength="140"
+              placeholder="A medida que hablás, tu respuesta se escribe acá..."
+              maxlength="160"
             />
-            <button type="button" id="btn-fam-dictate" class="btn btn--ghost btn--sm" title="Dictar solo texto (sin grabar audio)">
-              🗣️ Dictar
+            <button type="button" id="btn-fam-send-audio" class="btn btn--emerald">
+              📤 Enviar
             </button>
           </div>
           <span id="fam-record-status" class="muted-text"></span>

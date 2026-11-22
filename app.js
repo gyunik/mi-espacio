@@ -835,10 +835,13 @@ function resetFamilyReplyRecorder() {
   state.familyReply.isRecording = false;
   state.familyReply.recorder = null;
   state.familyReply.audioData = null;
-  dom.btnFamRecord.textContent = '🎙️ Grabar respuesta';
+  dom.btnFamRecord.textContent = '🎙️ Grabar nota de voz';
   dom.btnFamRecord.classList.remove('btn--danger');
+  if (dom.btnFamDictate) {
+    dom.btnFamDictate.textContent = '🗣️ Hablar (transcribir en vivo)';
+    dom.btnFamDictate.classList.remove('btn--danger');
+  }
   dom.btnFamPlayAudio.hidden = true;
-  dom.btnFamSendAudio.hidden = true;
   if (dom.famTranscriptInput) dom.famTranscriptInput.value = '';
   dom.famRecordStatus.textContent = '';
 }
@@ -1363,49 +1366,34 @@ function bindFamilyMode() {
   const stopFamRecording = async () => {
     if (!state.familyReply.isRecording || !state.familyReply.recorder) return;
     clearTimeout(state.familyReply.autoStopTimer);
-    if (state.familyReply.transcriber) {
-      state.familyReply.transcriber.stop();
-      state.familyReply.transcriber = null;
-    }
     const dataUrl = await state.familyReply.recorder.stop();
     state.familyReply.isRecording = false;
     state.familyReply.recorder = null;
     state.familyReply.audioData = dataUrl;
-    dom.btnFamRecord.textContent = '🎙️ Regrabar';
+    dom.btnFamRecord.textContent = '🎙️ Regrabar audio';
     dom.btnFamRecord.classList.remove('btn--danger');
     dom.btnFamPlayAudio.hidden = false;
-    dom.btnFamSendAudio.hidden = false;
-    dom.famRecordStatus.textContent = 'Audio listo. Podés ajustar el texto y tocar "Enviar audio".';
+    dom.famRecordStatus.textContent = 'Nota de voz lista. Tocá "📤 Enviar" para mandársela.';
   };
 
   dom.btnFamRecord.addEventListener('click', async () => {
-    if (!state.familyReply.isRecording) {
-      dom.famTranscriptInput.value = '';
-      // Iniciar SpeechRecognition de forma SÍNCRONA en el clic (requisito de Chrome) antes de abrir MediaRecorder
-      state.familyReply.transcriber = startLiveTranscript({
-        lang: 'es-AR',
-        onUpdate: (text) => {
-          dom.famTranscriptInput.value = text;
-        },
-        onError: (errCode) => {
-          if (errCode === 'audio-capture') {
-            dom.famRecordStatus.textContent = 'Grabando audio (tu placa de sonido no permite transcribir a la vez; usá "🗣️ Dictar" o escribí el texto).';
-          }
-        }
-      });
+    // Si estaba dictando en vivo, detener dictado para evitar conflicto de micrófono
+    if (state.familyReply.transcriber) {
+      state.familyReply.transcriber.stop();
+      state.familyReply.transcriber = null;
+      dom.btnFamDictate.textContent = '🗣️ Hablar (transcribir en vivo)';
+      dom.btnFamDictate.classList.remove('btn--danger');
+    }
 
+    if (!state.familyReply.isRecording) {
       try {
         state.familyReply.recorder = await startVoiceRecording();
         state.familyReply.isRecording = true;
-        dom.btnFamRecord.textContent = '⏹ Detener grabación';
+        dom.btnFamRecord.textContent = '⏹ Detener audio';
         dom.btnFamRecord.classList.add('btn--danger');
-        dom.famRecordStatus.textContent = 'Grabando y transcribiendo en vivo... (máx. 15 seg)';
+        dom.famRecordStatus.textContent = 'Grabando nota de voz... (máx. 15 seg)';
         state.familyReply.autoStopTimer = setTimeout(stopFamRecording, 15000);
       } catch {
-        if (state.familyReply.transcriber) {
-          state.familyReply.transcriber.stop();
-          state.familyReply.transcriber = null;
-        }
         dom.famRecordStatus.textContent = 'Permiso de micrófono denegado.';
       }
     } else {
@@ -1413,35 +1401,40 @@ function bindFamilyMode() {
     }
   });
 
-  // Botón independiente para dictar solo texto (sin conflicto de micrófono en Windows)
-  let dictateController = null;
-  dom.btnFamDictate?.addEventListener('click', () => {
-    if (dictateController) {
-      dictateController.stop();
-      dictateController = null;
-      dom.btnFamDictate.textContent = '🗣️ Dictar';
+  // Botón principal de transcripción en vivo (sin conflicto con MediaRecorder, igual que ListeningLab)
+  dom.btnFamDictate?.addEventListener('click', async () => {
+    if (state.familyReply.isRecording) {
+      await stopFamRecording();
+    }
+
+    if (state.familyReply.transcriber) {
+      state.familyReply.transcriber.stop();
+      state.familyReply.transcriber = null;
+      dom.btnFamDictate.textContent = '🗣️ Hablar (transcribir en vivo)';
       dom.btnFamDictate.classList.remove('btn--danger');
+      dom.famRecordStatus.textContent = 'Transcripción detenida. Tocá "📤 Enviar".';
       return;
     }
 
-    dom.btnFamDictate.textContent = '⏹ Parar';
+    dom.famTranscriptInput.value = '';
+    dom.btnFamDictate.textContent = '⏹ Detener transcripción';
     dom.btnFamDictate.classList.add('btn--danger');
-    dom.famRecordStatus.textContent = 'Escuchando dictado en vivo...';
+    dom.famRecordStatus.textContent = 'Escuchando en vivo... hablá ahora.';
 
-    dictateController = startLiveTranscript({
+    state.familyReply.transcriber = startLiveTranscript({
       lang: 'es-AR',
       onUpdate: (text) => {
         dom.famTranscriptInput.value = text;
       },
       onError: (errCode) => {
-        dom.famRecordStatus.textContent = `Dictado no disponible (${errCode}). Podés escribir el texto directo.`;
+        dom.famRecordStatus.textContent = `No se pudo transcribir (${errCode}). Podés escribir el texto directo.`;
       },
       onEnd: () => {
-        dictateController = null;
-        dom.btnFamDictate.textContent = '🗣️ Dictar';
+        state.familyReply.transcriber = null;
+        dom.btnFamDictate.textContent = '🗣️ Hablar (transcribir en vivo)';
         dom.btnFamDictate.classList.remove('btn--danger');
         if (dom.famTranscriptInput.value.trim()) {
-          dom.famRecordStatus.textContent = 'Texto dictado listo.';
+          dom.famRecordStatus.textContent = 'Listo. Tocá "📤 Enviar" para mandárselo.';
         }
       }
     });
@@ -1452,13 +1445,27 @@ function bindFamilyMode() {
   });
 
   dom.btnFamSendAudio.addEventListener('click', async () => {
-    if (!state.activeFamilyAlertId || !state.familyReply.audioData) return;
-    dom.famRecordStatus.textContent = 'Enviando audio...';
+    if (!state.activeFamilyAlertId) return;
+    if (state.familyReply.transcriber) {
+      state.familyReply.transcriber.stop();
+      state.familyReply.transcriber = null;
+    }
+    if (state.familyReply.isRecording) {
+      await stopFamRecording();
+    }
+
     const transcript = dom.famTranscriptInput.value.trim();
+    const audio = state.familyReply.audioData;
+    if (!transcript && !audio) {
+      dom.famRecordStatus.textContent = 'Hablá, escribí o grabá una respuesta antes de enviar.';
+      return;
+    }
+
+    dom.famRecordStatus.textContent = 'Enviando respuesta...';
     await replyToTeenRequest(state.activeFamilyAlertId, {
       replyText: transcript || 'Mensaje de voz de Familia',
-      replyAudioData: state.familyReply.audioData,
-      replyImageData: './assets/cards/audio-familia.svg'
+      replyAudioData: audio || null,
+      replyImageData: audio ? './assets/cards/audio-familia.svg' : './assets/cards/entendido.svg'
     });
     resetFamilyReplyRecorder();
     dom.famAlertModal.hidden = true;

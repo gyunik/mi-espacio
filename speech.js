@@ -280,31 +280,29 @@ export function startLiveTranscript({ lang = 'es-AR', onUpdate, onError, onEnd }
   rec.continuous = true;
   rec.interimResults = true;
 
-  let finalText = '';
+  let stoppedManually = false;
 
   rec.onresult = (event) => {
-    let interim = '';
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
-      const piece = event.results[i][0]?.transcript || '';
-      if (event.results[i].isFinal) {
-        finalText += (finalText ? ' ' : '') + piece.trim();
-      } else {
-        interim += piece;
-      }
+    let transcript = '';
+    for (let i = 0; i < event.results.length; i += 1) {
+      transcript += event.results[i][0]?.transcript || '';
     }
-    const combined = `${finalText} ${interim}`.trim();
     if (typeof onUpdate === 'function') {
-      onUpdate(combined);
+      onUpdate(transcript.trim());
     }
   };
 
   rec.onerror = (event) => {
     console.warn('[SpeechRecognition] error:', event.error);
-    onError?.(event.error || 'unknown');
+    if (event.error !== 'no-speech') {
+      onError?.(event.error || 'unknown');
+    }
   };
 
   rec.onend = () => {
-    onEnd?.();
+    if (!stoppedManually) {
+      onEnd?.();
+    }
   };
 
   try {
@@ -316,6 +314,7 @@ export function startLiveTranscript({ lang = 'es-AR', onUpdate, onError, onEnd }
 
   return {
     stop: () => {
+      stoppedManually = true;
       try {
         rec.stop();
       } catch {}
