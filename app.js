@@ -48,9 +48,71 @@ import {
 } from './dataService.js';
 
 const CURATED_ICONS = [
-  '💬', '💧', '🍽️', '🚻', '🩹', '🔇', '🚪', '🎧',
-  '✨', '🎵', '🎬', '🚶‍♀️', '📱', '🏠', '🛋️', '⏸️',
-  '✋', '🌊', '👩', '👨', '💌', '👥', '🤝', '🍨'
+  // Necesidades básicas e higiene
+  { icon: '💬', label: 'Hablar / Mensaje', use: 'Frases generales, pedidos o avisos' },
+  { icon: '💧', label: 'Agua / Sed', use: 'Tomar agua, sed o estar mojada' },
+  { icon: '🍽️', label: 'Comida / Cenar', use: 'Hambre, almuerzo, cena o merienda' },
+  { icon: '🚻', label: 'Baño', use: 'Ir al baño o higiene personal' },
+  { icon: '🛁', label: 'Ducha / Bañarse', use: 'Bañarse, lavarse o refrescarse' },
+  { icon: '🪥', label: 'Lavarse los dientes', use: 'Higiene bucal o rutina de noche' },
+  { icon: '👕', label: 'Ropa / Cambiarse', use: 'Cambiarse de ropa, comodidad o abrigo' },
+  { icon: '🧥', label: 'Frío / Abrigo', use: 'Tengo frío o necesito campera' },
+  { icon: '☀️', label: 'Calor / Sol', use: 'Tengo calor, aire o día soleado' },
+  { icon: '❄️', label: 'Aire / Fresco', use: 'Prender ventilador, aire o frío' },
+  { icon: '🛌', label: 'Descansar / Dormir', use: 'Cansancio, siesta o ir a dormir' },
+  { icon: '🩹', label: 'Dolor / Molestia', use: 'Me duele algo o me lastimé' },
+  { icon: '💊', label: 'Medicación / Salud', use: 'Remedio, médico o malestar físico' },
+  { icon: '🤒', label: 'Malestar / Fiebre', use: 'No me siento bien o tengo fiebre' },
+  { icon: '🧻', label: 'Pañuelos / Limpiar', use: 'Necesito servilleta, papel o limpiar' },
+  // Límites, calma y regulación sensorial
+  { icon: '🔇', label: 'Mucho ruido', use: 'Bajar el volumen o ambiente ruidoso' },
+  { icon: '🎧', label: 'Auriculares', use: 'Pedir auriculares o aislamiento sonoro' },
+  { icon: '🕶️', label: 'Mucha luz', use: 'Bajar la luz o sensibilidad visual' },
+  { icon: '🚪', label: 'Mi pieza / Privacidad', use: 'Ir a mi habitación o estar sola' },
+  { icon: '⏸️', label: 'Pausa / Frenar', use: 'Necesito un descanso o parar un momento' },
+  { icon: '✋', label: 'Espacio personal', use: 'No me toquen ahora o mantener distancia' },
+  { icon: '🌊', label: 'Abrumada / Ansiedad', use: 'Sobrecarga sensorial o necesidad de calma' },
+  { icon: '😤', label: 'Enojo / Frustración', use: 'Estoy molesta o frustrada' },
+  { icon: '😢', label: 'Tristeza', use: 'Estoy triste o necesito contención' },
+  { icon: '✨', label: 'Tranquila / Bien', use: 'Estoy bien, calma o contenta' },
+  { icon: '🫁', label: 'Respirar / Calma', use: 'Tomar aire o ejercicio de relajación' },
+  { icon: '🛋️', label: 'Quedarme acá', use: 'Prefiero no moverme o quedarme tranquila' },
+  { icon: '🛑', label: 'Basta / Detener', use: 'Parar una actividad o límite firme' },
+  { icon: '⏱️', label: 'Esperar / Tiempo', use: 'Necesito unos minutos o cuánto falta' },
+  { icon: '❓', label: 'Duda / Pregunta', use: 'No entiendo o quiero preguntar algo' },
+  // Comidas y gustos cotidianos
+  { icon: '🥪', label: 'Tostadas / Merienda', use: 'Desayuno, tostadas o sándwich' },
+  { icon: '🍎', label: 'Fruta', use: 'Manzana, banana u otra fruta' },
+  { icon: '🍨', label: 'Helado / Postre', use: 'Postre, helado o algo dulce' },
+  { icon: '🍕', label: 'Pizza / Comida rica', use: 'Cena especial o comida favorita' },
+  { icon: '🍝', label: 'Fideos / Almuerzo', use: 'Pastas o plato principal' },
+  { icon: '☕', label: 'Té / Leche / Mate', use: 'Bebida caliente o merienda' },
+  { icon: '🧃', label: 'Jugo / Bebida', use: 'Jugo, licuado o gaseosa' },
+  { icon: '🍪', label: 'Galletitas / Snack', use: 'Algo liviano para picar' },
+  // Ocio, tecnología y salidas
+  { icon: '🎵', label: 'Música', use: 'Escuchar música o playlist' },
+  { icon: '🎬', label: 'Series / Película', use: 'Ver tele, serie o película' },
+  { icon: '📱', label: 'Celular / Tablet', use: 'Usar el teléfono o ver videos' },
+  { icon: '💻', label: 'Computadora', use: 'Usar la compu, jugar o estudiar' },
+  { icon: '🎮', label: 'Videojuegos', use: 'Jugar un rato en consola o PC' },
+  { icon: '🎨', label: 'Dibujar / Arte', use: 'Pintar, dibujar o manualidades' },
+  { icon: '📚', label: 'Leer / Estudiar', use: 'Libros, tarea o escuela' },
+  { icon: '🚶‍♀️', label: 'Salir a caminar', use: 'Dar una vuelta o tomar aire afuera' },
+  { icon: '🚗', label: 'Viajar en auto', use: 'Salir en auto o ir a algún lugar' },
+  { icon: '🏠', label: 'Volver a casa', use: 'Quiero irme a casa' },
+  { icon: '🌳', label: 'Parque / Plaza', use: 'Ir a la plaza o espacio verde' },
+  { icon: '🛍️', label: 'Compras / Paseo', use: 'Ir al súper, shopping o comprar algo' },
+  // Familia, vínculos y apoyos
+  { icon: '👩', label: 'Mamá', use: 'Llamar o hablar con mamá' },
+  { icon: '👨', label: 'Papá', use: 'Llamar o hablar con papá' },
+  { icon: '👵', label: 'Abuela / Familia', use: 'Hablar o visitar a familiares' },
+  { icon: '💌', label: 'Mandar mensaje', use: 'Escribir a un familiar o amigo' },
+  { icon: '📞', label: 'Llamar / Videollamada', use: 'Hacer una llamada o videollamada' },
+  { icon: '👥', label: 'Amigos', use: 'Ver o hablar con amigos' },
+  { icon: '🐶', label: 'Mascota', use: 'Estar con el perro, gato o mascota' },
+  { icon: '🏫', label: 'Escuela / Terapia', use: 'Colegio, actividad o sesión' },
+  { icon: '🤝', label: 'Necesito ayuda', use: 'Pedir ayuda o acompañamiento' },
+  { icon: '❤️', label: 'Cariño / Abrazo', use: 'Quiero un abrazo o expresar afecto' }
 ];
 
 const state = {
@@ -263,6 +325,9 @@ function cacheDom() {
   dom.btnClearRecorded = document.getElementById('btn-clear-recorded');
   dom.recordStatus = document.getElementById('record-status');
   dom.iconPicker = document.getElementById('icon-picker');
+  dom.iconPreviewGlyph = document.getElementById('icon-preview-glyph');
+  dom.iconPreviewTitle = document.getElementById('icon-preview-title');
+  dom.iconPreviewDesc = document.getElementById('icon-preview-desc');
   dom.btnTestVoice = document.getElementById('btn-test-voice');
   dom.btnCancelEdit = document.getElementById('btn-cancel-edit');
   dom.cardsCount = document.getElementById('cards-count');
@@ -1626,19 +1691,30 @@ function startEditingCard(card) {
   dom.cardForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function updateIconPreview(iconChar) {
+  const found = CURATED_ICONS.find((item) => item.icon === iconChar) || CURATED_ICONS[0];
+  if (dom.iconPreviewGlyph) dom.iconPreviewGlyph.textContent = found.icon;
+  if (dom.iconPreviewTitle) dom.iconPreviewTitle.textContent = found.label;
+  if (dom.iconPreviewDesc) dom.iconPreviewDesc.textContent = found.use;
+}
+
 function renderIconPicker() {
   dom.iconPicker.innerHTML = '';
-  CURATED_ICONS.forEach((icon) => {
+  CURATED_ICONS.forEach((item) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = `icon-option ${state.form.selectedIcon === icon ? 'is-selected' : ''}`;
-    btn.textContent = icon;
+    btn.className = `icon-option ${state.form.selectedIcon === item.icon ? 'is-selected' : ''}`;
+    btn.textContent = item.icon;
+    btn.title = `${item.label}: ${item.use}`;
+    btn.dataset.tooltip = `${item.label} — ${item.use}`;
+    btn.setAttribute('aria-label', `${item.label}: ${item.use}`);
     btn.addEventListener('click', () => {
-      state.form.selectedIcon = icon;
+      state.form.selectedIcon = item.icon;
       renderIconPicker();
     });
     dom.iconPicker.appendChild(btn);
   });
+  updateIconPreview(state.form.selectedIcon);
 }
 
 function renderManageCardsList() {

@@ -681,12 +681,14 @@ select:focus-visible {
 }
 
 .input-with-select {
-  display: flex;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .select--compact {
-  max-width: 130px;
+  width: 100%;
+  max-width: none;
 }
 
 .ask-controls {
@@ -1298,27 +1300,93 @@ select:focus-visible {
   object-fit: cover;
 }
 
-.icon-picker {
+.icon-preview-box {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-app);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.icon-preview-box__glyph {
+  width: 68px;
+  height: 68px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.8rem;
+  flex-shrink: 0;
+}
+
+.icon-preview-box__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.icon-preview-box__title {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.icon-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
   gap: 8px;
 }
 
 .icon-option {
-  width: 44px;
-  height: 44px;
+  position: relative;
+  width: 100%;
+  height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--border-subtle);
   background-color: var(--bg-app);
-  font-size: 1.35rem;
+  font-size: 1.5rem;
+  transition: border-color var(--transition-calm), background-color var(--transition-calm), transform var(--transition-calm);
+}
+
+.icon-option:hover {
+  border-color: var(--cyan);
+  background-color: var(--bg-card-active);
 }
 
 .icon-option.is-selected {
   border-color: var(--cyan);
   background-color: var(--cyan-soft);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
+/* Tooltip limpio al hacer hover sobre cada ícono */
+.icon-option[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: max-content;
+  max-width: 210px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background-color: #020617;
+  border: 1px solid var(--cyan);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  pointer-events: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
 }
 
 .form-actions {
@@ -1474,6 +1542,7 @@ select:focus-visible {
   }
 
   .ask-inputs,
+  .input-with-select,
   .templates-grid,
   .form-grid {
     grid-template-columns: 1fr 1fr;
