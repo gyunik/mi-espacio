@@ -3,7 +3,7 @@
  * Cachea el App Shell para funcionamiento offline en Android / iOS / Desktop.
  */
 
-const CACHE_NAME = 'mi-espacio-v29';
+const CACHE_NAME = 'mi-espacio-v30';
 const APP_SHELL = [
   './',
   './index.html',
@@ -62,7 +62,7 @@ self.addEventListener('push', (event) => {
     payload = { notification: { title: 'Mi Espacio', body: event.data?.text() || 'Nuevo aviso' } };
   }
 
-  const title = payload.notification?.title || payload.data?.title || 'Mi Espacio';
+  const title = payload.notification?.title || payload.data?.title || '💬 Mi Espacio';
   const body = payload.notification?.body || payload.data?.body || 'Tenés un nuevo aviso';
   const url = payload.data?.url || './';
 
@@ -73,6 +73,12 @@ self.addEventListener('push', (event) => {
       badge: './icons/icon.svg',
       tag: 'mi-espacio-push',
       renotify: true,
+      requireInteraction: true,
+      silent: false,
+      vibrate: [200, 100, 200, 100, 300],
+      actions: [
+        { action: 'open', title: '📲 Abrir y responder' }
+      ],
       data: { url }
     })
   );
