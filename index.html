@@ -7,63 +7,258 @@
   <meta name="description" content="Mi Espacio — Comunicación Aumentativa y Alternativa de doble vía con administración colaborativa." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Mi Espacio — CAA Doble Vía</title>
+  <title>Mi Espacio — Plataforma de Comunicación Aumentativa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./landing.css" />
 </head>
 <body>
 
   <!-- ========================================================================
-       PANTALLA DE SELECCIÓN DE ROL (Primer inicio o cambio de contexto)
+       PANTALLA DE SELECCIÓN DE ROL / LANDING (Diseño Stitch)
        ======================================================================== -->
-  <section id="role-gate" class="role-gate" aria-label="Selección de modo de uso">
-    <div class="role-gate__container">
-      <div class="role-gate__brand">
-        <img src="./icons/icon.svg" alt="" class="role-gate__logo" width="64" height="64" />
-        <h1 class="role-gate__title">Mi Espacio</h1>
-        <p class="role-gate__subtitle">
+  <section id="role-gate" aria-label="Selección de modo de uso">
+    <header class="landing-header">
+      <div class="landing-header__inner">
+        <a href="#" class="landing-brand" aria-label="Mi Espacio">
+          <div class="landing-brand__icon">
+            <span class="material-symbols-outlined">graphic_eq</span>
+          </div>
+          <div class="landing-brand__text">
+            <span class="landing-brand__name">Mi Espacio</span>
+            <span class="landing-brand__sub">Comunicación Colaborativa</span>
+          </div>
+        </a>
+
+        <nav class="landing-nav" aria-label="Accesos rápidos">
+          <a href="#" class="landing-nav__link is-active" aria-current="page">Espacios</a>
+          <a href="#" class="landing-nav__link" data-landing-go="communicator">Comunicador</a>
+          <a href="#" class="landing-nav__link" data-landing-go="family">Equipo &amp; Familia</a>
+        </nav>
+
+        <div class="landing-header__right">
+          <div id="landing-sync-badge" class="landing-link-badge" title="Sincronización bidireccional activa">
+            <span class="landing-link-badge__dot" aria-hidden="true"></span>
+            <span>Enlace activo</span>
+          </div>
+          <div class="landing-avatar" aria-hidden="true">
+            <span class="material-symbols-outlined" style="font-size: 18px;">person</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="landing-main">
+      <div class="landing-glow landing-glow--cyan" aria-hidden="true"></div>
+      <div class="landing-glow landing-glow--emerald" aria-hidden="true"></div>
+
+      <!-- Hero -->
+      <div class="landing-hero">
+        <div class="landing-hero__icon" aria-hidden="true">
+          <svg width="36" height="36" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="3" viewBox="0 0 48 48">
+            <path stroke="#48efef" d="M12 28C12 20 17 14 24 14C31 14 36 20 36 28"></path>
+            <path stroke="#4edea3" d="M17 31C17 26 20 22 24 22C28 22 31 26 31 31"></path>
+            <circle cx="24" cy="33" fill="#56f9f9" r="2.2"></circle>
+          </svg>
+        </div>
+        <h1 class="landing-hero__title">Mi Espacio</h1>
+        <p class="landing-hero__subtitle">
           Comunicación de doble vía, previsible y colaborativa. Elegí cómo querés usar este dispositivo:
         </p>
       </div>
 
-      <div class="role-cards">
-        <button type="button" id="btn-choose-communicator" class="role-card role-card--primary">
-          <span class="role-card__badge">Uso diario</span>
-          <h2 class="role-card__title">Modo Comunicador</h2>
-          <p class="role-card__desc">
-            Pantalla completa para el adolescente. Libre de configuraciones y distracciones.
-          </p>
-        </button>
-
-        <div class="role-card role-card--secondary">
-          <span class="role-card__badge role-card__badge--emerald">Edición remota o local</span>
-          <h2 class="role-card__title">Modo Familia / Equipo</h2>
-          <p class="role-card__desc">
-            Para padres, familiares a distancia o terapeutas: crear tarjetas, preguntas del día y ver el historial.
-          </p>
-
-          <div class="role-card__pairing">
-            <label for="gate-pairing-input" class="field-label">
-              Código de vinculación (opcional, 6 dígitos)
-            </label>
-            <div class="pin-row">
-              <input
-                id="gate-pairing-input"
-                type="text"
-                inputmode="numeric"
-                maxlength="7"
-                class="input input--code"
-                placeholder="Ej: 482-915"
-              />
-              <button type="button" id="btn-choose-family" class="btn btn--emerald">
-                Entrar
-              </button>
+      <!-- Selector de Modos (Bento Grid) -->
+      <div class="landing-bento">
+        <!-- Card 1: Modo Comunicador -->
+        <div class="landing-mode-card">
+          <div>
+            <div class="landing-mode-card__top">
+              <span class="landing-pill landing-pill--daily">
+                <span class="landing-pill__dot" aria-hidden="true"></span>
+                Uso diario
+              </span>
+              <span class="material-symbols-outlined" style="color: #64748B;" title="Autonomía directa">record_voice_over</span>
             </div>
+
+            <h2 class="landing-mode-card__title">Modo Comunicador</h2>
+            <p class="landing-mode-card__desc">
+              Pantalla completa para el adolescente. Libre de configuraciones, notificaciones intrusivas y distracciones.
+            </p>
+
+            <div class="landing-preview-box">
+              <div class="landing-preview-box__head">
+                <span>Tablero de acceso táctil directo</span>
+                <span class="landing-preview-box__tts">
+                  <span class="material-symbols-outlined" style="font-size: 14px;">volume_up</span>
+                  Síntesis TTS
+                </span>
+              </div>
+              <div class="landing-preview-tiles">
+                <div class="landing-tile landing-tile--yes">
+                  <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                  <span>SÍ</span>
+                </div>
+                <div class="landing-tile landing-tile--no">
+                  <span class="material-symbols-outlined">cancel</span>
+                  <span>NO</span>
+                </div>
+                <div class="landing-tile landing-tile--voice">
+                  <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">forum</span>
+                  <span>Mi Voz</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" id="btn-choose-communicator" class="landing-cta-primary">
+            <span>Ingresar al Comunicador</span>
+            <span class="material-symbols-outlined" style="font-size: 20px;">arrow_forward</span>
+          </button>
+        </div>
+
+        <!-- Card 2: Modo Familia / Equipo -->
+        <div class="landing-mode-card">
+          <div>
+            <div class="landing-mode-card__top">
+              <span class="landing-pill landing-pill--remote">
+                <span class="landing-pill__dot" aria-hidden="true"></span>
+                Edición remota o local
+              </span>
+              <span class="material-symbols-outlined" style="color: #64748B;" title="Soporte y red de apoyo">diversity_3</span>
+            </div>
+
+            <h2 class="landing-mode-card__title">Modo Familia / Equipo</h2>
+            <p class="landing-mode-card__desc">
+              Para padres, familiares a distancia o terapeutas: crear tarjetas, enviar preguntas y responder con tu voz.
+            </p>
+
+            <div class="landing-pairing-box">
+              <label for="gate-pairing-input" class="landing-pairing-label">
+                Código de vinculación (opcional, 6 dígitos)
+              </label>
+              <div class="landing-pairing-row">
+                <div class="landing-input-wrap">
+                  <input
+                    id="gate-pairing-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="7"
+                    class="landing-code-input"
+                    placeholder="Ej: 482-915"
+                  />
+                  <span class="material-symbols-outlined landing-input-icon" aria-hidden="true">key</span>
+                </div>
+                <button type="button" id="btn-choose-family" class="landing-cta-enter">
+                  <span>Entrar</span>
+                  <span class="material-symbols-outlined" style="font-size: 18px;">login</span>
+                </button>
+              </div>
+              <p class="landing-pairing-hint">
+                Si es la primera vez en este dispositivo, podés entrar directamente sin código.
+              </p>
+            </div>
+          </div>
+
+          <div class="landing-card-footer">
+            <button type="button" class="landing-local-link" data-landing-go="family">
+              <span class="material-symbols-outlined" style="font-size: 18px;">dashboard_customize</span>
+              <span>Gestionar tableros locales</span>
+            </button>
+            <span style="font-size: 12px; color: #64748B;">Firebase listo</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teaser Bidireccional -->
+      <div class="landing-teaser">
+        <div>
+          <div class="landing-teaser__eyebrow">
+            <span class="material-symbols-outlined" style="font-size: 16px;">sync_alt</span>
+            <span>COMUNICACIÓN BIDIRECCIONAL EN TIEMPO REAL</span>
+          </div>
+          <h3 class="landing-teaser__title">Acompañamiento sin invadir</h3>
+          <p class="landing-teaser__desc">
+            Las preguntas enviadas por la familia aparecen con apoyo visual claro. El comunicador permite responder con voz sintetizada, avisos de calma o escuchar mensajes de voz grabados por mamá y papá.
+          </p>
+          <div class="landing-teaser__tags">
+            <span class="landing-tag">
+              <span class="material-symbols-outlined" style="color: #4edea3; font-size: 16px;">mic</span>
+              Notas de voz reales
+            </span>
+            <span class="landing-tag">
+              <span class="material-symbols-outlined" style="color: #38BDF8; font-size: 16px;">notifications_paused</span>
+              Sin sobreestimulación
+            </span>
+          </div>
+        </div>
+
+        <div class="landing-teaser__media">
+          <img
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXmxPQrbUy9V8LiLTd-bQrhpkgNqTcSek8aLYnW_XMBf1c9G9baivfuY3Gr7J7IUYo2SG0GhKJoLCkh7xsXEyTs1uc0nNYjhaRMrZ7Q181sI_FNkqMR6BcDHRRbyUQepHznzo9R31COj4VeWxm9H_EGxnn_4K9ZBNhUIz384oP8LZbPlz_YT4t9IEEqFIjH72XaBbpAPixnTOIqpm4awnontStk7ePMwPagzFqOg"
+            alt="Espacio predecible y seguro para comunicación aumentativa"
+            onerror="this.style.display='none'"
+          />
+          <div class="landing-teaser__media-overlay">
+            <span>Espacio predecible y seguro</span>
+            <span class="material-symbols-outlined" style="color: #48efef; font-size: 18px;">verified_user</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 Pilares -->
+      <div class="landing-pillars">
+        <div class="landing-pillar">
+          <div class="landing-pillar__icon" style="color: #48efef;">
+            <span class="material-symbols-outlined">filter_vintage</span>
+          </div>
+          <div>
+            <span class="landing-pillar__title">Baja estimulación</span>
+            <span class="landing-pillar__desc">
+              Interfaz libre de elementos parpadeantes, contrastes agresivos y colores saturados molestos.
+            </span>
+          </div>
+        </div>
+
+        <div class="landing-pillar">
+          <div class="landing-pillar__icon" style="color: #4edea3;">
+            <span class="material-symbols-outlined">calendar_view_week</span>
+          </div>
+          <div>
+            <span class="landing-pillar__title">Previsibilidad</span>
+            <span class="landing-pillar__desc">
+              Diseñado para anticipar situaciones, estructurar respuestas rápidas y reducir la incertidumbre.
+            </span>
+          </div>
+        </div>
+
+        <div class="landing-pillar">
+          <div class="landing-pillar__icon" style="color: #38BDF8;">
+            <span class="material-symbols-outlined">shield_person</span>
+          </div>
+          <div>
+            <span class="landing-pillar__title">Privacidad &amp; Respeto</span>
+            <span class="landing-pillar__desc">
+              Modo adolescente protegido, enfocado puramente en su voz y libre de distracciones técnicas.
+            </span>
           </div>
         </div>
       </div>
     </div>
+
+    <footer class="landing-footer">
+      <div class="landing-footer__inner">
+        <div class="landing-footer__left">
+          <span class="material-symbols-outlined" style="color: #48efef; font-size: 18px;">accessibility_new</span>
+          <span>Diseñado sin sobrecarga sensorial · Previsible, respetuoso y calmado</span>
+        </div>
+        <span>Mi Espacio · CAA Doble Vía</span>
+      </div>
+    </footer>
   </section>
 
   <!-- ========================================================================

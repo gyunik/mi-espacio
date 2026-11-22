@@ -355,6 +355,24 @@ function ttsOptions() {
    FLUJO DE ROLES (Comunicador vs Familia / Equipo)
    ========================================================================== */
 function bindRoleGate() {
+  // Auto-formato 482-915 al escribir el código de 6 dígitos
+  dom.gatePairingInput?.addEventListener('input', (e) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+    e.target.value = digits.length > 3 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : digits;
+  });
+
+  // Accesos rápidos del header y enlaces secundarios de la landing
+  document.querySelectorAll('[data-landing-go]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (el.dataset.landingGo === 'communicator') {
+        dom.btnChooseCommunicator.click();
+      } else {
+        dom.btnChooseFamily.click();
+      }
+    });
+  });
+
   dom.btnChooseCommunicator.addEventListener('click', () => {
     state.settings = saveSettings({ role: 'communicator' });
     applyRoleScreen('communicator');
