@@ -353,7 +353,8 @@ export async function importTemplatePack(packId) {
     if (!existingTexts.has(tpl.text.toLowerCase())) {
       await saveCard({
         ...tpl,
-        id: `${tpl.id}-${Date.now()}-${importedCount}`,
+        // ID determinístico para evitar duplicados aunque dos dispositivos importen a la vez
+        id: tpl.id,
         authorRole: 'template',
         createdAt: Date.now() + importedCount
       });

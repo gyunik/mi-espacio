@@ -463,7 +463,36 @@ function startBoardSubscription() {
         renderManageCardsList();
         return;
       }
-      state.cards = cards;
+      // Deduplicar automáticamente si dos dispositivos subieron tarjetas repetidas con distinto ID
+      const seenByText = new Map();
+      const duplicateIds = [];
+      const uniqueCards = [];
+
+      for (const c of cards) {
+        const key = (c.text || '').trim().toLowerCase();
+        if (!key) continue;
+        if (!seenByText.has(key)) {
+          seenByText.set(key, c);
+          uniqueCards.push(c);
+        } else {
+          const prev = seenByText.get(key);
+          // Conservar la que tenga foto/audio si la primera no tenía
+          if ((!prev.imageData && c.imageData) || (!prev.audioData && c.audioData)) {
+            duplicateIds.push(prev.id);
+            const idx = uniqueCards.indexOf(prev);
+            if (idx !== -1) uniqueCards[idx] = c;
+            seenByText.set(key, c);
+          } else {
+            duplicateIds.push(c.id);
+          }
+        }
+      }
+
+      if (duplicateIds.length > 0) {
+        Promise.all(duplicateIds.map((id) => removeCard(id))).catch(() => {});
+      }
+
+      state.cards = uniqueCards;
       renderCardsGrid();
       populateAskCardSelectors();
       renderManageCardsList();
