@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS = {
   voiceURI: '',
   showPhraseBar: true,
   notifyFamilyOnTap: true,
+  allowTeenVoiceMessage: true,
   seeded: false,
   starterVersion: 0
 };
@@ -570,24 +571,40 @@ async function saveLiveEvent(eventObj) {
 }
 
 /**
- * El adolescente envía un pedido/aviso silencioso a Familia.
+ * El adolescente envía un pedido/aviso silencioso o mensaje de voz a Familia.
  */
-export async function sendTeenRequest({ label, category = 'general' }) {
+export async function sendTeenRequest({ label, category = 'general', audioData = null }) {
   const ev = {
     id: `ev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     type: 'teen_request',
     label,
     category,
-    status: 'sent', // 'sent' -> 'seen'
+    audioData: audioData || null,
+    status: 'sent', // 'sent' -> 'replied' / 'seen'
     createdAt: Date.now()
   };
   const saved = await saveLiveEvent(ev);
   triggerBackgroundPush({
     targetRole: 'family',
-    title: 'Mi Espacio — Nuevo aviso',
-    body: label
+    title: audioData ? '🎙️ Mi Espacio — Mensaje de voz' : 'Mi Espacio — Nuevo aviso',
+    body: audioData ? 'Te envió un mensaje hablado. Tocá para escuchar.' : label
   });
   return saved;
+}
+
+/**
+ * Sincroniza opciones compartidas del tablero (como habilitar mensaje hablado) con Firestore.
+ */
+export async function saveBoardPreference(partial) {
+  saveSettings(partial);
+  if (fb) {
+    const { pairingCode } = getSettings();
+    await fb.setDoc(
+      fb.doc(fb.db, 'boards', pairingCode, 'meta', 'settings'),
+      partial,
+      { merge: true }
+    );
+  }
 }
 
 /**
@@ -806,6 +823,15 @@ export function subscribeToBoard(pairingCode, callbacks = {}) {
       fb.onSnapshot(evQuery, (snap) => {
         const events = snap.docs.map((d) => d.data());
         callbacks.onLiveEvents?.(events);
+      })
+    );
+
+    const metaRef = fb.doc(fb.db, 'boards', pairingCode, 'meta', 'settings');
+    unsubs.push(
+      fb.onSnapshot(metaRef, (snap) => {
+        if (snap.exists()) {
+          callbacks.onBoardSettings?.(snap.data());
+        }
       })
     );
   } else if (syncChannel) {

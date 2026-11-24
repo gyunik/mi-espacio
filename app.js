@@ -45,6 +45,7 @@ import {
   clearUsageLogs,
   getSettings,
   saveSettings,
+  saveBoardPreference,
   generatePairingCode,
   compressImageFile
 } from './dataService.js';
@@ -135,6 +136,11 @@ const state = {
     audioData: null,
     autoStopTimer: null
   },
+  teenVoice: {
+    recorder: null,
+    isRecording: false,
+    autoStopTimer: null
+  },
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
   firebaseReady: false,
@@ -218,8 +224,16 @@ function cacheDom() {
   dom.incomingQuestionText = document.getElementById('incoming-question-text');
   dom.commSentStatus = document.getElementById('comm-sent-status');
   dom.commChannelPill = document.getElementById('comm-channel-pill');
+  dom.btnTeenVoiceMsg = document.getElementById('btn-teen-voice-msg');
   dom.btnCommEnablePush = document.getElementById('btn-comm-enable-push');
   dom.btnToggleRemoteNotify = document.getElementById('btn-toggle-remote-notify');
+
+  // Modal de grabación de mensaje hablado del adolescente
+  dom.teenRecordModal = document.getElementById('teen-record-modal');
+  dom.teenRecordTitle = document.getElementById('teen-record-title');
+  dom.teenRecordStatus = document.getElementById('teen-record-status');
+  dom.btnTeenSendVoice = document.getElementById('btn-teen-send-voice');
+  dom.btnTeenCancelVoice = document.getElementById('btn-teen-cancel-voice');
 
   // Modal push visual para pregunta entrante
   dom.pushModal = document.getElementById('push-question-modal');
@@ -248,6 +262,7 @@ function cacheDom() {
   dom.famAlertTime = document.getElementById('fam-alert-time');
   dom.famAlertVisual = document.getElementById('fam-alert-visual');
   dom.famAlertTitle = document.getElementById('fam-alert-title');
+  dom.btnFamPlayTeenAudio = document.getElementById('btn-fam-play-teen-audio');
   dom.btnFamRecord = document.getElementById('btn-fam-record');
   dom.btnFamPlayAudio = document.getElementById('btn-fam-play-audio');
   dom.btnFamSendAudio = document.getElementById('btn-fam-send-audio');
@@ -337,6 +352,7 @@ function cacheDom() {
   dom.settingRate = document.getElementById('setting-rate');
   dom.rateValue = document.getElementById('rate-value');
   dom.settingPhraseBar = document.getElementById('setting-phrase-bar');
+  dom.settingTeenVoiceMsg = document.getElementById('setting-teen-voice-msg');
   dom.joinCodeInput = document.getElementById('join-code-input');
   dom.btnJoinCode = document.getElementById('btn-join-code');
 }
@@ -519,6 +535,12 @@ function startBoardSubscription() {
     },
     onLiveEvents: (events) => {
       handleIncomingLiveEvents(events);
+    },
+    onBoardSettings: (remoteSettings) => {
+      if (typeof remoteSettings.allowTeenVoiceMessage === 'boolean') {
+        state.settings = saveSettings({ allowTeenVoiceMessage: remoteSettings.allowTeenVoiceMessage });
+        applySettingsToUI();
+      }
     }
   });
 }
@@ -820,13 +842,22 @@ function openFamilyAlertModal(ev) {
     (c) => c.text.toLowerCase() === (ev.label || '').toLowerCase()
   );
   dom.famAlertVisual.innerHTML = '';
-  if (match?.imageData) {
+  if (ev.audioData) {
+    const img = document.createElement('img');
+    img.src = './assets/cards/audio-familia.svg';
+    img.alt = 'Mensaje hablado';
+    dom.famAlertVisual.appendChild(img);
+  } else if (match?.imageData) {
     const img = document.createElement('img');
     img.src = match.imageData;
     img.alt = ev.label;
     dom.famAlertVisual.appendChild(img);
   } else {
     dom.famAlertVisual.textContent = match?.icon || '📣';
+  }
+
+  if (dom.btnFamPlayTeenAudio) {
+    dom.btnFamPlayTeenAudio.hidden = !ev.audioData;
   }
 
   dom.famAlertModal.hidden = false;
@@ -871,6 +902,67 @@ function bindPhraseBar() {
       await acknowledgeReply(id);
     }
   });
+
+  // Botón de mensaje hablado del adolescente (1 toque para grabar, 1 toque para enviar)
+  const closeTeenVoiceModal = async (shouldSend) => {
+    clearTimeout(state.teenVoice.autoStopTimer);
+    const rec = state.teenVoice.recorder;
+    state.teenVoice.recorder = null;
+    state.teenVoice.isRecording = false;
+
+    if (rec && shouldSend) {
+      dom.teenRecordTitle.textContent = 'Enviando mensaje...';
+      dom.btnTeenSendVoice.disabled = true;
+      try {
+        const audioData = await rec.stop();
+        await sendTeenRequest({
+          label: 'Mensaje hablado 🎙️',
+          category: 'mensaje_hablado',
+          audioData
+        });
+        dom.commSentStatus.textContent = 'Enviado a Familia: "Mensaje hablado 🎙️" ✓';
+        dom.commSentStatus.hidden = false;
+      } catch (err) {
+        dom.commSentStatus.textContent = 'No se pudo enviar el mensaje de voz.';
+        dom.commSentStatus.hidden = false;
+      }
+      dom.btnTeenSendVoice.disabled = false;
+    } else if (rec) {
+      rec.stop().catch(() => {});
+    }
+
+    dom.teenRecordModal.hidden = true;
+  };
+
+  dom.btnTeenVoiceMsg?.addEventListener('click', async () => {
+    if (!isAudioRecordingSupported()) {
+      dom.commSentStatus.textContent = 'Tu navegador no permite grabar audio.';
+      dom.commSentStatus.hidden = false;
+      return;
+    }
+    try {
+      stopAllAudio();
+      dom.teenRecordTitle.textContent = 'Grabando tu mensaje...';
+      dom.teenRecordStatus.textContent = 'Hablá tranquilo/a y tocá Enviar cuando termines.';
+      dom.btnTeenSendVoice.disabled = false;
+      dom.teenRecordModal.hidden = false;
+
+      state.teenVoice.recorder = await startVoiceRecording();
+      state.teenVoice.isRecording = true;
+      state.teenVoice.autoStopTimer = setTimeout(() => {
+        if (state.teenVoice.isRecording) {
+          closeTeenVoiceModal(true);
+        }
+      }, 15000);
+    } catch {
+      dom.teenRecordModal.hidden = true;
+      dom.commSentStatus.textContent = 'Necesitás permitir el micrófono para enviar mensajes hablados.';
+      dom.commSentStatus.hidden = false;
+    }
+  });
+
+  dom.btnTeenSendVoice?.addEventListener('click', () => closeTeenVoiceModal(true));
+  dom.btnTeenCancelVoice?.addEventListener('click', () => closeTeenVoiceModal(false));
 
   dom.btnCommEnablePush?.addEventListener('click', async () => {
     if (typeof Notification === 'undefined') return;
@@ -1461,6 +1553,13 @@ function bindFamilyMode() {
     });
   });
 
+  dom.btnFamPlayTeenAudio?.addEventListener('click', () => {
+    const ev = state.liveEvents.find((e) => e.id === state.activeFamilyAlertId);
+    if (ev?.audioData) {
+      playAudioDataUrl(ev.audioData);
+    }
+  });
+
   dom.btnFamPlayAudio.addEventListener('click', () => {
     if (state.familyReply.audioData) playAudioDataUrl(state.familyReply.audioData);
   });
@@ -1671,6 +1770,13 @@ function bindFamilyMode() {
   dom.settingPhraseBar.addEventListener('change', () => {
     state.settings = saveSettings({ showPhraseBar: dom.settingPhraseBar.checked });
     renderPhraseBar();
+  });
+
+  dom.settingTeenVoiceMsg?.addEventListener('change', async () => {
+    const enabled = dom.settingTeenVoiceMsg.checked;
+    state.settings = saveSettings({ allowTeenVoiceMessage: enabled });
+    applySettingsToUI();
+    await saveBoardPreference({ allowTeenVoiceMessage: enabled });
   });
 
   dom.btnJoinCode.addEventListener('click', () => {
@@ -1957,12 +2063,33 @@ function renderLiveEvents() {
     item.appendChild(left);
 
     if (ev.type === 'teen_request' && ev.status === 'sent') {
+      const actionsWrap = document.createElement('div');
+      actionsWrap.className = 'manage-item__actions';
+
+      if (ev.audioData) {
+        const listenBtn = document.createElement('button');
+        listenBtn.type = 'button';
+        listenBtn.className = 'btn btn--emerald btn--sm';
+        listenBtn.textContent = '▶ Escuchar';
+        listenBtn.addEventListener('click', () => playAudioDataUrl(ev.audioData));
+        actionsWrap.appendChild(listenBtn);
+      }
+
       const replyBtn = document.createElement('button');
       replyBtn.type = 'button';
       replyBtn.className = 'btn btn--accent btn--sm';
       replyBtn.textContent = '🎙️ Responder';
       replyBtn.addEventListener('click', () => openFamilyAlertModal(ev));
-      item.appendChild(replyBtn);
+      actionsWrap.appendChild(replyBtn);
+
+      item.appendChild(actionsWrap);
+    } else if (ev.type === 'teen_request' && ev.audioData) {
+      const listenBtn = document.createElement('button');
+      listenBtn.type = 'button';
+      listenBtn.className = 'btn btn--ghost btn--sm';
+      listenBtn.textContent = '▶ Audio';
+      listenBtn.addEventListener('click', () => playAudioDataUrl(ev.audioData));
+      item.appendChild(listenBtn);
     } else if (ev.status === 'answered') {
       const seenBtn = document.createElement('button');
       seenBtn.type = 'button';
@@ -2059,6 +2186,11 @@ function applySettingsToUI() {
   dom.settingRate.value = String(state.settings.speechRate);
   dom.rateValue.textContent = `${Number(state.settings.speechRate).toFixed(2)}x`;
   dom.settingPhraseBar.checked = Boolean(state.settings.showPhraseBar);
+
+  const allowVoice = state.settings.allowTeenVoiceMessage !== false;
+  if (dom.settingTeenVoiceMsg) dom.settingTeenVoiceMsg.checked = allowVoice;
+  if (dom.btnTeenVoiceMsg) dom.btnTeenVoiceMsg.hidden = !allowVoice;
+
   renderPhraseBar();
 }
 

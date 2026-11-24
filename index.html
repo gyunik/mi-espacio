@@ -319,6 +319,9 @@
         <div class="voice-toolbar">
           <span id="comm-channel-pill" class="channel-pill">Canal: ------</span>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" id="btn-teen-voice-msg" class="btn btn--accent btn--sm">
+              🎙️ Hablar a Familia
+            </button>
             <button type="button" id="btn-comm-enable-push" class="chip-btn" hidden>
               🔔 Activar notificaciones
             </button>
@@ -432,6 +435,32 @@
 
         <button type="button" id="btn-teen-ack-reply" class="btn btn--accent btn--lg">
           Entendido ✓
+        </button>
+      </div>
+    </div>
+
+    <!-- MODAL SIMPLE EN MODO COMUNICADOR: Enviar mensaje hablado a Familia -->
+    <div id="teen-record-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="teen-record-title" hidden>
+      <div class="push-modal__card">
+        <div class="push-modal__top">
+          <span class="push-modal__eyebrow">Mensaje hablado para Familia</span>
+          <span id="teen-record-timer" class="muted-text">máx. 15 seg</span>
+        </div>
+
+        <div class="push-modal__hero">
+          <div class="push-modal__visual push-modal__visual--sm">
+            <img src="./assets/cards/audio-familia.svg" alt="Grabando mensaje de voz" />
+          </div>
+          <h2 id="teen-record-title" class="push-modal__title">Grabando tu mensaje...</h2>
+          <p id="teen-record-status" class="muted-text">Hablá tranquilo/a y tocá Enviar cuando termines.</p>
+        </div>
+
+        <button type="button" id="btn-teen-send-voice" class="btn btn--emerald btn--lg reply-play-btn">
+          📤 Enviar mensaje a Familia
+        </button>
+
+        <button type="button" id="btn-teen-cancel-voice" class="btn btn--ghost push-modal__later">
+          Cancelar
         </button>
       </div>
     </div>
@@ -703,6 +732,13 @@
             </div>
 
             <div class="form-field">
+              <label class="toggle-label" for="setting-teen-voice-msg">
+                <input id="setting-teen-voice-msg" type="checkbox" checked />
+                <span>Mostrar botón "🎙️ Hablar a Familia" en el Comunicador</span>
+              </label>
+            </div>
+
+            <div class="form-field">
               <label for="join-code-input" class="field-label">Vincular a otro código de 6 dígitos</label>
               <div class="pin-row">
                 <input id="join-code-input" type="text" inputmode="numeric" maxlength="7" class="input input--code" placeholder="Ej: 482-915" />
@@ -725,6 +761,9 @@
         <div class="push-modal__hero">
           <div id="fam-alert-visual" class="push-modal__visual push-modal__visual--sm">📣</div>
           <h2 id="fam-alert-title" class="push-modal__title">Tengo hambre</h2>
+          <button type="button" id="btn-fam-play-teen-audio" class="btn btn--emerald btn--lg" style="width: 100%;" hidden>
+            ▶ Escuchar mensaje hablado
+          </button>
         </div>
 
         <!-- Responder hablando (transcripción en vivo tipo ListeningLab) o con nota de voz -->
