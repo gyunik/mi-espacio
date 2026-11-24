@@ -319,9 +319,6 @@
         <div class="voice-toolbar">
           <span id="comm-channel-pill" class="channel-pill">Canal: ------</span>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button type="button" id="btn-teen-music" class="btn btn--accent btn--sm">
-              🎵 Mi Música
-            </button>
             <button type="button" id="btn-teen-voice-msg" class="btn btn--accent btn--sm">
               🎙️ Hablar a Familia
             </button>
@@ -465,37 +462,6 @@
         <button type="button" id="btn-teen-cancel-voice" class="btn btn--ghost push-modal__later">
           Cancelar
         </button>
-      </div>
-    </div>
-
-    <!-- MODAL REPRODUCTOR DE MÚSICA CALMO (Categoría elegida por Familia) -->
-    <div id="teen-music-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="music-modal-title" hidden>
-      <div class="push-modal__card">
-        <div class="push-modal__top">
-          <span id="music-cat-label" class="push-modal__eyebrow">🌊 Calma y Regulación</span>
-          <button type="button" id="btn-music-close" class="btn btn--ghost btn--sm">Cerrar</button>
-        </div>
-
-        <div class="push-modal__hero">
-          <div class="push-modal__visual push-modal__visual--sm">
-            <img src="./assets/cards/musica.svg" alt="Mi Música" />
-          </div>
-          <h2 id="music-modal-title" class="push-modal__title">Calma 1 — Piano suave</h2>
-          <p id="music-status-text" class="muted-text"></p>
-        </div>
-
-        <div class="music-controls">
-          <button type="button" id="btn-music-prev" class="btn btn--ghost btn--lg" aria-label="Canción anterior">⏮</button>
-          <button type="button" id="btn-music-play" class="btn btn--emerald btn--lg music-play-main">▶ Reproducir</button>
-          <button type="button" id="btn-music-next" class="btn btn--ghost btn--lg" aria-label="Siguiente canción">⏭</button>
-        </div>
-
-        <div class="music-volume-row">
-          <span class="field-label">🔉 Volumen</span>
-          <input id="music-volume-slider" type="range" min="0.1" max="1" step="0.05" value="0.65" class="range-input" />
-        </div>
-
-        <div id="music-tracks-list" class="music-tracks-list"></div>
       </div>
     </div>
   </div>
@@ -778,7 +744,7 @@
                 <option value="calma">🌊 Calma y Regulación (5 temas)</option>
                 <option value="ritmo">🎧 Ritmo Suave / Enfoque (5 temas)</option>
                 <option value="noche">🌙 Descanso y Noche (5 temas)</option>
-                <option value="off">Ocultar botón de música</option>
+                <option value="off">Ocultar tarjeta de música</option>
               </select>
             </div>
 

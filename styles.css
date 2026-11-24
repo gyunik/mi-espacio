@@ -481,6 +481,12 @@ select:focus-visible {
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
 }
 
+.aac-card.is-music-playing {
+  background-color: rgba(16, 185, 129, 0.16);
+  border-color: var(--emerald);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.28);
+}
+
 .aac-card__voice-badge {
   position: absolute;
   top: 8px;
