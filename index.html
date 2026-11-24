@@ -464,6 +464,26 @@
         </button>
       </div>
     </div>
+
+    <!-- MODAL CALMO DE INFORMACIÓN HABLADA (Clima / Día y Hora) -->
+    <div id="comm-info-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="comm-info-headline" hidden>
+      <div class="push-modal__card push-modal__card--emerald">
+        <div class="push-modal__top">
+          <span id="comm-info-eyebrow" class="push-modal__eyebrow push-modal__eyebrow--emerald">Información</span>
+          <button type="button" id="btn-comm-info-repeat" class="btn btn--ghost btn--sm">🔊 Repetir</button>
+        </div>
+
+        <div class="push-modal__hero">
+          <div id="comm-info-icon" class="push-modal__visual push-modal__visual--sm">🌤️</div>
+          <h2 id="comm-info-headline" class="push-modal__title" style="font-size: 2rem;">24°C · Despejado</h2>
+          <p id="comm-info-details" class="muted-text" style="font-size: 1.1rem;"></p>
+        </div>
+
+        <button type="button" id="btn-comm-info-close" class="btn btn--accent btn--lg">
+          Listo ✓
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- ========================================================================
@@ -771,6 +791,74 @@
                 <input id="join-code-input" type="text" inputmode="numeric" maxlength="7" class="input input--code" placeholder="Ej: 482-915" />
                 <button type="button" id="btn-join-code" class="btn btn--accent btn--sm">Vincular</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top: 16px;">
+          <h2 class="panel__title">Funciones para Personas Mayores y Bienestar (opcionales)</h2>
+          <p class="muted-text" style="margin: -4px 0 14px; font-size: 0.85rem;">
+            Activá solo las tarjetas que necesite la persona. Todo se sincroniza automáticamente con el Comunicador.
+          </p>
+
+          <div class="form-grid">
+            <!-- 1. Radio en vivo -->
+            <div class="form-field">
+              <label class="toggle-label" for="setting-enable-radio">
+                <input id="setting-enable-radio" type="checkbox" />
+                <span>Mostrar tarjeta "📻 Escuchar radio" en el Comunicador</span>
+              </label>
+
+              <div class="pin-row" style="margin-top: 8px;">
+                <input id="radio-search-input" type="text" class="input" placeholder="Buscar radio (ej: Mitre, Cadena 3, Aspen...)" style="flex: 1;" />
+                <button type="button" id="btn-search-radio" class="btn btn--accent btn--sm">Buscar</button>
+              </div>
+
+              <div class="pin-row" id="radio-results-row" style="margin-top: 8px;" hidden>
+                <select id="radio-results-select" class="select" style="flex: 1;"></select>
+                <button type="button" id="btn-save-radio" class="btn btn--emerald btn--sm">Usar esta</button>
+              </div>
+
+              <div class="pin-row" style="margin-top: 8px; align-items: center;">
+                <span id="radio-active-label" class="muted-text" style="flex: 1; font-size: 0.82rem;">Radio activa: ninguna seleccionada</span>
+                <button type="button" id="btn-test-radio" class="btn btn--ghost btn--sm" disabled>▶ Probar radio</button>
+              </div>
+              <span id="radio-search-status" class="muted-text" style="font-size: 0.78rem;"></span>
+            </div>
+
+            <!-- 2. Estado del tiempo (Clima) -->
+            <div class="form-field">
+              <label class="toggle-label" for="setting-enable-weather">
+                <input id="setting-enable-weather" type="checkbox" />
+                <span>Mostrar tarjeta "🌤️ ¿Cómo está el tiempo?" en el Comunicador</span>
+              </label>
+
+              <div class="pin-row" style="margin-top: 8px;">
+                <input id="weather-city-input" type="text" class="input" placeholder="Ciudad (ej: Buenos Aires, Córdoba, Rosario...)" style="flex: 1;" />
+                <button type="button" id="btn-search-city" class="btn btn--accent btn--sm">Buscar</button>
+              </div>
+
+              <div class="pin-row" id="weather-results-row" style="margin-top: 8px;" hidden>
+                <select id="weather-city-results" class="select" style="flex: 1;"></select>
+                <button type="button" id="btn-save-city" class="btn btn--emerald btn--sm">Guardar</button>
+              </div>
+
+              <div class="pin-row" style="margin-top: 8px; align-items: center;">
+                <span id="weather-active-label" class="muted-text" style="flex: 1; font-size: 0.82rem;">Ciudad activa: Buenos Aires</span>
+                <button type="button" id="btn-test-weather" class="btn btn--ghost btn--sm">🔊 Probar clima</button>
+              </div>
+              <span id="weather-search-status" class="muted-text" style="font-size: 0.78rem;"></span>
+            </div>
+
+            <!-- 3. Día y Hora -->
+            <div class="form-field">
+              <label class="toggle-label" for="setting-enable-datetime">
+                <input id="setting-enable-datetime" type="checkbox" />
+                <span>Mostrar tarjeta "🕒 ¿Qué día y hora es?" (funciona sin internet)</span>
+              </label>
+              <span class="muted-text" style="font-size: 0.78rem;">
+                Al tocarla muestra la hora y la fecha en grande y la lee en voz alta en español.
+              </span>
             </div>
           </div>
         </div>

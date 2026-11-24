@@ -18,6 +18,12 @@ import {
 
 import { MUSIC_CATEGORIES } from './musicCatalog.js';
 import {
+  searchRadioStations,
+  searchCities,
+  fetchWeatherSummary,
+  getDateTimeSummary
+} from './seniorServices.js';
+import {
   CATEGORIES,
   TEMPLATE_PACKS,
   isFirebaseConfigured,
@@ -150,6 +156,17 @@ const state = {
     previewPlaying: false,
     previewTrackIndex: 0
   },
+  radio: {
+    audio: null,
+    isPlaying: false,
+    previewAudio: null,
+    previewPlaying: false,
+    searchResults: []
+  },
+  weather: {
+    searchResults: []
+  },
+  commInfoSpeech: '',
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
   firebaseReady: false,
@@ -370,6 +387,37 @@ function cacheDom() {
   dom.musicVolumeValue = document.getElementById('music-volume-value');
   dom.joinCodeInput = document.getElementById('join-code-input');
   dom.btnJoinCode = document.getElementById('btn-join-code');
+
+  // Funciones para personas mayores (Radio, Clima, Día y Hora)
+  dom.commInfoModal = document.getElementById('comm-info-modal');
+  dom.commInfoEyebrow = document.getElementById('comm-info-eyebrow');
+  dom.commInfoIcon = document.getElementById('comm-info-icon');
+  dom.commInfoHeadline = document.getElementById('comm-info-headline');
+  dom.commInfoDetails = document.getElementById('comm-info-details');
+  dom.btnCommInfoRepeat = document.getElementById('btn-comm-info-repeat');
+  dom.btnCommInfoClose = document.getElementById('btn-comm-info-close');
+
+  dom.settingEnableRadio = document.getElementById('setting-enable-radio');
+  dom.radioSearchInput = document.getElementById('radio-search-input');
+  dom.btnSearchRadio = document.getElementById('btn-search-radio');
+  dom.radioResultsRow = document.getElementById('radio-results-row');
+  dom.radioResultsSelect = document.getElementById('radio-results-select');
+  dom.btnSaveRadio = document.getElementById('btn-save-radio');
+  dom.radioActiveLabel = document.getElementById('radio-active-label');
+  dom.btnTestRadio = document.getElementById('btn-test-radio');
+  dom.radioSearchStatus = document.getElementById('radio-search-status');
+
+  dom.settingEnableWeather = document.getElementById('setting-enable-weather');
+  dom.weatherCityInput = document.getElementById('weather-city-input');
+  dom.btnSearchCity = document.getElementById('btn-search-city');
+  dom.weatherResultsRow = document.getElementById('weather-results-row');
+  dom.weatherCityResults = document.getElementById('weather-city-results');
+  dom.btnSaveCity = document.getElementById('btn-save-city');
+  dom.weatherActiveLabel = document.getElementById('weather-active-label');
+  dom.btnTestWeather = document.getElementById('btn-test-weather');
+  dom.weatherSearchStatus = document.getElementById('weather-search-status');
+
+  dom.settingEnableDateTime = document.getElementById('setting-enable-datetime');
 }
 
 function registerServiceWorker() {
@@ -461,6 +509,11 @@ function bindRoleGate() {
 async function applyRoleScreen(role) {
   stopAllAudio();
   stopMusicPreview();
+  stopRadioPreview();
+  if (role !== 'communicator' && state.radio.audio) {
+    state.radio.audio.pause();
+    state.radio.isPlaying = false;
+  }
   dom.roleGate.hidden = role !== null;
   dom.commShell.hidden = role !== 'communicator';
   dom.familyShell.hidden = role !== 'family';
@@ -563,15 +616,45 @@ function startBoardSubscription() {
       if (typeof remoteSettings.musicVolume === 'number' && !Number.isNaN(remoteSettings.musicVolume)) {
         updates.musicVolume = Math.min(1, Math.max(0.1, remoteSettings.musicVolume));
       }
+      if (typeof remoteSettings.enableRadioCard === 'boolean') {
+        updates.enableRadioCard = remoteSettings.enableRadioCard;
+      }
+      if (typeof remoteSettings.radioName === 'string') {
+        updates.radioName = remoteSettings.radioName;
+      }
+      if (typeof remoteSettings.radioUrl === 'string') {
+        updates.radioUrl = remoteSettings.radioUrl;
+      }
+      if (typeof remoteSettings.enableWeatherCard === 'boolean') {
+        updates.enableWeatherCard = remoteSettings.enableWeatherCard;
+      }
+      if (typeof remoteSettings.weatherCity === 'string') {
+        updates.weatherCity = remoteSettings.weatherCity;
+      }
+      if (typeof remoteSettings.weatherLat === 'number') {
+        updates.weatherLat = remoteSettings.weatherLat;
+      }
+      if (typeof remoteSettings.weatherLon === 'number') {
+        updates.weatherLon = remoteSettings.weatherLon;
+      }
+      if (typeof remoteSettings.enableDateTimeCard === 'boolean') {
+        updates.enableDateTimeCard = remoteSettings.enableDateTimeCard;
+      }
       if (Object.keys(updates).length > 0) {
         state.settings = saveSettings(updates);
         if (updates.musicCategory === 'off' && state.music.audio) {
           state.music.audio.pause();
           state.music.isPlaying = false;
         }
+        if (updates.enableRadioCard === false && state.radio.audio) {
+          state.radio.audio.pause();
+          state.radio.isPlaying = false;
+        }
         if (typeof updates.musicVolume === 'number') {
           if (state.music.audio) state.music.audio.volume = updates.musicVolume;
           if (state.music.previewAudio) state.music.previewAudio.volume = updates.musicVolume;
+          if (state.radio.audio) state.radio.audio.volume = updates.musicVolume;
+          if (state.radio.previewAudio) state.radio.previewAudio.volume = updates.musicVolume;
         }
         applySettingsToUI();
         renderCardsGrid();
@@ -1056,8 +1139,131 @@ function bindPhraseBar() {
       state.music.isPlaying = false;
       renderCardsGrid();
     } else {
+      // Si la radio estaba sonando, apagarla para que no se superpongan
+      if (state.radio.audio && state.radio.isPlaying) {
+        state.radio.audio.pause();
+        state.radio.isPlaying = false;
+      }
       playMusicTrack(state.music.trackIndex);
     }
+  };
+
+  // Reproductor de Radio en vivo (1 toque prende, 1 toque apaga)
+  const ensureRadioAudio = () => {
+    if (!state.radio.audio) {
+      const audio = new Audio();
+      audio.volume = state.settings.musicVolume ?? 0.65;
+      audio.addEventListener('error', () => {
+        state.radio.isPlaying = false;
+        dom.commSentStatus.textContent = 'No se pudo conectar con esta radio ahora. Probá elegir otra en Ajustes.';
+        dom.commSentStatus.hidden = false;
+        renderCardsGrid();
+      });
+      state.radio.audio = audio;
+    }
+    return state.radio.audio;
+  };
+
+  window.__toggleRadioCard = () => {
+    const url = state.settings.radioUrl;
+    if (!url) {
+      dom.commSentStatus.textContent = 'Elegí una radio en Modo Familia → Ajustes.';
+      dom.commSentStatus.hidden = false;
+      return;
+    }
+    const audio = ensureRadioAudio();
+    if (state.radio.isPlaying) {
+      audio.pause();
+      audio.src = '';
+      state.radio.isPlaying = false;
+      renderCardsGrid();
+    } else {
+      // Si la música MP3 estaba sonando, pausarla
+      if (state.music.audio && state.music.isPlaying) {
+        state.music.audio.pause();
+        state.music.isPlaying = false;
+      }
+      audio.volume = state.settings.musicVolume ?? 0.65;
+      audio.src = url;
+      audio
+        .play()
+        .then(() => {
+          state.radio.isPlaying = true;
+          renderCardsGrid();
+        })
+        .catch(() => {
+          state.radio.isPlaying = false;
+          dom.commSentStatus.textContent = 'No se pudo conectar con esta radio ahora.';
+          dom.commSentStatus.hidden = false;
+          renderCardsGrid();
+        });
+    }
+  };
+
+  const openCommInfoModal = ({ eyebrow, icon, headline, details, speechText }) => {
+    state.commInfoSpeech = speechText || '';
+    if (dom.commInfoEyebrow) dom.commInfoEyebrow.textContent = eyebrow || 'Información';
+    if (dom.commInfoIcon) dom.commInfoIcon.textContent = icon || 'ℹ️';
+    if (dom.commInfoHeadline) dom.commInfoHeadline.textContent = headline || '';
+    if (dom.commInfoDetails) dom.commInfoDetails.textContent = details || '';
+    if (dom.commInfoModal) dom.commInfoModal.hidden = false;
+    if (speechText) {
+      speak(speechText, ttsOptions());
+    }
+  };
+
+  dom.btnCommInfoRepeat?.addEventListener('click', () => {
+    if (state.commInfoSpeech) {
+      speak(state.commInfoSpeech, ttsOptions());
+    }
+  });
+
+  dom.btnCommInfoClose?.addEventListener('click', () => {
+    if (dom.commInfoModal) dom.commInfoModal.hidden = true;
+  });
+
+  window.__openWeatherCard = async () => {
+    const city = state.settings.weatherCity || 'Buenos Aires';
+    const lat = typeof state.settings.weatherLat === 'number' ? state.settings.weatherLat : -34.6037;
+    const lon = typeof state.settings.weatherLon === 'number' ? state.settings.weatherLon : -58.3816;
+
+    openCommInfoModal({
+      eyebrow: `Clima en ${city}`,
+      icon: '🌤️',
+      headline: 'Consultando el tiempo...',
+      details: 'Un segundo por favor',
+      speechText: ''
+    });
+
+    try {
+      const summary = await fetchWeatherSummary({ city, lat, lon });
+      openCommInfoModal({
+        eyebrow: `Clima en ${city}`,
+        icon: summary.icon,
+        headline: summary.headline,
+        details: summary.details,
+        speechText: summary.speechText
+      });
+    } catch {
+      openCommInfoModal({
+        eyebrow: `Clima en ${city}`,
+        icon: '📡',
+        headline: 'Sin conexión',
+        details: 'No se pudo consultar el clima en este momento.',
+        speechText: 'En este momento no hay conexión para consultar el clima.'
+      });
+    }
+  };
+
+  window.__openDateTimeCard = () => {
+    const summary = getDateTimeSummary(new Date());
+    openCommInfoModal({
+      eyebrow: 'Día y Hora de Hoy',
+      icon: summary.icon,
+      headline: summary.headline,
+      details: summary.details,
+      speechText: summary.speechText
+    });
   };
 
   dom.btnCommEnablePush?.addEventListener('click', async () => {
@@ -1197,7 +1403,104 @@ function renderCardsGrid() {
     dom.cardsGrid.appendChild(musicBtn);
   }
 
-  if (filtered.length === 0 && !showMusicCard) {
+  // Tarjeta opcional de Radio en vivo (1 toque prende, 1 toque apaga)
+  const radioEnabled = Boolean(state.settings.enableRadioCard && state.settings.radioUrl);
+  const showRadioCard =
+    radioEnabled && (state.activeCategory === 'all' || state.activeCategory === 'ocio');
+
+  if (showRadioCard) {
+    const radioBtn = document.createElement('button');
+    radioBtn.type = 'button';
+    radioBtn.className = `aac-card ${state.radio.isPlaying ? 'is-music-playing' : ''}`;
+    radioBtn.setAttribute('aria-pressed', String(state.radio.isPlaying));
+    const stationShort = (state.settings.radioName || 'Radio').slice(0, 22);
+    radioBtn.setAttribute('aria-label', state.radio.isPlaying ? 'Apagar radio' : `Escuchar ${stationShort}`);
+
+    const visual = document.createElement('div');
+    visual.className = 'aac-card__visual';
+    const img = document.createElement('img');
+    img.src = state.radio.isPlaying
+      ? './assets/cards/radio-pausa.svg'
+      : './assets/cards/radio.svg';
+    img.alt = state.radio.isPlaying ? 'Apagar radio' : 'Radio en vivo';
+    visual.appendChild(img);
+
+    const label = document.createElement('span');
+    label.className = 'aac-card__text';
+    label.textContent = state.radio.isPlaying ? '⏸ Apagar radio' : `📻 ${stationShort}`;
+
+    radioBtn.append(visual, label);
+    radioBtn.addEventListener('click', () => {
+      if (typeof window.__toggleRadioCard === 'function') {
+        window.__toggleRadioCard();
+      }
+    });
+    dom.cardsGrid.appendChild(radioBtn);
+  }
+
+  // Tarjeta opcional de Estado del Tiempo (Clima hablado)
+  const weatherEnabled = Boolean(state.settings.enableWeatherCard);
+  const showWeatherCard =
+    weatherEnabled && (state.activeCategory === 'all' || state.activeCategory === 'necesidades');
+
+  if (showWeatherCard) {
+    const weatherBtn = document.createElement('button');
+    weatherBtn.type = 'button';
+    weatherBtn.className = 'aac-card';
+    weatherBtn.setAttribute('aria-label', '¿Cómo está el tiempo?');
+
+    const visual = document.createElement('div');
+    visual.className = 'aac-card__visual';
+    const img = document.createElement('img');
+    img.src = './assets/cards/clima.svg';
+    img.alt = 'Estado del tiempo';
+    visual.appendChild(img);
+
+    const label = document.createElement('span');
+    label.className = 'aac-card__text';
+    label.textContent = '🌤️ ¿Cómo está el tiempo?';
+
+    weatherBtn.append(visual, label);
+    weatherBtn.addEventListener('click', () => {
+      if (typeof window.__openWeatherCard === 'function') {
+        window.__openWeatherCard();
+      }
+    });
+    dom.cardsGrid.appendChild(weatherBtn);
+  }
+
+  // Tarjeta opcional de Día y Hora (funciona sin internet)
+  const dateTimeEnabled = Boolean(state.settings.enableDateTimeCard);
+  const showDateTimeCard =
+    dateTimeEnabled && (state.activeCategory === 'all' || state.activeCategory === 'necesidades');
+
+  if (showDateTimeCard) {
+    const dtBtn = document.createElement('button');
+    dtBtn.type = 'button';
+    dtBtn.className = 'aac-card';
+    dtBtn.setAttribute('aria-label', '¿Qué día y hora es?');
+
+    const visual = document.createElement('div');
+    visual.className = 'aac-card__visual';
+    const img = document.createElement('img');
+    img.src = './assets/cards/reloj.svg';
+    img.alt = 'Día y hora';
+    visual.appendChild(img);
+
+    const label = document.createElement('span');
+    label.className = 'aac-card__text';
+    label.textContent = '🕒 ¿Qué día y hora es?';
+
+    dtBtn.append(visual, label);
+    dtBtn.addEventListener('click', () => {
+      if (typeof window.__openDateTimeCard === 'function') {
+        window.__openDateTimeCard();
+      }
+    });
+    dom.cardsGrid.appendChild(dtBtn);
+  }
+
+  if (filtered.length === 0 && !showMusicCard && !showRadioCard && !showWeatherCard && !showDateTimeCard) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     empty.textContent = 'No hay tarjetas en esta categoría. Podés importar un pack en "Explorar".';
@@ -1779,6 +2082,7 @@ function bindFamilyMode() {
 
       if (target !== 'settings') {
         stopMusicPreview();
+        stopRadioPreview();
       }
       if (target === 'history') {
         state.usageLogs = await getTodayUsageLogs();
@@ -2004,11 +2308,216 @@ function bindFamilyMode() {
     state.settings = saveSettings({ musicVolume: vol });
     if (state.music.audio) state.music.audio.volume = vol;
     if (state.music.previewAudio) state.music.previewAudio.volume = vol;
+    if (state.radio.audio) state.radio.audio.volume = vol;
+    if (state.radio.previewAudio) state.radio.previewAudio.volume = vol;
   });
 
   dom.settingMusicVolume?.addEventListener('change', async () => {
     const vol = parseFloat(dom.settingMusicVolume.value);
     await saveBoardPreference({ musicVolume: vol });
+  });
+
+  // --- Ajustes de Personas Mayores y Bienestar (Radio, Clima, Día y Hora) ---
+  dom.settingEnableRadio?.addEventListener('change', async () => {
+    const enabled = dom.settingEnableRadio.checked;
+    state.settings = saveSettings({ enableRadioCard: enabled });
+    if (!enabled && state.radio.audio) {
+      state.radio.audio.pause();
+      state.radio.isPlaying = false;
+    }
+    applySettingsToUI();
+    renderCardsGrid();
+    await saveBoardPreference({ enableRadioCard: enabled });
+  });
+
+  const runRadioSearch = async () => {
+    const q = dom.radioSearchInput?.value.trim() || '';
+    if (!q) return;
+    if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = 'Buscando estaciones de radio...';
+    if (dom.btnSearchRadio) dom.btnSearchRadio.disabled = true;
+    try {
+      const results = await searchRadioStations(q);
+      state.radio.searchResults = results;
+      if (results.length === 0) {
+        if (dom.radioResultsRow) dom.radioResultsRow.hidden = true;
+        if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = 'No se encontraron radios HTTPS con ese nombre. Probá con otra palabra.';
+      } else {
+        if (dom.radioResultsSelect) {
+          dom.radioResultsSelect.innerHTML = '';
+          results.forEach((st, idx) => {
+            const opt = document.createElement('option');
+            opt.value = String(idx);
+            opt.textContent = st.country ? `${st.name} (${st.country})` : st.name;
+            dom.radioResultsSelect.appendChild(opt);
+          });
+        }
+        if (dom.radioResultsRow) dom.radioResultsRow.hidden = false;
+        if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = `Encontramos ${results.length} opciones. Elegí una y tocá "Usar esta".`;
+      }
+    } catch {
+      if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = 'No se pudo consultar el directorio de radios. Revisá tu conexión.';
+    }
+    if (dom.btnSearchRadio) dom.btnSearchRadio.disabled = false;
+  };
+
+  dom.btnSearchRadio?.addEventListener('click', runRadioSearch);
+  dom.radioSearchInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      runRadioSearch();
+    }
+  });
+
+  dom.btnSaveRadio?.addEventListener('click', async () => {
+    const idx = parseInt(dom.radioResultsSelect?.value || '0', 10);
+    const chosen = state.radio.searchResults[idx];
+    if (!chosen) return;
+    stopRadioPreview();
+    state.settings = saveSettings({
+      radioName: chosen.name,
+      radioUrl: chosen.url,
+      enableRadioCard: true
+    });
+    applySettingsToUI();
+    renderCardsGrid();
+    if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = `Guardada: ${chosen.name}. Tocá "▶ Probar radio" para verificar que suene bien.`;
+    await saveBoardPreference({
+      radioName: chosen.name,
+      radioUrl: chosen.url,
+      enableRadioCard: true
+    });
+  });
+
+  dom.btnTestRadio?.addEventListener('click', () => {
+    if (state.radio.previewPlaying) {
+      stopRadioPreview();
+      return;
+    }
+    const url = state.settings.radioUrl;
+    if (!url) return;
+    stopMusicPreview();
+    if (!state.radio.previewAudio) {
+      const audio = new Audio();
+      audio.addEventListener('error', () => {
+        stopRadioPreview();
+        if (dom.radioSearchStatus) {
+          dom.radioSearchStatus.textContent = 'Esta transmisión no respondió. Probá elegir otra estación de la lista.';
+        }
+      });
+      state.radio.previewAudio = audio;
+    }
+    state.radio.previewAudio.volume = state.settings.musicVolume ?? 0.65;
+    state.radio.previewAudio.src = url;
+    if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = `Conectando con ${state.settings.radioName || 'la radio'}...`;
+    state.radio.previewAudio
+      .play()
+      .then(() => {
+        state.radio.previewPlaying = true;
+        if (dom.btnTestRadio) {
+          dom.btnTestRadio.textContent = '⏹ Detener radio';
+          dom.btnTestRadio.classList.add('btn--danger');
+          dom.btnTestRadio.classList.remove('btn--ghost');
+        }
+        if (dom.radioSearchStatus) {
+          dom.radioSearchStatus.textContent = `En vivo: ${state.settings.radioName || 'Radio'}`;
+        }
+      })
+      .catch(() => {
+        stopRadioPreview();
+        if (dom.radioSearchStatus) {
+          dom.radioSearchStatus.textContent = 'Esta transmisión no respondió. Probá elegir otra estación de la lista.';
+        }
+      });
+  });
+
+  dom.settingEnableWeather?.addEventListener('change', async () => {
+    const enabled = dom.settingEnableWeather.checked;
+    state.settings = saveSettings({ enableWeatherCard: enabled });
+    applySettingsToUI();
+    renderCardsGrid();
+    await saveBoardPreference({ enableWeatherCard: enabled });
+  });
+
+  const runCitySearch = async () => {
+    const q = dom.weatherCityInput?.value.trim() || '';
+    if (q.length < 2) return;
+    if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = 'Buscando ciudad...';
+    if (dom.btnSearchCity) dom.btnSearchCity.disabled = true;
+    try {
+      const results = await searchCities(q);
+      state.weather.searchResults = results;
+      if (results.length === 0) {
+        if (dom.weatherResultsRow) dom.weatherResultsRow.hidden = true;
+        if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = 'No encontramos esa ciudad. Probá escribiéndola sin abreviaturas.';
+      } else {
+        if (dom.weatherCityResults) {
+          dom.weatherCityResults.innerHTML = '';
+          results.forEach((c, idx) => {
+            const opt = document.createElement('option');
+            opt.value = String(idx);
+            opt.textContent = c.label;
+            dom.weatherCityResults.appendChild(opt);
+          });
+        }
+        if (dom.weatherResultsRow) dom.weatherResultsRow.hidden = false;
+        if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = 'Elegí la ciudad correcta y tocá "Guardar".';
+      }
+    } catch {
+      if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = 'No se pudo buscar la ciudad. Revisá tu conexión.';
+    }
+    if (dom.btnSearchCity) dom.btnSearchCity.disabled = false;
+  };
+
+  dom.btnSearchCity?.addEventListener('click', runCitySearch);
+  dom.weatherCityInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      runCitySearch();
+    }
+  });
+
+  dom.btnSaveCity?.addEventListener('click', async () => {
+    const idx = parseInt(dom.weatherCityResults?.value || '0', 10);
+    const chosen = state.weather.searchResults[idx];
+    if (!chosen) return;
+    state.settings = saveSettings({
+      weatherCity: chosen.name,
+      weatherLat: chosen.lat,
+      weatherLon: chosen.lon,
+      enableWeatherCard: true
+    });
+    if (dom.weatherResultsRow) dom.weatherResultsRow.hidden = true;
+    if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = `Ciudad guardada: ${chosen.label}`;
+    applySettingsToUI();
+    renderCardsGrid();
+    await saveBoardPreference({
+      weatherCity: chosen.name,
+      weatherLat: chosen.lat,
+      weatherLon: chosen.lon,
+      enableWeatherCard: true
+    });
+  });
+
+  dom.btnTestWeather?.addEventListener('click', async () => {
+    const city = state.settings.weatherCity || 'Buenos Aires';
+    const lat = typeof state.settings.weatherLat === 'number' ? state.settings.weatherLat : -34.6037;
+    const lon = typeof state.settings.weatherLon === 'number' ? state.settings.weatherLon : -58.3816;
+    if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = `Consultando clima en ${city}...`;
+    try {
+      const summary = await fetchWeatherSummary({ city, lat, lon });
+      if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = `${summary.icon} ${summary.headline} (${summary.details})`;
+      speak(summary.speechText, ttsOptions());
+    } catch {
+      if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = 'No se pudo consultar el clima en este momento.';
+    }
+  });
+
+  dom.settingEnableDateTime?.addEventListener('change', async () => {
+    const enabled = dom.settingEnableDateTime.checked;
+    state.settings = saveSettings({ enableDateTimeCard: enabled });
+    applySettingsToUI();
+    renderCardsGrid();
+    await saveBoardPreference({ enableDateTimeCard: enabled });
   });
 
   dom.btnJoinCode.addEventListener('click', () => {
@@ -2034,6 +2543,19 @@ function stopMusicPreview() {
   }
   if (dom.musicPreviewStatus) {
     dom.musicPreviewStatus.textContent = '';
+  }
+}
+
+function stopRadioPreview() {
+  if (state.radio.previewAudio) {
+    state.radio.previewAudio.pause();
+    state.radio.previewAudio.src = '';
+  }
+  state.radio.previewPlaying = false;
+  if (dom.btnTestRadio) {
+    dom.btnTestRadio.textContent = '▶ Probar radio';
+    dom.btnTestRadio.classList.remove('btn--danger');
+    dom.btnTestRadio.classList.add('btn--ghost');
   }
 }
 
@@ -2445,6 +2967,22 @@ function applySettingsToUI() {
   const musicVol = typeof state.settings.musicVolume === 'number' ? state.settings.musicVolume : 0.65;
   if (dom.settingMusicVolume) dom.settingMusicVolume.value = String(musicVol);
   if (dom.musicVolumeValue) dom.musicVolumeValue.textContent = `${Math.round(musicVol * 100)}%`;
+
+  // Ajustes de Personas Mayores y Bienestar
+  if (dom.settingEnableRadio) dom.settingEnableRadio.checked = Boolean(state.settings.enableRadioCard);
+  if (dom.radioActiveLabel) {
+    dom.radioActiveLabel.textContent = state.settings.radioName
+      ? `Radio activa: ${state.settings.radioName}`
+      : 'Radio activa: ninguna seleccionada';
+  }
+  if (dom.btnTestRadio) dom.btnTestRadio.disabled = !state.settings.radioUrl;
+
+  if (dom.settingEnableWeather) dom.settingEnableWeather.checked = Boolean(state.settings.enableWeatherCard);
+  if (dom.weatherActiveLabel) {
+    dom.weatherActiveLabel.textContent = `Ciudad activa: ${state.settings.weatherCity || 'Buenos Aires'}`;
+  }
+
+  if (dom.settingEnableDateTime) dom.settingEnableDateTime.checked = Boolean(state.settings.enableDateTimeCard);
 
   renderPhraseBar();
 }

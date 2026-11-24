@@ -51,6 +51,14 @@ export const DEFAULT_SETTINGS = {
   allowTeenVoiceMessage: true,
   musicCategory: 'calma', // 'calma' | 'ritmo' | 'noche' | 'off'
   musicVolume: 0.65,
+  enableRadioCard: false,
+  radioName: '',
+  radioUrl: '',
+  enableWeatherCard: false,
+  weatherCity: 'Buenos Aires',
+  weatherLat: -34.6037,
+  weatherLon: -58.3816,
+  enableDateTimeCard: false,
   seeded: false,
   starterVersion: 0
 };

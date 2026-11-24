@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Estado del tiempo">
+  <rect width="240" height="160" rx="16" fill="#0F172A"/>
+  <circle cx="120" cy="80" r="54" fill="#162032" stroke="#38BDF8" stroke-opacity="0.2" stroke-width="2"/>
+  <circle cx="104" cy="68" r="16" fill="#F59E0B" fill-opacity="0.25" stroke="#F59E0B" stroke-width="3.5"/>
+  <line x1="104" y1="42" x2="104" y2="46" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+  <line x1="80" y1="68" x2="84" y2="68" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+  <line x1="87" y1="51" x2="90" y2="54" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+  <line x1="121" y1="51" x2="118" y2="54" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+  <path d="M98 106h48a16 16 0 0 0 2-31.8A22 22 0 0 0 106 72a18 18 0 0 0-8 34z" fill="#1E293B" stroke="#38BDF8" stroke-width="3.5" stroke-linejoin="round"/>
+</svg>

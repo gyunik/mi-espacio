@@ -3,7 +3,7 @@
  * Cachea el App Shell para funcionamiento offline en Android / iOS / Desktop.
  */
 
-const CACHE_NAME = 'mi-espacio-v34';
+const CACHE_NAME = 'mi-espacio-v35';
 const APP_SHELL = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const APP_SHELL = [
   './dataService.js',
   './firebaseConfig.js',
   './musicCatalog.js',
+  './seniorServices.js',
   './speech.js',
   './manifest.json',
   './icons/icon.svg'
