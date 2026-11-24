@@ -49,6 +49,7 @@ export const DEFAULT_SETTINGS = {
   showPhraseBar: true,
   notifyFamilyOnTap: true,
   allowTeenVoiceMessage: true,
+  musicCategory: 'calma', // 'calma' | 'ritmo' | 'noche' | 'off'
   seeded: false,
   starterVersion: 0
 };

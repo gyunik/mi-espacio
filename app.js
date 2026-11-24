@@ -16,6 +16,7 @@ import {
   startLiveTranscript
 } from './speech.js';
 
+import { MUSIC_CATEGORIES } from './musicCatalog.js';
 import {
   CATEGORIES,
   TEMPLATE_PACKS,
@@ -141,6 +142,11 @@ const state = {
     isRecording: false,
     autoStopTimer: null
   },
+  music: {
+    audio: null,
+    trackIndex: 0,
+    isPlaying: false
+  },
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
   firebaseReady: false,
@@ -224,7 +230,20 @@ function cacheDom() {
   dom.incomingQuestionText = document.getElementById('incoming-question-text');
   dom.commSentStatus = document.getElementById('comm-sent-status');
   dom.commChannelPill = document.getElementById('comm-channel-pill');
+  dom.btnTeenMusic = document.getElementById('btn-teen-music');
   dom.btnTeenVoiceMsg = document.getElementById('btn-teen-voice-msg');
+
+  // Modal de música
+  dom.teenMusicModal = document.getElementById('teen-music-modal');
+  dom.musicCatLabel = document.getElementById('music-cat-label');
+  dom.musicModalTitle = document.getElementById('music-modal-title');
+  dom.musicStatusText = document.getElementById('music-status-text');
+  dom.btnMusicPrev = document.getElementById('btn-music-prev');
+  dom.btnMusicPlay = document.getElementById('btn-music-play');
+  dom.btnMusicNext = document.getElementById('btn-music-next');
+  dom.btnMusicClose = document.getElementById('btn-music-close');
+  dom.musicVolumeSlider = document.getElementById('music-volume-slider');
+  dom.musicTracksList = document.getElementById('music-tracks-list');
   dom.btnCommEnablePush = document.getElementById('btn-comm-enable-push');
   dom.btnToggleRemoteNotify = document.getElementById('btn-toggle-remote-notify');
 
@@ -353,6 +372,7 @@ function cacheDom() {
   dom.rateValue = document.getElementById('rate-value');
   dom.settingPhraseBar = document.getElementById('setting-phrase-bar');
   dom.settingTeenVoiceMsg = document.getElementById('setting-teen-voice-msg');
+  dom.settingMusicCategory = document.getElementById('setting-music-category');
   dom.joinCodeInput = document.getElementById('join-code-input');
   dom.btnJoinCode = document.getElementById('btn-join-code');
 }
@@ -537,9 +557,17 @@ function startBoardSubscription() {
       handleIncomingLiveEvents(events);
     },
     onBoardSettings: (remoteSettings) => {
+      const updates = {};
       if (typeof remoteSettings.allowTeenVoiceMessage === 'boolean') {
-        state.settings = saveSettings({ allowTeenVoiceMessage: remoteSettings.allowTeenVoiceMessage });
+        updates.allowTeenVoiceMessage = remoteSettings.allowTeenVoiceMessage;
+      }
+      if (typeof remoteSettings.musicCategory === 'string') {
+        updates.musicCategory = remoteSettings.musicCategory;
+      }
+      if (Object.keys(updates).length > 0) {
+        state.settings = saveSettings(updates);
         applySettingsToUI();
+        renderMusicPlayerUI();
       }
     }
   });
@@ -883,6 +911,12 @@ function resetFamilyReplyRecorder() {
   dom.famRecordStatus.textContent = '';
 }
 
+function renderMusicPlayerUI() {
+  if (typeof window.__renderMusicPlayerUI === 'function') {
+    window.__renderMusicPlayerUI();
+  }
+}
+
 function bindPhraseBar() {
   dom.btnTeenPlayReply.addEventListener('click', () => {
     const ev = state.liveEvents.find((e) => e.id === state.activeTeenReplyId);
@@ -963,6 +997,120 @@ function bindPhraseBar() {
 
   dom.btnTeenSendVoice?.addEventListener('click', () => closeTeenVoiceModal(true));
   dom.btnTeenCancelVoice?.addEventListener('click', () => closeTeenVoiceModal(false));
+
+  // Reproductor de Música (categoría seleccionada por Familia)
+  const ensureMusicAudio = () => {
+    if (!state.music.audio) {
+      const audio = new Audio();
+      audio.volume = 0.65;
+      audio.addEventListener('ended', () => {
+        playMusicTrack(state.music.trackIndex + 1, true);
+      });
+      audio.addEventListener('error', () => {
+        state.music.isPlaying = false;
+        if (dom.musicStatusText) {
+          dom.musicStatusText.textContent = 'Todavía falta subir este archivo MP3 en assets/music/.';
+        }
+        updateMusicPlayButton();
+      });
+      state.music.audio = audio;
+    }
+    return state.music.audio;
+  };
+
+  const getActiveMusicCategory = () => {
+    const key = state.settings.musicCategory || 'calma';
+    return MUSIC_CATEGORIES[key] || MUSIC_CATEGORIES.calma;
+  };
+
+  const updateMusicPlayButton = () => {
+    if (dom.btnMusicPlay) {
+      dom.btnMusicPlay.textContent = state.music.isPlaying ? '⏸ Pausar' : '▶ Reproducir';
+    }
+    if (dom.btnTeenMusic) {
+      dom.btnTeenMusic.textContent = state.music.isPlaying ? '🎵 Sonando...' : '🎵 Mi Música';
+    }
+  };
+
+  const playMusicTrack = (index, autoplay = true) => {
+    const cat = getActiveMusicCategory();
+    const total = cat.tracks.length;
+    const safeIdx = ((index % total) + total) % total;
+    state.music.trackIndex = safeIdx;
+    const track = cat.tracks[safeIdx];
+
+    const audio = ensureMusicAudio();
+    if (!audio.src || !audio.src.endsWith(track.src.replace('./', ''))) {
+      audio.src = track.src;
+    }
+
+    if (dom.musicStatusText) dom.musicStatusText.textContent = '';
+    renderMusicPlayerUI();
+
+    if (autoplay) {
+      audio
+        .play()
+        .then(() => {
+          state.music.isPlaying = true;
+          updateMusicPlayButton();
+        })
+        .catch(() => {
+          state.music.isPlaying = false;
+          if (dom.musicStatusText) {
+            dom.musicStatusText.textContent = 'Todavía falta subir este archivo MP3 en assets/music/.';
+          }
+          updateMusicPlayButton();
+        });
+    }
+  };
+
+  window.__renderMusicPlayerUI = () => {
+    if (!dom.teenMusicModal) return;
+    const cat = getActiveMusicCategory();
+    const track = cat.tracks[state.music.trackIndex] || cat.tracks[0];
+    dom.musicCatLabel.textContent = cat.label;
+    dom.musicModalTitle.textContent = track.title;
+
+    dom.musicTracksList.innerHTML = '';
+    cat.tracks.forEach((t, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `music-track-btn ${idx === state.music.trackIndex ? 'is-active' : ''}`;
+      btn.innerHTML = `<span>${escapeHtml(t.title)}</span><span>${idx === state.music.trackIndex && state.music.isPlaying ? '🔊' : '▶'}</span>`;
+      btn.addEventListener('click', () => playMusicTrack(idx, true));
+      dom.musicTracksList.appendChild(btn);
+    });
+    updateMusicPlayButton();
+  };
+
+  dom.btnTeenMusic?.addEventListener('click', () => {
+    renderMusicPlayerUI();
+    dom.teenMusicModal.hidden = false;
+  });
+
+  dom.btnMusicClose?.addEventListener('click', () => {
+    dom.teenMusicModal.hidden = true;
+  });
+
+  dom.btnMusicPlay?.addEventListener('click', () => {
+    const audio = ensureMusicAudio();
+    if (state.music.isPlaying) {
+      audio.pause();
+      state.music.isPlaying = false;
+      updateMusicPlayButton();
+      renderMusicPlayerUI();
+    } else {
+      playMusicTrack(state.music.trackIndex, true);
+    }
+  });
+
+  dom.btnMusicPrev?.addEventListener('click', () => playMusicTrack(state.music.trackIndex - 1, true));
+  dom.btnMusicNext?.addEventListener('click', () => playMusicTrack(state.music.trackIndex + 1, true));
+
+  dom.musicVolumeSlider?.addEventListener('input', () => {
+    const audio = ensureMusicAudio();
+    audio.volume = parseFloat(dom.musicVolumeSlider.value);
+  });
 
   dom.btnCommEnablePush?.addEventListener('click', async () => {
     if (typeof Notification === 'undefined') return;
@@ -1779,6 +1927,19 @@ function bindFamilyMode() {
     await saveBoardPreference({ allowTeenVoiceMessage: enabled });
   });
 
+  dom.settingMusicCategory?.addEventListener('change', async () => {
+    const cat = dom.settingMusicCategory.value;
+    state.settings = saveSettings({ musicCategory: cat });
+    state.music.trackIndex = 0;
+    if (cat === 'off' && state.music.audio) {
+      state.music.audio.pause();
+      state.music.isPlaying = false;
+    }
+    applySettingsToUI();
+    renderMusicPlayerUI();
+    await saveBoardPreference({ musicCategory: cat });
+  });
+
   dom.btnJoinCode.addEventListener('click', () => {
     const code = dom.joinCodeInput.value.replace(/\D/g, '');
     if (code.length === 6) {
@@ -2190,6 +2351,10 @@ function applySettingsToUI() {
   const allowVoice = state.settings.allowTeenVoiceMessage !== false;
   if (dom.settingTeenVoiceMsg) dom.settingTeenVoiceMsg.checked = allowVoice;
   if (dom.btnTeenVoiceMsg) dom.btnTeenVoiceMsg.hidden = !allowVoice;
+
+  const musicCat = state.settings.musicCategory || 'calma';
+  if (dom.settingMusicCategory) dom.settingMusicCategory.value = musicCat;
+  if (dom.btnTeenMusic) dom.btnTeenMusic.hidden = musicCat === 'off';
 
   renderPhraseBar();
 }

@@ -3,7 +3,7 @@
  * Cachea el App Shell para funcionamiento offline en Android / iOS / Desktop.
  */
 
-const CACHE_NAME = 'mi-espacio-v31';
+const CACHE_NAME = 'mi-espacio-v32';
 const APP_SHELL = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const APP_SHELL = [
   './app.js',
   './dataService.js',
   './firebaseConfig.js',
+  './musicCatalog.js',
   './speech.js',
   './manifest.json',
   './icons/icon.svg'
@@ -39,6 +40,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) return;
+  // No interceptar archivos de audio MP3 en caché de App Shell (se reproducen bajo demanda)
+  if (event.request.url.endsWith('.mp3')) return;
 
   // Network-first: siempre busca la versión más reciente online y usa caché si no hay internet
   event.respondWith(

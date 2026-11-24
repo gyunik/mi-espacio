@@ -984,6 +984,61 @@ select:focus-visible {
   color: var(--text-primary);
 }
 
+/* Reproductor de música calmo */
+.music-controls {
+  display: grid;
+  grid-template-columns: 64px 1fr 64px;
+  gap: 10px;
+  align-items: center;
+}
+
+.music-play-main {
+  font-size: 1.1rem;
+  min-height: 54px;
+}
+
+.music-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+}
+
+.music-volume-row .field-label {
+  white-space: nowrap;
+}
+
+.music-tracks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 170px;
+  overflow-y: auto;
+}
+
+.music-track-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-app);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.music-track-btn.is-active {
+  border-color: var(--cyan);
+  background-color: var(--cyan-soft);
+  color: var(--text-primary);
+}
+
 .ask-card--yes {
   border-color: rgba(16, 185, 129, 0.48);
   background-color: rgba(16, 185, 129, 0.08);
@@ -1832,6 +1887,61 @@ select:focus-visible {
 
 .reply-context-bar__text {
   font-size: 1rem;
+  color: var(--text-primary);
+}
+
+/* Reproductor de música calmo */
+.music-controls {
+  display: grid;
+  grid-template-columns: 64px 1fr 64px;
+  gap: 10px;
+  align-items: center;
+}
+
+.music-play-main {
+  font-size: 1.1rem;
+  min-height: 54px;
+}
+
+.music-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+}
+
+.music-volume-row .field-label {
+  white-space: nowrap;
+}
+
+.music-tracks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 170px;
+  overflow-y: auto;
+}
+
+.music-track-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-app);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.music-track-btn.is-active {
+  border-color: var(--cyan);
+  background-color: var(--cyan-soft);
   color: var(--text-primary);
 }
 
