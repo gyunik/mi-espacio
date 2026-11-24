@@ -145,7 +145,10 @@ const state = {
   music: {
     audio: null,
     trackIndex: 0,
-    isPlaying: false
+    isPlaying: false,
+    previewAudio: null,
+    previewPlaying: false,
+    previewTrackIndex: 0
   },
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
@@ -355,11 +358,16 @@ function cacheDom() {
   dom.usageLogsList = document.getElementById('usage-logs-list');
   dom.btnClearLogs = document.getElementById('btn-clear-logs');
   dom.settingVoice = document.getElementById('setting-voice');
+  dom.btnTestSettingVoice = document.getElementById('btn-test-setting-voice');
   dom.settingRate = document.getElementById('setting-rate');
   dom.rateValue = document.getElementById('rate-value');
   dom.settingPhraseBar = document.getElementById('setting-phrase-bar');
   dom.settingTeenVoiceMsg = document.getElementById('setting-teen-voice-msg');
   dom.settingMusicCategory = document.getElementById('setting-music-category');
+  dom.btnTestMusic = document.getElementById('btn-test-music');
+  dom.musicPreviewStatus = document.getElementById('music-preview-status');
+  dom.settingMusicVolume = document.getElementById('setting-music-volume');
+  dom.musicVolumeValue = document.getElementById('music-volume-value');
   dom.joinCodeInput = document.getElementById('join-code-input');
   dom.btnJoinCode = document.getElementById('btn-join-code');
 }
@@ -452,6 +460,7 @@ function bindRoleGate() {
 
 async function applyRoleScreen(role) {
   stopAllAudio();
+  stopMusicPreview();
   dom.roleGate.hidden = role !== null;
   dom.commShell.hidden = role !== 'communicator';
   dom.familyShell.hidden = role !== 'family';
@@ -551,11 +560,18 @@ function startBoardSubscription() {
       if (typeof remoteSettings.musicCategory === 'string') {
         updates.musicCategory = remoteSettings.musicCategory;
       }
+      if (typeof remoteSettings.musicVolume === 'number' && !Number.isNaN(remoteSettings.musicVolume)) {
+        updates.musicVolume = Math.min(1, Math.max(0.1, remoteSettings.musicVolume));
+      }
       if (Object.keys(updates).length > 0) {
         state.settings = saveSettings(updates);
         if (updates.musicCategory === 'off' && state.music.audio) {
           state.music.audio.pause();
           state.music.isPlaying = false;
+        }
+        if (typeof updates.musicVolume === 'number') {
+          if (state.music.audio) state.music.audio.volume = updates.musicVolume;
+          if (state.music.previewAudio) state.music.previewAudio.volume = updates.musicVolume;
         }
         applySettingsToUI();
         renderCardsGrid();
@@ -993,7 +1009,7 @@ function bindPhraseBar() {
   const ensureMusicAudio = () => {
     if (!state.music.audio) {
       const audio = new Audio();
-      audio.volume = 0.65;
+      audio.volume = state.settings.musicVolume ?? 0.65;
       audio.addEventListener('ended', () => {
         playMusicTrack(state.music.trackIndex + 1);
       });
@@ -1017,6 +1033,7 @@ function bindPhraseBar() {
     const track = cat.tracks[safeIdx];
 
     const audio = ensureMusicAudio();
+    audio.volume = state.settings.musicVolume ?? 0.65;
     audio.src = track.src;
     audio
       .play()
@@ -1161,8 +1178,10 @@ function renderCardsGrid() {
     const visual = document.createElement('div');
     visual.className = 'aac-card__visual';
     const img = document.createElement('img');
-    img.src = './assets/cards/musica.svg';
-    img.alt = 'Música';
+    img.src = state.music.isPlaying
+      ? './assets/cards/musica-pausa.svg'
+      : './assets/cards/musica.svg';
+    img.alt = state.music.isPlaying ? 'Pausar música' : 'Música';
     visual.appendChild(img);
 
     const label = document.createElement('span');
@@ -1758,6 +1777,9 @@ function bindFamilyMode() {
         el.hidden = !active;
       });
 
+      if (target !== 'settings') {
+        stopMusicPreview();
+      }
       if (target === 'history') {
         state.usageLogs = await getTodayUsageLogs();
         renderUsageLogs();
@@ -1870,6 +1892,11 @@ function bindFamilyMode() {
   // Ajustes
   dom.settingVoice.addEventListener('change', () => {
     state.settings = saveSettings({ voiceURI: dom.settingVoice.value });
+    speak('Hola, así suena esta voz.', ttsOptions());
+  });
+
+  dom.btnTestSettingVoice?.addEventListener('click', () => {
+    speak('Hola, así suena mi voz en Mi Espacio.', ttsOptions());
   });
 
   dom.settingRate.addEventListener('input', () => {
@@ -1890,8 +1917,73 @@ function bindFamilyMode() {
     await saveBoardPreference({ allowTeenVoiceMessage: enabled });
   });
 
+  const playMusicPreviewTrack = (index) => {
+    const catKey = dom.settingMusicCategory?.value || state.settings.musicCategory || 'calma';
+    if (catKey === 'off') {
+      stopMusicPreview();
+      if (dom.musicPreviewStatus) {
+        dom.musicPreviewStatus.textContent = 'La tarjeta de música está oculta.';
+      }
+      return;
+    }
+
+    const cat = MUSIC_CATEGORIES[catKey] || MUSIC_CATEGORIES.calma;
+    const total = cat.tracks.length;
+    const safeIdx = ((index % total) + total) % total;
+    state.music.previewTrackIndex = safeIdx;
+    const track = cat.tracks[safeIdx];
+
+    if (!state.music.previewAudio) {
+      const audio = new Audio();
+      audio.addEventListener('ended', () => {
+        if (state.music.previewPlaying) {
+          playMusicPreviewTrack(state.music.previewTrackIndex + 1);
+        }
+      });
+      audio.addEventListener('error', () => {
+        stopMusicPreview();
+        if (dom.musicPreviewStatus) {
+          dom.musicPreviewStatus.textContent = 'Todavía no hay archivos MP3 cargados en esta categoría.';
+        }
+      });
+      state.music.previewAudio = audio;
+    }
+
+    state.music.previewAudio.volume = state.settings.musicVolume ?? 0.65;
+    state.music.previewAudio.src = track.src;
+    state.music.previewAudio
+      .play()
+      .then(() => {
+        state.music.previewPlaying = true;
+        if (dom.btnTestMusic) {
+          dom.btnTestMusic.textContent = '⏹ Detener';
+          dom.btnTestMusic.classList.add('btn--danger');
+          dom.btnTestMusic.classList.remove('btn--accent');
+        }
+        if (dom.musicPreviewStatus) {
+          dom.musicPreviewStatus.textContent = `Reproduciendo: ${track.title} (${safeIdx + 1}/${total})`;
+        }
+      })
+      .catch(() => {
+        stopMusicPreview();
+        if (dom.musicPreviewStatus) {
+          dom.musicPreviewStatus.textContent = 'Todavía no hay archivos MP3 cargados en esta categoría.';
+        }
+      });
+  };
+
+  dom.btnTestMusic?.addEventListener('click', () => {
+    if (state.music.previewPlaying) {
+      stopMusicPreview();
+    } else {
+      playMusicPreviewTrack(0);
+    }
+  });
+
   dom.settingMusicCategory?.addEventListener('change', async () => {
     const cat = dom.settingMusicCategory.value;
+    const wasPreviewPlaying = state.music.previewPlaying;
+    stopMusicPreview();
     state.settings = saveSettings({ musicCategory: cat });
     state.music.trackIndex = 0;
     if (cat === 'off' && state.music.audio) {
@@ -1901,6 +1993,22 @@ function bindFamilyMode() {
     applySettingsToUI();
     renderCardsGrid();
     await saveBoardPreference({ musicCategory: cat });
+    if (wasPreviewPlaying && cat !== 'off') {
+      playMusicPreviewTrack(0);
+    }
+  });
+
+  dom.settingMusicVolume?.addEventListener('input', () => {
+    const vol = parseFloat(dom.settingMusicVolume.value);
+    if (dom.musicVolumeValue) dom.musicVolumeValue.textContent = `${Math.round(vol * 100)}%`;
+    state.settings = saveSettings({ musicVolume: vol });
+    if (state.music.audio) state.music.audio.volume = vol;
+    if (state.music.previewAudio) state.music.previewAudio.volume = vol;
+  });
+
+  dom.settingMusicVolume?.addEventListener('change', async () => {
+    const vol = parseFloat(dom.settingMusicVolume.value);
+    await saveBoardPreference({ musicVolume: vol });
   });
 
   dom.btnJoinCode.addEventListener('click', () => {
@@ -1912,6 +2020,21 @@ function bindFamilyMode() {
       applySettingsToUI();
     }
   });
+}
+
+function stopMusicPreview() {
+  if (state.music.previewAudio) {
+    state.music.previewAudio.pause();
+  }
+  state.music.previewPlaying = false;
+  if (dom.btnTestMusic) {
+    dom.btnTestMusic.textContent = '▶ Probar';
+    dom.btnTestMusic.classList.remove('btn--danger');
+    dom.btnTestMusic.classList.add('btn--accent');
+  }
+  if (dom.musicPreviewStatus) {
+    dom.musicPreviewStatus.textContent = '';
+  }
 }
 
 function clearFormPhoto() {
@@ -2317,6 +2440,11 @@ function applySettingsToUI() {
 
   const musicCat = state.settings.musicCategory || 'calma';
   if (dom.settingMusicCategory) dom.settingMusicCategory.value = musicCat;
+  if (dom.btnTestMusic) dom.btnTestMusic.disabled = musicCat === 'off';
+
+  const musicVol = typeof state.settings.musicVolume === 'number' ? state.settings.musicVolume : 0.65;
+  if (dom.settingMusicVolume) dom.settingMusicVolume.value = String(musicVol);
+  if (dom.musicVolumeValue) dom.musicVolumeValue.textContent = `${Math.round(musicVol * 100)}%`;
 
   renderPhraseBar();
 }

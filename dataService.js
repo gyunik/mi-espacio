@@ -50,6 +50,7 @@ export const DEFAULT_SETTINGS = {
   notifyFamilyOnTap: true,
   allowTeenVoiceMessage: true,
   musicCategory: 'calma', // 'calma' | 'ritmo' | 'noche' | 'off'
+  musicVolume: 0.65,
   seeded: false,
   starterVersion: 0
 };

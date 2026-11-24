@@ -709,9 +709,12 @@
           <div class="form-grid">
             <div class="form-field">
               <label for="setting-voice" class="field-label">Voz en español (TTS)</label>
-              <select id="setting-voice" class="select">
-                <option value="">Automática (es-AR / Latino)</option>
-              </select>
+              <div class="pin-row">
+                <select id="setting-voice" class="select" style="flex: 1;">
+                  <option value="">Automática (es-AR / Latino)</option>
+                </select>
+                <button type="button" id="btn-test-setting-voice" class="btn btn--accent btn--sm">🔊 Probar voz</button>
+              </div>
               <span class="muted-text" style="font-size: 0.78rem;">
                 Tip: En Windows, Microsoft Edge incluye la voz natural argentina ("Elena"). En Chrome podés elegir "Google español de Estados Unidos" (latino) o instalar Español (Argentina) en Windows.
               </span>
@@ -740,12 +743,26 @@
 
             <div class="form-field">
               <label for="setting-music-category" class="field-label">Música en el Comunicador (categoría activa)</label>
-              <select id="setting-music-category" class="select">
-                <option value="calma">🌊 Calma y Regulación (5 temas)</option>
-                <option value="ritmo">🎧 Ritmo Suave / Enfoque (5 temas)</option>
-                <option value="noche">🌙 Descanso y Noche (5 temas)</option>
-                <option value="off">Ocultar tarjeta de música</option>
-              </select>
+              <div class="pin-row">
+                <select id="setting-music-category" class="select" style="flex: 1;">
+                  <option value="calma">🌊 Calma y Regulación (5 temas)</option>
+                  <option value="ritmo">🎧 Ritmo Suave / Enfoque (5 temas)</option>
+                  <option value="noche">🌙 Descanso y Noche (5 temas)</option>
+                  <option value="off">Ocultar tarjeta de música</option>
+                </select>
+                <button type="button" id="btn-test-music" class="btn btn--accent btn--sm">▶ Probar</button>
+              </div>
+              <span id="music-preview-status" class="muted-text" style="font-size: 0.78rem;"></span>
+            </div>
+
+            <div class="form-field">
+              <label for="setting-music-volume" class="field-label">
+                Volumen de la música: <strong id="music-volume-value">65%</strong>
+              </label>
+              <input id="setting-music-volume" type="range" min="0.1" max="1" step="0.05" value="0.65" class="range-input" />
+              <span class="muted-text" style="font-size: 0.78rem;">
+                Controla el volumen en el celular del adolescente y en la prueba de acá.
+              </span>
             </div>
 
             <div class="form-field">
