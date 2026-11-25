@@ -1,0 +1,633 @@
+/* ==========================================================================
+   family.css — Interfaz Accesible y Simplificada para Modo Familia / Equipo
+   100% aislado bajo #family-shell (y .is-large-text para #comm-shell)
+   ========================================================================== */
+
+#family-shell {
+  background: #020617;
+  color: #f1f5f9;
+  min-height: 100vh;
+  padding-bottom: 48px;
+}
+
+/* Header superior tipo Stitch */
+#family-shell .family-header {
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #1e293b;
+  padding: 16px 20px 14px;
+  gap: 16px;
+}
+
+#family-shell .family-header__top {
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+#family-shell .fam-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+#family-shell .fam-brand__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0284c7, #2dd4bf);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 1.45rem;
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.25);
+  flex-shrink: 0;
+}
+
+#family-shell .family-header__eyebrow {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #38bdf8;
+  background: rgba(14, 165, 233, 0.14);
+  padding: 3px 9px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+#family-shell .family-header__title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+#family-shell .fam-brand__sub {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+#family-shell .fam-open-comm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 12px;
+  background: #0ea5e9;
+  color: #ffffff;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  font-weight: 700;
+  font-size: 0.92rem;
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.28);
+  transition: background 0.18s ease, transform 0.12s ease;
+}
+
+#family-shell .fam-open-comm-btn:hover {
+  background: #38bdf8;
+}
+
+#family-shell .fam-open-comm-btn:active {
+  transform: scale(0.97);
+}
+
+/* Tarjeta Hero de Vinculación */
+#family-shell .pairing-banner {
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #172033 0%, #0f172a 100%);
+  border: 1px solid #1e293b;
+  border-radius: 24px;
+  padding: 20px 24px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+#family-shell .pairing-hero__left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 520px;
+}
+
+#family-shell .sync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.32);
+  color: #4ade80;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+#family-shell .pairing-hero__title {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+#family-shell .pairing-hero__desc {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+#family-shell .pairing-hero__box {
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+#family-shell .pairing-hero__code-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#family-shell .pairing-hero__code-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+#family-shell .pairing-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #38bdf8;
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+
+#family-shell .pairing-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+#family-shell .btn-whatsapp {
+  background: #16a34a;
+  color: #ffffff;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+}
+
+#family-shell .btn-whatsapp:hover {
+  background: #22c55e;
+}
+
+/* Barra de pestañas */
+#family-shell .family-tabs {
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+#family-shell .family-tabs .category-pill {
+  border-radius: 12px;
+  padding: 9px 15px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+#family-shell .family-tabs .category-pill:hover {
+  color: #ffffff;
+  background: #1e293b;
+}
+
+#family-shell .family-tabs .category-pill.is-active {
+  background: rgba(14, 165, 233, 0.18);
+  color: #7dd3fc;
+  border-color: rgba(56, 189, 248, 0.42);
+}
+
+/* Contenido principal de Modo Familia */
+#family-shell .main-content--family {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 20px 18px 40px;
+}
+
+/* Secciones numeradas (1, 2, 3) en Ajustes */
+#family-shell .stitch-section {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 24px;
+  padding: 22px 24px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+#family-shell .stitch-section__head {
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 14px;
+}
+
+#family-shell .stitch-section__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#family-shell .stitch-section__sub {
+  margin: 5px 0 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+#family-shell .stitch-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+#family-shell .stitch-num--sky {
+  background: rgba(14, 165, 233, 0.2);
+  color: #38bdf8;
+}
+
+#family-shell .stitch-num--indigo {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+}
+
+#family-shell .stitch-num--teal {
+  background: rgba(20, 184, 166, 0.2);
+  color: #2dd4bf;
+}
+
+#family-shell .stitch-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+#family-shell .stitch-pill--teal {
+  background: rgba(20, 184, 166, 0.14);
+  color: #2dd4bf;
+  border: 1px solid rgba(20, 184, 166, 0.28);
+  text-transform: uppercase;
+}
+
+#family-shell .stitch-pill--sky {
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+#family-shell .stitch-pill--green {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.28);
+}
+
+/* Grids internos de Ajustes */
+#family-shell .stitch-grid-12 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+@media (min-width: 860px) {
+  #family-shell .stitch-grid-12 {
+    grid-template-columns: 7fr 5fr;
+    align-items: stretch;
+  }
+}
+
+#family-shell .stitch-subcard {
+  background: #172033;
+  border: 1px solid #1e293b;
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#family-shell .stitch-tip {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 0.82rem;
+  color: #fde68a;
+  line-height: 1.45;
+}
+
+#family-shell .stitch-tip strong {
+  color: #fbbf24;
+}
+
+#family-shell .stitch-speed-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+#family-shell .stitch-speed-btn {
+  padding: 7px 8px;
+  border-radius: 10px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+#family-shell .stitch-speed-btn:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+#family-shell .stitch-speed-btn.is-active {
+  background: rgba(14, 165, 233, 0.22);
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #7dd3fc;
+}
+
+#family-shell .stitch-badge-val {
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.14);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+#family-shell .stitch-badge-val--indigo {
+  background: rgba(99, 102, 241, 0.16);
+  color: #a5b4fc;
+  border-color: rgba(129, 140, 248, 0.3);
+}
+
+/* Toggles ricos en tarjeta */
+#family-shell .stitch-toggle-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid #1e293b;
+}
+
+@media (min-width: 720px) {
+  #family-shell .stitch-toggle-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+#family-shell .stitch-toggle-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #172033;
+  border: 1px solid #1e293b;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+#family-shell .stitch-toggle-card:hover {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+#family-shell .stitch-toggle-card input[type="checkbox"] {
+  margin-top: 3px;
+  width: 20px;
+  height: 20px;
+  accent-color: #0ea5e9;
+  flex-shrink: 0;
+}
+
+#family-shell .stitch-toggle-card__title {
+  display: block;
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+#family-shell .stitch-toggle-card__desc {
+  display: block;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+/* Grid de Funciones de Asistencia y Bienestar (Sección 3) */
+#family-shell .stitch-assist-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 820px) {
+  #family-shell .stitch-assist-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  #family-shell .stitch-span-2 {
+    grid-column: span 2;
+  }
+}
+
+#family-shell .stitch-feature-card {
+  background: #172033;
+  border: 1px solid #1e293b;
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+#family-shell .stitch-feature-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#family-shell .stitch-feature-card__meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+#family-shell .stitch-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+#family-shell .stitch-icon-box--sky { background: rgba(56, 189, 248, 0.16); color: #38bdf8; }
+#family-shell .stitch-icon-box--teal { background: rgba(20, 184, 166, 0.18); color: #2dd4bf; }
+#family-shell .stitch-icon-box--indigo { background: rgba(99, 102, 241, 0.18); color: #818cf8; }
+#family-shell .stitch-icon-box--amber { background: rgba(245, 158, 11, 0.18); color: #fbbf24; }
+#family-shell .stitch-icon-box--green { background: rgba(34, 197, 94, 0.16); color: #4ade80; }
+#family-shell .stitch-icon-box--rose { background: rgba(244, 63, 94, 0.16); color: #fb7185; }
+
+#family-shell .stitch-feature-card__title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#family-shell .stitch-feature-card__desc {
+  margin: 3px 0 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+#family-shell .stitch-feature-card input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #14b8a6;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+#family-shell .stitch-inner-box {
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid #1e293b;
+  border-radius: 13px;
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#family-shell .stitch-feature-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #1e293b;
+  font-size: 0.76rem;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
+/* Tarjeta inferior de vincular otro dispositivo + aviso de autoguardado */
+#family-shell .stitch-link-bar {
+  background: #172033;
+  border: 1px solid #1e293b;
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+#family-shell .stitch-autosave {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 16px;
+  padding: 14px 18px;
+  color: #86efac;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Modo Letra Gigante y Alto Contraste en el Comunicador */
+#comm-shell.is-large-text .aac-card {
+  border-width: 2.5px;
+  border-color: rgba(56, 189, 248, 0.55);
+  padding: 16px 12px;
+}
+
+#comm-shell.is-large-text .aac-card__text {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+#comm-shell.is-large-text .quick-btn {
+  font-size: 1.15rem;
+  border-width: 2px;
+}
+
+#comm-shell.is-large-text .category-pill {
+  font-size: 1.02rem;
+  padding: 10px 18px;
+}

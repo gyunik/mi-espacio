@@ -437,6 +437,13 @@ function cacheDom() {
   dom.healthCallPhone = document.getElementById('health-call-phone');
   dom.btnSaveHealthCall = document.getElementById('btn-save-health-call');
   dom.healthCallStatus = document.getElementById('health-call-status');
+
+  // Controles adicionales del rediseño Stitch
+  dom.btnShareWhatsapp = document.getElementById('btn-share-whatsapp');
+  dom.speedPresetBtns = document.querySelectorAll('[data-speed-preset]');
+  dom.settingLargeText = document.getElementById('setting-large-text');
+  dom.autosaveBanner = document.getElementById('stitch-autosave-banner');
+  dom.btnDismissAutosave = document.getElementById('btn-dismiss-autosave');
 }
 
 function registerServiceWorker() {
@@ -679,6 +686,9 @@ function startBoardSubscription() {
       }
       if (typeof remoteSettings.healthCallPhone === 'string') {
         updates.healthCallPhone = remoteSettings.healthCallPhone;
+      }
+      if (typeof remoteSettings.largeTextMode === 'boolean') {
+        updates.largeTextMode = remoteSettings.largeTextMode;
       }
       if (Object.keys(updates).length > 0) {
         state.settings = saveSettings(updates);
@@ -2198,8 +2208,15 @@ function bindFamilyMode() {
     try {
       await navigator.clipboard.writeText(state.settings.pairingCode);
       dom.btnCopyCode.textContent = '¡Copiado!';
-      setTimeout(() => (dom.btnCopyCode.textContent = 'Copiar'), 1800);
+      setTimeout(() => (dom.btnCopyCode.textContent = '📋 Copiar'), 1800);
     } catch {}
+  });
+
+  dom.btnShareWhatsapp?.addEventListener('click', () => {
+    const code = state.settings.pairingCode || '';
+    const formatted = code.length === 6 ? `${code.slice(0, 3)}-${code.slice(3)}` : code;
+    const msg = `Hola! Acá tenés el código para vincular Mi Espacio: ${formatted} — Entrá desde https://gyunik.github.io/mi-espacio/`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
   });
 
   dom.btnNewCode.addEventListener('click', () => {
@@ -2345,10 +2362,40 @@ function bindFamilyMode() {
     speak('Hola, así suena mi voz en Mi Espacio.', ttsOptions());
   });
 
+  const updateSpeedPresetUI = (rate) => {
+    dom.speedPresetBtns?.forEach((btn) => {
+      const target = parseFloat(btn.dataset.speedPreset);
+      btn.classList.toggle('is-active', Math.abs(target - rate) < 0.03);
+    });
+  };
+
   dom.settingRate.addEventListener('input', () => {
     const rate = parseFloat(dom.settingRate.value);
     dom.rateValue.textContent = `${rate.toFixed(2)}x`;
+    updateSpeedPresetUI(rate);
     state.settings = saveSettings({ speechRate: rate });
+  });
+
+  dom.speedPresetBtns?.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const rate = parseFloat(btn.dataset.speedPreset);
+      dom.settingRate.value = String(rate);
+      dom.rateValue.textContent = `${rate.toFixed(2)}x`;
+      updateSpeedPresetUI(rate);
+      state.settings = saveSettings({ speechRate: rate });
+      speak('Así suena esta velocidad.', ttsOptions());
+    });
+  });
+
+  dom.settingLargeText?.addEventListener('change', async () => {
+    const enabled = dom.settingLargeText.checked;
+    state.settings = saveSettings({ largeTextMode: enabled });
+    applySettingsToUI();
+    await saveBoardPreference({ largeTextMode: enabled });
+  });
+
+  dom.btnDismissAutosave?.addEventListener('click', () => {
+    if (dom.autosaveBanner) dom.autosaveBanner.hidden = true;
   });
 
   dom.settingPhraseBar.addEventListener('change', () => {
@@ -3326,6 +3373,15 @@ function applySettingsToUI() {
   if (dom.healthCallPhone && document.activeElement !== dom.healthCallPhone) {
     dom.healthCallPhone.value = state.settings.healthCallPhone || '';
   }
+
+  const largeText = Boolean(state.settings.largeTextMode);
+  if (dom.settingLargeText) dom.settingLargeText.checked = largeText;
+  if (dom.commShell) dom.commShell.classList.toggle('is-large-text', largeText);
+
+  dom.speedPresetBtns?.forEach((btn) => {
+    const target = parseFloat(btn.dataset.speedPreset);
+    btn.classList.toggle('is-active', Math.abs(target - Number(state.settings.speechRate)) < 0.03);
+  });
 
   renderPhraseBar();
 }

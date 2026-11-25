@@ -66,6 +66,7 @@ export const DEFAULT_SETTINGS = {
   enableHealthCall: false,
   healthCallName: '',
   healthCallPhone: '',
+  largeTextMode: false,
   seeded: false,
   starterVersion: 0
 };
