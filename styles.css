@@ -2101,6 +2101,111 @@ select:focus-visible {
   }
 }
 
+/* ==========================================================================
+   MODAL DE TV / NOTICIAS EN VIVO (YouTube integrado sin salir de la app)
+   ========================================================================== */
+.news-tv-modal__card {
+  max-width: 860px;
+  padding: 14px 16px;
+  gap: 12px;
+  border-color: rgba(56, 189, 248, 0.65);
+}
+
+.news-tv-modal__heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.news-tv-live-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #f43f5e;
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.8);
+  flex-shrink: 0;
+}
+
+.news-tv-modal__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.news-tv-player {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 58dvh;
+  background-color: #020617;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1.5px solid var(--border-strong);
+}
+
+.news-tv-player iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.news-tv-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.news-tv-ch-btn {
+  padding: 10px 16px;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border-strong);
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.96rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.news-tv-ch-btn:hover {
+  border-color: var(--cyan);
+}
+
+.news-tv-ch-btn.is-active {
+  background-color: rgba(16, 185, 129, 0.22);
+  border-color: #10b981;
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+.news-tv-modal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+}
+
+.news-tv-ext-link {
+  color: var(--cyan);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.news-tv-ext-link:hover {
+  text-decoration: underline;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

@@ -41,6 +41,16 @@ export const MUSIC_THEMATIC_GENRES = [
   { id: 'lofi', label: '🎧 Lo-Fi y Concentración', tag: 'lofi' }
 ];
 
+export const NEWS_TV_CHANNELS = [
+  { id: 'tn', name: 'TN (Todo Noticias)', shortName: 'TN', channelId: 'UCj6PcyLvpnIRT_2W_mwa9Aw', handle: '@todonoticias' },
+  { id: 'a24', name: 'A24', shortName: 'A24', channelId: 'UCR9120YBAqMfntqgRTKmkjQ', handle: '@A24com' },
+  { id: 'cronica', name: 'Crónica TV', shortName: 'Crónica', channelId: 'UCT7KFGv6s2a-rh2Jq8ZdM1g', handle: '@CronicaTV' },
+  { id: 'c5n', name: 'C5N', shortName: 'C5N', channelId: 'UCFgk2Q2mVO1BklRQhSv6p0w', handle: '@c5n' },
+  { id: 'lnmas', name: 'LN+ (La Nación)', shortName: 'LN+', channelId: 'UCba3hpU7EFBSk817y9qZkiA', handle: '@lanacion' },
+  { id: 'canal26', name: 'Canal 26', shortName: 'Canal 26', channelId: 'UCrpMfcQNog595v5gAS-oUsQ', handle: '@canal26' },
+  { id: 'dw', name: 'DW Español', shortName: 'DW', channelId: 'UCT4Jg8h03dD0iN3Pb5L0PMA', handle: '@dwespanol' }
+];
+
 export const CURATED_MUSIC_STATIONS = {
   chillout: [
     { name: 'Classic FM Calm (Piano y Relajación)', url: 'https://media-ice.musicradio.com/ClassicFMCalmMP3', country: 'GB' },

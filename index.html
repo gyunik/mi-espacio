@@ -1107,29 +1107,37 @@
               </div>
             </div>
 
-            <!-- 3.7 Acceso directo a Playlist de Spotify -->
+            <!-- 3.7 TV / Noticias en vivo (YouTube integrado sin salir de la app) -->
             <div class="stitch-feature-card">
               <div class="stitch-feature-card__top">
                 <div class="stitch-feature-card__meta">
-                  <div class="stitch-icon-box stitch-icon-box--green">🎧</div>
+                  <div class="stitch-icon-box stitch-icon-box--sky">📺</div>
                   <div>
                     <h3 class="stitch-feature-card__title">
-                      <span>Playlist de Spotify</span>
-                      <span class="stitch-pill stitch-pill--green">Offline en app</span>
+                      <span>TV / Noticias en vivo</span>
+                      <span class="stitch-pill stitch-pill--sky">Sin salir de la app</span>
                     </h3>
-                    <p class="stitch-feature-card__desc">Abre la playlist elegida directo en Spotify (si está descargada con cuenta paga, funciona sin internet).</p>
+                    <p class="stitch-feature-card__desc">Tarjeta grande para ver canales de noticias en vivo (TN, A24, Crónica, C5N, LN+, Canal 26) directo en pantalla.</p>
                   </div>
                 </div>
-                <input id="setting-enable-spotify" type="checkbox" aria-label="Activar tarjeta de Spotify" />
+                <input id="setting-enable-news-tv" type="checkbox" aria-label="Activar tarjeta de TV y Noticias en vivo" />
               </div>
 
               <div class="stitch-inner-box">
-                <input id="spotify-name" type="text" class="input" placeholder="Nombre (ej: Favoritas de Sofi)" maxlength="30" />
+                <label for="setting-news-tv-channel" class="field-label">Canal inicial al abrir:</label>
                 <div class="pin-row">
-                  <input id="spotify-url" type="url" class="input" placeholder="Link (https://open.spotify.com/playlist/...)" style="flex: 1;" />
-                  <button type="button" id="btn-save-spotify" class="btn btn--emerald btn--sm">Guardar</button>
+                  <select id="setting-news-tv-channel" class="select" style="flex: 1;">
+                    <option value="tn">📺 TN (Todo Noticias)</option>
+                    <option value="a24">📺 A24</option>
+                    <option value="cronica">📺 Crónica TV</option>
+                    <option value="c5n">📺 C5N</option>
+                    <option value="lnmas">📺 LN+ (La Nación)</option>
+                    <option value="canal26">📺 Canal 26</option>
+                    <option value="dw">📺 DW Español</option>
+                  </select>
+                  <button type="button" id="btn-test-news-tv" class="btn btn--accent btn--sm">▶ Probar</button>
                 </div>
-                <span id="spotify-status" class="muted-text" style="font-size: 0.76rem;"></span>
+                <span id="news-tv-status" class="muted-text" style="font-size: 0.76rem;"></span>
               </div>
             </div>
           </div>
@@ -1215,6 +1223,42 @@
           <button type="button" id="btn-fam-just-seen" class="btn btn--ghost">Solo marcar visto</button>
           <button type="button" id="btn-fam-close-modal" class="btn btn--ghost">Cerrar</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE TV / NOTICIAS EN VIVO (YouTube integrado sin salir de la app) -->
+  <div id="comm-news-tv-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="news-tv-title" hidden>
+    <div class="push-modal__card news-tv-modal__card">
+      <div class="push-modal__top">
+        <div class="news-tv-modal__heading">
+          <span class="news-tv-live-dot" aria-hidden="true"></span>
+          <h2 id="news-tv-title" class="news-tv-modal__title">TN (Todo Noticias)</h2>
+        </div>
+        <button type="button" id="btn-close-news-tv" class="btn btn--danger">
+          ✕ Cerrar
+        </button>
+      </div>
+
+      <div class="news-tv-player">
+        <iframe
+          id="news-tv-iframe"
+          title="Noticias en vivo"
+          src="about:blank"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          allowfullscreen
+          referrerpolicy="strict-origin-when-cross-origin"
+        ></iframe>
+      </div>
+
+      <div id="news-tv-channels-bar" class="news-tv-channels" role="group" aria-label="Cambiar de canal de noticias"></div>
+
+      <div class="news-tv-modal__foot">
+        <span class="muted-text">Tocá otro canal arriba para cambiar en vivo.</span>
+        <a id="news-tv-external-link" href="https://www.youtube.com/@todonoticias/live" target="_blank" rel="noopener noreferrer" class="news-tv-ext-link">
+          Abrir en YouTube ↗
+        </a>
       </div>
     </div>
   </div>

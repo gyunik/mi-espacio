@@ -19,6 +19,7 @@ import {
 
 import { MUSIC_CATEGORIES } from './musicCatalog.js';
 import {
+  NEWS_TV_CHANNELS,
   loadArgentineStations,
   loadMusicStationsByGenre,
   filterStationsLocal,
@@ -478,11 +479,16 @@ function cacheDom() {
   dom.btnSaveHealthCall = document.getElementById('btn-save-health-call');
   dom.healthCallStatus = document.getElementById('health-call-status');
 
-  dom.settingEnableSpotify = document.getElementById('setting-enable-spotify');
-  dom.spotifyName = document.getElementById('spotify-name');
-  dom.spotifyUrl = document.getElementById('spotify-url');
-  dom.btnSaveSpotify = document.getElementById('btn-save-spotify');
-  dom.spotifyStatus = document.getElementById('spotify-status');
+  dom.settingEnableNewsTv = document.getElementById('setting-enable-news-tv');
+  dom.settingNewsTvChannel = document.getElementById('setting-news-tv-channel');
+  dom.btnTestNewsTv = document.getElementById('btn-test-news-tv');
+  dom.newsTvStatus = document.getElementById('news-tv-status');
+  dom.commNewsTvModal = document.getElementById('comm-news-tv-modal');
+  dom.newsTvTitle = document.getElementById('news-tv-title');
+  dom.newsTvIframe = document.getElementById('news-tv-iframe');
+  dom.newsTvChannelsBar = document.getElementById('news-tv-channels-bar');
+  dom.newsTvExternalLink = document.getElementById('news-tv-external-link');
+  dom.btnCloseNewsTv = document.getElementById('btn-close-news-tv');
 
   // Controles adicionales del rediseño Stitch
   dom.btnShareWhatsapp = document.getElementById('btn-share-whatsapp');
@@ -745,14 +751,11 @@ function startBoardSubscription() {
       if (typeof remoteSettings.healthCallPhone === 'string') {
         updates.healthCallPhone = remoteSettings.healthCallPhone;
       }
-      if (typeof remoteSettings.enableSpotifyCard === 'boolean') {
-        updates.enableSpotifyCard = remoteSettings.enableSpotifyCard;
+      if (typeof remoteSettings.enableNewsTvCard === 'boolean') {
+        updates.enableNewsTvCard = remoteSettings.enableNewsTvCard;
       }
-      if (typeof remoteSettings.spotifyName === 'string') {
-        updates.spotifyName = remoteSettings.spotifyName;
-      }
-      if (typeof remoteSettings.spotifyUrl === 'string') {
-        updates.spotifyUrl = remoteSettings.spotifyUrl;
+      if (typeof remoteSettings.newsTvChannelId === 'string') {
+        updates.newsTvChannelId = remoteSettings.newsTvChannelId;
       }
       if (typeof remoteSettings.largeTextMode === 'boolean') {
         updates.largeTextMode = remoteSettings.largeTextMode;
@@ -1672,13 +1675,77 @@ function bindPhraseBar() {
     }
   };
 
-  window.__openSpotifyCard = () => {
-    const url = (state.settings.spotifyUrl || '').trim();
-    if (!url) return;
-    const name = (state.settings.spotifyName || 'Spotify').trim();
-    speak(`Abriendo ${name}`, ttsOptions());
-    window.open(url, '_blank', 'noopener');
+  const loadNewsTvChannel = (channelId) => {
+    const ch = NEWS_TV_CHANNELS.find((c) => c.id === channelId) || NEWS_TV_CHANNELS[0];
+    if (!ch) return;
+    if (dom.newsTvTitle) dom.newsTvTitle.textContent = ch.name;
+    if (dom.newsTvIframe) {
+      dom.newsTvIframe.src = `https://www.youtube.com/embed/live_stream?channel=${encodeURIComponent(ch.channelId)}&autoplay=1&rel=0&modestbranding=1&hl=es`;
+    }
+    if (dom.newsTvExternalLink) {
+      dom.newsTvExternalLink.href = `https://www.youtube.com/${ch.handle}/live`;
+    }
+    dom.newsTvChannelsBar?.querySelectorAll('.news-tv-ch-btn').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.channelId === ch.id);
+    });
   };
+
+  const renderNewsTvChannelButtons = () => {
+    if (!dom.newsTvChannelsBar || dom.newsTvChannelsBar.children.length > 0) return;
+    NEWS_TV_CHANNELS.forEach((ch) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'news-tv-ch-btn';
+      btn.dataset.channelId = ch.id;
+      btn.textContent = `📺 ${ch.shortName}`;
+      btn.addEventListener('click', () => loadNewsTvChannel(ch.id));
+      dom.newsTvChannelsBar.appendChild(btn);
+    });
+  };
+
+  const closeNewsTvModal = () => {
+    if (dom.newsTvIframe) {
+      dom.newsTvIframe.src = 'about:blank';
+    }
+    if (dom.commNewsTvModal) {
+      dom.commNewsTvModal.hidden = true;
+    }
+  };
+
+  window.__openNewsTvModal = (overrideChannelId) => {
+    // Pausar radio, música y TTS para que no se superponga el audio con la TV
+    stopAllAudio();
+    stopMusicPreview();
+    stopRadioPreview();
+    if (state.music.audio && state.music.isPlaying) {
+      state.music.audio.pause();
+      if ((state.settings.musicCategory || 'calma') === 'stream') {
+        state.music.audio.removeAttribute('src');
+        state.music.audio.load();
+      }
+      state.music.isPlaying = false;
+      renderCardsGrid();
+    }
+    if (state.radio.audio && state.radio.isPlaying) {
+      state.radio.audio.pause();
+      state.radio.audio.removeAttribute('src');
+      state.radio.audio.load();
+      state.radio.isPlaying = false;
+      renderCardsGrid();
+    }
+
+    renderNewsTvChannelButtons();
+    const targetId = overrideChannelId || state.settings.newsTvChannelId || 'tn';
+    loadNewsTvChannel(targetId);
+    if (dom.commNewsTvModal) {
+      dom.commNewsTvModal.hidden = false;
+    }
+  };
+
+  dom.btnCloseNewsTv?.addEventListener('click', closeNewsTvModal);
+  dom.commNewsTvModal?.addEventListener('click', (e) => {
+    if (e.target === dom.commNewsTvModal) closeNewsTvModal();
+  });
 
   dom.btnCommEnablePush?.addEventListener('click', async () => {
     if (typeof Notification === 'undefined') return;
@@ -2054,36 +2121,38 @@ function renderCardsGrid() {
     dom.cardsGrid.appendChild(healthBtn);
   }
 
-  // Tarjeta opcional de acceso directo a Playlist de Spotify
-  const spotifyEnabled = Boolean(state.settings.enableSpotifyCard && state.settings.spotifyUrl);
-  const showSpotifyCard =
-    spotifyEnabled && (state.activeCategory === 'all' || state.activeCategory === 'ocio');
+  // Tarjeta opcional de TV / Noticias en vivo (YouTube integrado sin salir de la app)
+  const newsTvEnabled = Boolean(state.settings.enableNewsTvCard);
+  const showNewsTvCard =
+    newsTvEnabled && (state.activeCategory === 'all' || state.activeCategory === 'ocio');
 
-  if (showSpotifyCard) {
-    const spName = (state.settings.spotifyName || 'Mi Spotify').trim();
-    const spBtn = document.createElement('button');
-    spBtn.type = 'button';
-    spBtn.className = 'aac-card';
-    spBtn.setAttribute('aria-label', `Abrir playlist ${spName} en Spotify`);
+  if (showNewsTvCard) {
+    const ch =
+      NEWS_TV_CHANNELS.find((c) => c.id === state.settings.newsTvChannelId) ||
+      NEWS_TV_CHANNELS[0];
+    const tvBtn = document.createElement('button');
+    tvBtn.type = 'button';
+    tvBtn.className = 'aac-card';
+    tvBtn.setAttribute('aria-label', `Ver noticias en vivo: ${ch.name}`);
 
     const visual = document.createElement('div');
     visual.className = 'aac-card__visual';
     const img = document.createElement('img');
-    img.src = './assets/cards/spotify.svg';
-    img.alt = 'Spotify';
+    img.src = './assets/cards/tv-noticias.svg';
+    img.alt = 'TV Noticias en vivo';
     visual.appendChild(img);
 
     const label = document.createElement('span');
     label.className = 'aac-card__text';
-    label.textContent = `🎧 ${spName}`;
+    label.textContent = `📺 Noticias (${ch.shortName})`;
 
-    spBtn.append(visual, label);
-    spBtn.addEventListener('click', () => {
-      if (typeof window.__openSpotifyCard === 'function') {
-        window.__openSpotifyCard();
+    tvBtn.append(visual, label);
+    tvBtn.addEventListener('click', () => {
+      if (typeof window.__openNewsTvModal === 'function') {
+        window.__openNewsTvModal();
       }
     });
-    dom.cardsGrid.appendChild(spBtn);
+    dom.cardsGrid.appendChild(tvBtn);
   }
 
   if (
@@ -2095,7 +2164,7 @@ function renderCardsGrid() {
     !showDateTimeCard &&
     !showContactCallCard &&
     !showHealthCallCard &&
-    !showSpotifyCard
+    !showNewsTvCard
   ) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
@@ -3742,39 +3811,28 @@ function bindFamilyMode() {
     });
   });
 
-  // Acceso directo a Playlist de Spotify
-  dom.settingEnableSpotify?.addEventListener('change', async () => {
-    const enabled = dom.settingEnableSpotify.checked;
-    state.settings = saveSettings({ enableSpotifyCard: enabled });
+  // TV / Noticias en vivo (YouTube integrado sin salir de la app)
+  dom.settingEnableNewsTv?.addEventListener('change', async () => {
+    const enabled = dom.settingEnableNewsTv.checked;
+    state.settings = saveSettings({ enableNewsTvCard: enabled });
     applySettingsToUI();
     renderCardsGrid();
-    await saveBoardPreference({ enableSpotifyCard: enabled });
+    await saveBoardPreference({ enableNewsTvCard: enabled });
   });
 
-  dom.btnSaveSpotify?.addEventListener('click', async () => {
-    const name = (dom.spotifyName?.value || '').trim() || 'Mi Spotify';
-    const url = (dom.spotifyUrl?.value || '').trim();
-    if (!url || (!url.startsWith('https://') && !url.startsWith('spotify:'))) {
-      if (dom.spotifyStatus) {
-        dom.spotifyStatus.textContent = 'Pegá un link válido de Spotify (ej: https://open.spotify.com/playlist/...).';
-      }
-      return;
-    }
-    state.settings = saveSettings({
-      spotifyName: name,
-      spotifyUrl: url,
-      enableSpotifyCard: true
-    });
+  dom.settingNewsTvChannel?.addEventListener('change', async () => {
+    const chId = dom.settingNewsTvChannel.value || 'tn';
+    state.settings = saveSettings({ newsTvChannelId: chId });
     applySettingsToUI();
     renderCardsGrid();
-    if (dom.spotifyStatus) {
-      dom.spotifyStatus.textContent = `Guardada: ${name} ✓ (se abrirá directo en la app de Spotify)`;
+    await saveBoardPreference({ newsTvChannelId: chId });
+  });
+
+  dom.btnTestNewsTv?.addEventListener('click', () => {
+    const chId = dom.settingNewsTvChannel?.value || state.settings.newsTvChannelId || 'tn';
+    if (typeof window.__openNewsTvModal === 'function') {
+      window.__openNewsTvModal(chId);
     }
-    await saveBoardPreference({
-      spotifyName: name,
-      spotifyUrl: url,
-      enableSpotifyCard: true
-    });
   });
 
   dom.btnJoinCode.addEventListener('click', () => {
@@ -4619,17 +4677,18 @@ function applySettingsToUI() {
     dom.healthCallPhone.value = state.settings.healthCallPhone || '';
   }
 
-  if (dom.settingEnableSpotify) {
-    dom.settingEnableSpotify.checked = Boolean(state.settings.enableSpotifyCard);
+  if (dom.settingEnableNewsTv) {
+    dom.settingEnableNewsTv.checked = Boolean(state.settings.enableNewsTvCard);
   }
-  if (dom.spotifyName && document.activeElement !== dom.spotifyName) {
-    dom.spotifyName.value = state.settings.spotifyName || '';
+  const activeNewsChId = state.settings.newsTvChannelId || 'tn';
+  if (dom.settingNewsTvChannel) {
+    dom.settingNewsTvChannel.value = activeNewsChId;
   }
-  if (dom.spotifyUrl && document.activeElement !== dom.spotifyUrl) {
-    dom.spotifyUrl.value = state.settings.spotifyUrl || '';
-  }
-  if (dom.spotifyStatus && !dom.spotifyStatus.textContent && state.settings.spotifyUrl) {
-    dom.spotifyStatus.textContent = `Playlist activa: ${state.settings.spotifyName || 'Mi Spotify'}`;
+  if (dom.newsTvStatus) {
+    const activeCh = NEWS_TV_CHANNELS.find((c) => c.id === activeNewsChId) || NEWS_TV_CHANNELS[0];
+    dom.newsTvStatus.textContent = state.settings.enableNewsTvCard
+      ? `Canal inicial activo: ${activeCh.name} ✓`
+      : 'Activá la casilla para mostrar la tarjeta de Noticias en el Comunicador.';
   }
 
   const largeText = Boolean(state.settings.largeTextMode);
