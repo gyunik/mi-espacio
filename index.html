@@ -10,12 +10,13 @@
   <title>Mi Espacio — Plataforma de Comunicación Aumentativa</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
   <link rel="stylesheet" href="./styles.css" />
   <link rel="stylesheet" href="./landing.css" />
+  <link rel="stylesheet" href="./communicator.css" />
   <link rel="stylesheet" href="./family.css" />
 </head>
 <body>
@@ -272,22 +273,22 @@
         <div class="quick-bar__grid">
           <button type="button" class="quick-btn quick-btn--yes" data-quick-phrase="Sí">
             <span class="quick-btn__dot" aria-hidden="true"></span>
-            <span class="quick-btn__label">SÍ</span>
+            <span class="quick-btn__label">✓ SÍ</span>
           </button>
 
           <button type="button" class="quick-btn quick-btn--no" data-quick-phrase="No">
             <span class="quick-btn__dot" aria-hidden="true"></span>
-            <span class="quick-btn__label">NO</span>
+            <span class="quick-btn__label">✕ NO</span>
           </button>
 
           <button type="button" class="quick-btn quick-btn--confused" data-quick-phrase="No entiendo">
             <span class="quick-btn__dot" aria-hidden="true"></span>
-            <span class="quick-btn__label">NO ENTIENDO</span>
+            <span class="quick-btn__label">? NO ENTIENDO</span>
           </button>
 
           <button type="button" class="quick-btn quick-btn--wait" data-quick-phrase="Dame un segundo">
             <span class="quick-btn__dot" aria-hidden="true"></span>
-            <span class="quick-btn__label">DAME UN SEGUNDO</span>
+            <span class="quick-btn__label">✋ ESPERA</span>
           </button>
         </div>
 
@@ -337,14 +338,14 @@
             <span class="phrase-bar__placeholder">Tocá las tarjetas para armar una frase...</span>
           </div>
           <div class="phrase-bar__actions">
-            <button type="button" id="btn-play-phrase" class="btn btn--accent btn--sm" disabled>
-              ▶ Leer
-            </button>
             <button type="button" id="btn-backspace-phrase" class="btn btn--ghost btn--sm" disabled aria-label="Borrar última palabra">
-              ⌫
+              ⌫ Borrar
             </button>
             <button type="button" id="btn-clear-phrase" class="btn btn--ghost btn--sm" disabled>
-              Limpiar
+              🗑 Limpiar
+            </button>
+            <button type="button" id="btn-play-phrase" class="btn btn--accent btn--sm" disabled>
+              🔊 LEER FRASE
             </button>
           </div>
         </div>

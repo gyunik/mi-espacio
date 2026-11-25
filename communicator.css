@@ -1,0 +1,400 @@
+/* ==========================================================================
+   communicator.css — Interfaz Accesible de Alto Contraste para Modo Comunicador
+   Basado en diseño Stitch (tipografía Lexend, alto contraste, navegación por scroll)
+   100% aislado bajo #communicator-shell
+   ========================================================================== */
+
+#communicator-shell {
+  font-family: 'Lexend', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background: #070e19;
+  color: #f1f5f9;
+}
+
+/* Barra superior fija de respuestas rápidas (SÍ / NO / NO ENTIENDO / ESPERA) */
+#communicator-shell .quick-bar {
+  background: rgba(10, 20, 36, 0.96);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #1b2f4e;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  padding: 10px 14px;
+}
+
+#communicator-shell .quick-bar__row {
+  max-width: 1180px;
+  margin: 0 auto;
+  gap: 10px;
+}
+
+#communicator-shell .quick-bar__grid {
+  gap: 10px;
+}
+
+#communicator-shell .quick-btn {
+  border-radius: 14px;
+  padding: 12px 10px;
+  min-height: 54px;
+  font-family: 'Lexend', sans-serif;
+  font-weight: 800;
+  font-size: 0.98rem;
+  letter-spacing: 0.03em;
+  border-width: 2px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  transition: transform 0.12s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+#communicator-shell .quick-btn:active {
+  transform: scale(0.96);
+}
+
+#communicator-shell .quick-btn--yes {
+  background: rgba(6, 78, 59, 0.65);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+#communicator-shell .quick-btn--yes:hover {
+  background: rgba(6, 95, 70, 0.85);
+}
+
+#communicator-shell .quick-btn--no {
+  background: rgba(136, 19, 55, 0.65);
+  border-color: #f43f5e;
+  color: #fda4af;
+}
+#communicator-shell .quick-btn--no:hover {
+  background: rgba(159, 18, 57, 0.85);
+}
+
+#communicator-shell .quick-btn--confused {
+  background: rgba(120, 53, 15, 0.65);
+  border-color: #f59e0b;
+  color: #fcd34d;
+}
+#communicator-shell .quick-btn--confused:hover {
+  background: rgba(146, 64, 14, 0.85);
+}
+
+#communicator-shell .quick-btn--wait {
+  background: rgba(22, 78, 99, 0.65);
+  border-color: #06b6d4;
+  color: #67e8f9;
+}
+#communicator-shell .quick-btn--wait:hover {
+  background: rgba(21, 94, 117, 0.85);
+}
+
+#communicator-shell .quick-btn__dot {
+  display: none;
+}
+
+#communicator-shell .role-exit-btn {
+  border-radius: 14px;
+  background: #132238;
+  border: 1.5px solid #2b4b7a;
+  color: #94a3b8;
+  min-width: 48px;
+}
+
+#communicator-shell .role-exit-btn:hover {
+  background: #1d3252;
+  color: #e2e8f0;
+}
+
+/* Contenido principal con scroll natural (sin paginación) */
+#communicator-shell .main-content {
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 14px 16px 96px;
+}
+
+/* Barra de estado y conexión con familia */
+#communicator-shell .voice-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+#communicator-shell .channel-pill {
+  background: #0f1d33;
+  border: 1px solid #203657;
+  color: #cbd5e1;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+#communicator-shell .channel-pill.is-online {
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #6ee7b7;
+}
+
+#communicator-shell #btn-teen-voice-msg {
+  background: #172b49;
+  border: 1px solid #2f558a;
+  color: #a5f3fc;
+  border-radius: 999px;
+  padding: 7px 15px;
+  font-weight: 600;
+}
+
+#communicator-shell #btn-teen-voice-msg:hover {
+  background: #203c66;
+}
+
+#communicator-shell #btn-toggle-remote-notify {
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-weight: 600;
+}
+
+#communicator-shell #btn-toggle-remote-notify.is-active {
+  background: rgba(6, 78, 59, 0.42);
+  border-color: rgba(16, 185, 129, 0.52);
+  color: #6ee7b7;
+}
+
+/* Tira superior de armado de frase */
+#communicator-shell .phrase-bar {
+  background: #0d1a2d;
+  border: 2px solid #1f375b;
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+#communicator-shell .phrase-bar__tokens {
+  background: #070f1a;
+  border: 1px solid #1b2f4d;
+  border-radius: 12px;
+  padding: 12px 14px;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#communicator-shell .phrase-bar__placeholder {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 0.96rem;
+}
+
+#communicator-shell .phrase-token {
+  background: rgba(14, 165, 233, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #e0f2fe;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-weight: 600;
+}
+
+#communicator-shell .phrase-bar__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #182944;
+}
+
+#communicator-shell #btn-backspace-phrase,
+#communicator-shell #btn-clear-phrase {
+  background: #142339;
+  border: 1px solid #27456e;
+  color: #cbd5e1;
+  border-radius: 12px;
+  padding: 9px 14px;
+  font-weight: 600;
+}
+
+#communicator-shell #btn-play-phrase {
+  background: #0891b2;
+  border: 1px solid #22d3ee;
+  color: #020617;
+  border-radius: 12px;
+  padding: 9px 20px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 6px 18px rgba(8, 145, 178, 0.32);
+}
+
+#communicator-shell #btn-play-phrase:hover:not(:disabled) {
+  background: #22d3ee;
+}
+
+#communicator-shell #btn-play-phrase:disabled {
+  opacity: 0.45;
+  color: #cbd5e1;
+}
+
+/* Barra horizontal de categorías */
+#communicator-shell .category-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 10px;
+  margin-bottom: 8px;
+}
+
+#communicator-shell .category-bar .category-pill {
+  background: #0f1d33;
+  border: 1.5px solid #1f375b;
+  color: #cbd5e1;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.16s ease;
+}
+
+#communicator-shell .category-bar .category-pill:hover {
+  background: #172b49;
+  color: #ffffff;
+}
+
+#communicator-shell .category-bar .category-pill.is-active {
+  background: rgba(8, 145, 178, 0.24);
+  border-color: #38bdf8;
+  color: #67e8f9;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.18);
+}
+
+/* Grilla de tarjetas de alto contraste (navegación fluida por scroll) */
+#communicator-shell .cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (min-width: 720px) {
+  #communicator-shell .cards-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+#communicator-shell .aac-card {
+  background: #0d1829;
+  border: 1.5px solid #1f375b;
+  border-radius: 20px;
+  padding: 16px 12px;
+  min-height: 158px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+  transition: transform 0.12s ease, border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+#communicator-shell .aac-card:hover {
+  background: #13233c;
+  border-color: #38bdf8;
+  box-shadow: 0 0 22px rgba(56, 189, 248, 0.2);
+}
+
+#communicator-shell .aac-card:active {
+  transform: scale(0.97);
+  border-color: #38bdf8;
+  box-shadow: 0 0 26px rgba(56, 189, 248, 0.4);
+}
+
+#communicator-shell .aac-card.is-music-playing {
+  background: rgba(6, 78, 59, 0.35);
+  border: 2px solid #10b981;
+  box-shadow: 0 0 22px rgba(16, 185, 129, 0.25);
+}
+
+#communicator-shell .aac-card__visual {
+  width: 100%;
+  max-width: 156px;
+  height: 92px;
+  border-radius: 14px;
+  background: rgba(7, 15, 26, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 2.8rem;
+}
+
+#communicator-shell .aac-card__visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#communicator-shell .aac-card__text {
+  font-family: 'Lexend', sans-serif;
+  font-size: 1.04rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.25;
+  text-align: center;
+}
+
+/* Barra inferior de navegación (2 pestañas limpias: Mi Voz y Mensajes) */
+#communicator-shell .bottom-nav {
+  background: #081220;
+  border-top: 2px solid #192f50;
+  padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
+  gap: 10px;
+}
+
+#communicator-shell .bottom-nav__btn {
+  border-radius: 14px;
+  padding: 8px 12px;
+  border: 1.5px solid transparent;
+  color: #94a3b8;
+  font-weight: 600;
+  transition: all 0.16s ease;
+}
+
+#communicator-shell .bottom-nav__btn.is-active {
+  background: rgba(8, 145, 178, 0.2);
+  border-color: #38bdf8;
+  color: #67e8f9;
+  font-weight: 700;
+}
+
+/* Modo Letra Gigante y Alto Contraste (activado desde Modo Familia → Ajustes) */
+#communicator-shell.is-large-text .aac-card {
+  min-height: 192px;
+  padding: 20px 14px;
+  border-width: 2.5px;
+  border-color: rgba(56, 189, 248, 0.65);
+}
+
+#communicator-shell.is-large-text .aac-card__visual {
+  max-width: 176px;
+  height: 108px;
+  font-size: 3.3rem;
+}
+
+#communicator-shell.is-large-text .aac-card__text {
+  font-size: 1.32rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+#communicator-shell.is-large-text .quick-btn {
+  font-size: 1.18rem;
+  min-height: 62px;
+}
+
+#communicator-shell.is-large-text .category-bar .category-pill {
+  font-size: 1.04rem;
+  padding: 10px 20px;
+}
