@@ -11,6 +11,7 @@ const synth = typeof window !== 'undefined' && 'speechSynthesis' in window
 let cachedVoices = [];
 let activeUtteranceId = 0;
 let activeAudioElement = null;
+let activeAudioCleanup = null;
 
 /**
  * Obtiene las voces en español ordenadas por prioridad (es-AR, es-ES, es-419, etc.).
@@ -85,7 +86,11 @@ export function stopAllAudio() {
   if (synth) {
     synth.cancel();
   }
-  if (activeAudioElement) {
+  if (typeof activeAudioCleanup === 'function') {
+    const cleanup = activeAudioCleanup;
+    activeAudioCleanup = null;
+    cleanup();
+  } else if (activeAudioElement) {
     activeAudioElement.pause();
     activeAudioElement.currentTime = 0;
     activeAudioElement = null;
@@ -158,10 +163,15 @@ export function speak(text, options = {}) {
 
 /**
  * Reproduce una nota de voz grabada (DataURL / Base64).
+ * Opcionalmente entrega 5 niveles de frecuencia en tiempo real (0..1) vía options.onLevels
+ * para animar las barras del visualizador durante la reproducción.
  * @param {string} dataUrl
+ * @param {Object} [options]
+ * @param {Function} [options.onLevels]
+ * @param {Function} [options.onFallbackPulse]
  * @returns {Promise<void>}
  */
-export function playAudioDataUrl(dataUrl) {
+export function playAudioDataUrl(dataUrl, options = {}) {
   if (!dataUrl) return Promise.resolve();
   stopAllAudio();
 
@@ -169,12 +179,69 @@ export function playAudioDataUrl(dataUrl) {
     const audio = new Audio(dataUrl);
     activeAudioElement = audio;
 
+    let settled = false;
+    let rafId = null;
+    let ctx = null;
+
     const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      if (ctx && ctx.state !== 'closed') {
+        ctx.close().catch(() => {});
+        ctx = null;
+      }
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch {}
       if (activeAudioElement === audio) {
         activeAudioElement = null;
       }
+      if (activeAudioCleanup === finish) {
+        activeAudioCleanup = null;
+      }
       resolve();
     };
+
+    activeAudioCleanup = finish;
+
+    if (typeof options.onLevels === 'function') {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        try {
+          ctx = new AudioCtx();
+          if (ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+          }
+          const source = ctx.createMediaElementSource(audio);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 128;
+          analyser.smoothingTimeConstant = 0.72;
+          source.connect(analyser);
+          analyser.connect(ctx.destination);
+
+          const data = new Uint8Array(analyser.frequencyBinCount);
+          const binIndices = [2, 5, 9, 14, 20];
+
+          const tick = () => {
+            if (settled) return;
+            analyser.getByteFrequencyData(data);
+            const levels = binIndices.map((idx) => Math.min(1, (data[idx] || 0) / 160));
+            options.onLevels(levels);
+            rafId = requestAnimationFrame(tick);
+          };
+          tick();
+        } catch {
+          options.onFallbackPulse?.();
+        }
+      } else {
+        options.onFallbackPulse?.();
+      }
+    }
 
     audio.onended = finish;
     audio.onerror = finish;
@@ -273,6 +340,9 @@ export function createVoiceLevelMeter(stream, onLevels) {
 
   try {
     ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 128;
@@ -311,9 +381,12 @@ export function createVoiceLevelMeter(stream, onLevels) {
  * Devuelve un controlador con método stop(), o null si el navegador no lo soporta.
  * @param {Object} options
  * @param {string} [options.lang='es-AR']
+ * @param {Function} [options.onStart]
  * @param {Function} [options.onUpdate] Recibe el texto transcrito acumulado
+ * @param {Function} [options.onError]
+ * @param {Function} [options.onEnd]
  */
-export function startLiveTranscript({ lang = 'es-AR', onUpdate, onError, onEnd } = {}) {
+export function startLiveTranscript({ lang = 'es-AR', onStart, onUpdate, onError, onEnd } = {}) {
   const Recognition =
     typeof window !== 'undefined' &&
     (window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -323,38 +396,70 @@ export function startLiveTranscript({ lang = 'es-AR', onUpdate, onError, onEnd }
     return null;
   }
 
-  const rec = new Recognition();
-  rec.lang = lang;
-  rec.continuous = true;
-  rec.interimResults = true;
-
   let stoppedManually = false;
+  let activeLang = lang;
+  let rec = null;
+  let committedText = '';
+  let lastError = null;
 
-  rec.onresult = (event) => {
-    let transcript = '';
-    for (let i = 0; i < event.results.length; i += 1) {
-      transcript += event.results[i][0]?.transcript || '';
-    }
-    if (typeof onUpdate === 'function') {
-      onUpdate(transcript.trim());
-    }
-  };
+  const createAndStart = () => {
+    rec = new Recognition();
+    rec.lang = activeLang;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
 
-  rec.onerror = (event) => {
-    console.warn('[SpeechRecognition] error:', event.error);
-    if (event.error !== 'no-speech') {
-      onError?.(event.error || 'unknown');
-    }
-  };
+    rec.onstart = () => {
+      onStart?.();
+    };
 
-  rec.onend = () => {
-    if (!stoppedManually) {
+    rec.onresult = (event) => {
+      let sessionFinal = '';
+      let sessionInterim = '';
+      for (let i = 0; i < event.results.length; i += 1) {
+        const piece = (event.results[i][0]?.transcript || '').trim();
+        if (!piece) continue;
+        if (event.results[i].isFinal) {
+          sessionFinal = sessionFinal ? `${sessionFinal} ${piece}` : piece;
+        } else {
+          sessionInterim = sessionInterim ? `${sessionInterim} ${piece}` : piece;
+        }
+      }
+      const combined = [committedText, sessionFinal, sessionInterim].filter(Boolean).join(' ').trim();
+      if (typeof onUpdate === 'function') {
+        onUpdate(combined);
+      }
+    };
+
+    rec.onerror = (event) => {
+      lastError = event.error || 'unknown';
+      console.warn('[SpeechRecognition] error:', lastError);
+      if (lastError === 'language-not-supported' && activeLang !== 'es-ES') {
+        activeLang = 'es-ES';
+        return;
+      }
+      if (lastError !== 'no-speech' && lastError !== 'aborted') {
+        onError?.(lastError);
+      }
+    };
+
+    rec.onend = () => {
+      if (stoppedManually) return;
+      if (lastError === 'language-not-supported' && activeLang === 'es-ES') {
+        lastError = null;
+        try {
+          createAndStart();
+          return;
+        } catch {}
+      }
       onEnd?.();
-    }
+    };
+
+    rec.start();
   };
 
   try {
-    rec.start();
+    createAndStart();
   } catch (err) {
     onError?.(err?.message || 'start-failed');
     return null;
@@ -364,7 +469,7 @@ export function startLiveTranscript({ lang = 'es-AR', onUpdate, onError, onEnd }
     stop: () => {
       stoppedManually = true;
       try {
-        rec.stop();
+        rec?.stop();
       } catch {}
     }
   };

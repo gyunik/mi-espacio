@@ -20,6 +20,7 @@ import {
 import { MUSIC_CATEGORIES } from './musicCatalog.js';
 import {
   loadArgentineStations,
+  loadMusicStationsByGenre,
   filterStationsLocal,
   searchRadioStations,
   filterCitiesLocal,
@@ -143,7 +144,9 @@ const state = {
   activeTeenReplyId: null,
   familyReply: {
     recorder: null,
+    meter: null,
     transcriber: null,
+    companionTranscriber: null,
     isRecording: false,
     audioData: null,
     autoStopTimer: null
@@ -304,6 +307,7 @@ function cacheDom() {
   dom.famAlertTime = document.getElementById('fam-alert-time');
   dom.famAlertVisual = document.getElementById('fam-alert-visual');
   dom.famAlertTitle = document.getElementById('fam-alert-title');
+  dom.famAlertTranscript = document.getElementById('fam-alert-transcript');
   dom.btnFamPlayTeenAudio = document.getElementById('btn-fam-play-teen-audio');
   dom.btnFamRecord = document.getElementById('btn-fam-record');
   dom.btnFamPlayAudio = document.getElementById('btn-fam-play-audio');
@@ -415,6 +419,10 @@ function cacheDom() {
   dom.teenRecordTimer = document.getElementById('teen-record-timer');
   dom.teenLiveTranscript = document.getElementById('teen-live-transcript');
   dom.settingMusicCategory = document.getElementById('setting-music-category');
+  dom.musicStreamPicker = document.getElementById('music-stream-picker');
+  dom.settingMusicGenre = document.getElementById('setting-music-genre');
+  dom.settingMusicStation = document.getElementById('setting-music-station');
+  dom.musicStreamActive = document.getElementById('music-stream-active');
   dom.btnTestMusic = document.getElementById('btn-test-music');
   dom.musicPreviewStatus = document.getElementById('music-preview-status');
   dom.settingMusicVolume = document.getElementById('setting-music-volume');
@@ -679,6 +687,15 @@ function startBoardSubscription() {
       }
       if (typeof remoteSettings.musicCategory === 'string') {
         updates.musicCategory = remoteSettings.musicCategory;
+      }
+      if (typeof remoteSettings.musicStreamGenre === 'string') {
+        updates.musicStreamGenre = remoteSettings.musicStreamGenre;
+      }
+      if (typeof remoteSettings.musicStreamName === 'string') {
+        updates.musicStreamName = remoteSettings.musicStreamName;
+      }
+      if (typeof remoteSettings.musicStreamUrl === 'string') {
+        updates.musicStreamUrl = remoteSettings.musicStreamUrl;
       }
       if (typeof remoteSettings.musicVolume === 'number' && !Number.isNaN(remoteSettings.musicVolume)) {
         updates.musicVolume = Math.min(1, Math.max(0.1, remoteSettings.musicVolume));
@@ -1049,6 +1066,58 @@ function openTeenReplyModal(ev) {
   dom.teenReplyModal.hidden = false;
 }
 
+function createFamilyVoiceOrb() {
+  const orb = document.createElement('div');
+  orb.id = 'fam-voice-orb';
+  orb.className = 'voice-orb voice-orb--sm';
+  orb.setAttribute('aria-hidden', 'true');
+
+  const barsWrap = document.createElement('div');
+  barsWrap.className = 'voice-orb__bars';
+  const colors = ['sky', 'emerald', 'sky', 'emerald', 'sky'];
+  colors.forEach((c) => {
+    const bar = document.createElement('span');
+    bar.className = `voice-orb__bar voice-orb__bar--${c}`;
+    barsWrap.appendChild(bar);
+  });
+  orb.appendChild(barsWrap);
+  return orb;
+}
+
+function setFamOrbLevels(levels) {
+  const orb = document.getElementById('fam-voice-orb');
+  if (!orb) return;
+  orb.classList.add('is-live');
+  orb.classList.remove('is-pulsing');
+  const bars = orb.querySelectorAll('.voice-orb__bar');
+  const baseHeights = [10, 14, 18, 14, 10];
+  bars.forEach((bar, i) => {
+    const lvl = levels[i] || 0;
+    const h = Math.round(baseHeights[i] + lvl * 28);
+    bar.style.height = `${Math.min(42, h)}px`;
+  });
+}
+
+function setFamOrbState({ live = false, pulsing = false } = {}) {
+  const orb = document.getElementById('fam-voice-orb');
+  if (!orb) return;
+  orb.classList.toggle('is-live', Boolean(live));
+  orb.classList.toggle('is-pulsing', Boolean(pulsing));
+  if (!live || pulsing) {
+    orb.querySelectorAll('.voice-orb__bar').forEach((bar) => {
+      bar.style.height = '';
+    });
+  }
+}
+
+function stopFamOrbVisuals() {
+  if (state.familyReply.meter) {
+    state.familyReply.meter.stop();
+    state.familyReply.meter = null;
+  }
+  setFamOrbState({ live: false, pulsing: false });
+}
+
 function openFamilyAlertModal(ev) {
   state.activeFamilyAlertId = ev.id;
   resetFamilyReplyRecorder();
@@ -1060,16 +1129,24 @@ function openFamilyAlertModal(ev) {
   dom.famAlertTime.textContent = time;
   dom.famAlertTitle.textContent = ev.label;
 
+  if (dom.famAlertTranscript) {
+    const cleanTranscript = (ev.transcript || '').trim();
+    if (cleanTranscript && cleanTranscript.toLowerCase() !== (ev.label || '').trim().toLowerCase()) {
+      dom.famAlertTranscript.textContent = `«${cleanTranscript}»`;
+      dom.famAlertTranscript.hidden = false;
+    } else {
+      dom.famAlertTranscript.textContent = '';
+      dom.famAlertTranscript.hidden = true;
+    }
+  }
+
   // Buscar imagen de tarjeta coincidente
   const match = state.cards.find(
     (c) => c.text.toLowerCase() === (ev.label || '').toLowerCase()
   );
   dom.famAlertVisual.innerHTML = '';
-  if (ev.audioData) {
-    const img = document.createElement('img');
-    img.src = './assets/cards/audio-familia.svg';
-    img.alt = 'Mensaje hablado';
-    dom.famAlertVisual.appendChild(img);
+  if (ev.audioData || ev.category === 'mensaje_hablado') {
+    dom.famAlertVisual.appendChild(createFamilyVoiceOrb());
   } else if (match?.imageData) {
     const img = document.createElement('img');
     img.src = match.imageData;
@@ -1081,6 +1158,7 @@ function openFamilyAlertModal(ev) {
 
   if (dom.btnFamPlayTeenAudio) {
     dom.btnFamPlayTeenAudio.hidden = !ev.audioData;
+    dom.btnFamPlayTeenAudio.textContent = '▶ Escuchar mensaje hablado';
   }
 
   dom.famAlertModal.hidden = false;
@@ -1088,9 +1166,15 @@ function openFamilyAlertModal(ev) {
 
 function resetFamilyReplyRecorder() {
   clearTimeout(state.familyReply.autoStopTimer);
+  stopAllAudio();
+  stopFamOrbVisuals();
   if (state.familyReply.transcriber) {
     state.familyReply.transcriber.stop();
     state.familyReply.transcriber = null;
+  }
+  if (state.familyReply.companionTranscriber) {
+    state.familyReply.companionTranscriber.stop();
+    state.familyReply.companionTranscriber = null;
   }
   state.familyReply.isRecording = false;
   state.familyReply.recorder = null;
@@ -1101,7 +1185,11 @@ function resetFamilyReplyRecorder() {
     dom.btnFamDictate.textContent = '🗣️ Hablar (transcribir en vivo)';
     dom.btnFamDictate.classList.remove('btn--danger');
   }
+  if (dom.btnFamPlayTeenAudio) {
+    dom.btnFamPlayTeenAudio.textContent = '▶ Escuchar mensaje hablado';
+  }
   dom.btnFamPlayAudio.hidden = true;
+  dom.btnFamPlayAudio.textContent = '▶ Escuchar';
   if (dom.famTranscriptInput) dom.famTranscriptInput.value = '';
   dom.famRecordStatus.textContent = '';
 }
@@ -1144,7 +1232,7 @@ function bindPhraseBar() {
       dom.teenVoiceOrb.classList.remove('is-live', 'is-pulsing');
     }
     dom.teenVoiceBars?.forEach((bar) => {
-      bar.style.height = '16px';
+      bar.style.height = '';
     });
   };
 
@@ -1158,7 +1246,7 @@ function bindPhraseBar() {
     state.teenVoice.transcriptText = '';
     state.teenVoice.isRecording = false;
 
-    if (tr) {
+    if (tr && !rec) {
       try { tr.stop(); } catch {}
       if (shouldSend) {
         if (!spokenText) {
@@ -1171,7 +1259,8 @@ function bindPhraseBar() {
             await sendTeenRequest({
               label: spokenText,
               category: 'mensaje_hablado',
-              audioData: null
+              audioData: null,
+              transcript: spokenText
             });
             dom.commSentStatus.textContent = `Enviado a Familia: "${spokenText}" ✓`;
             dom.commSentStatus.hidden = false;
@@ -1186,6 +1275,10 @@ function bindPhraseBar() {
       return;
     }
 
+    if (tr) {
+      try { tr.stop(); } catch {}
+    }
+
     if (rec && shouldSend) {
       dom.teenRecordTitle.textContent = 'Enviando mensaje...';
       dom.btnTeenSendVoice.disabled = true;
@@ -1194,9 +1287,12 @@ function bindPhraseBar() {
         await sendTeenRequest({
           label: 'Mensaje hablado 🎙️',
           category: 'mensaje_hablado',
-          audioData
+          audioData,
+          transcript: spokenText
         });
-        dom.commSentStatus.textContent = 'Enviado a Familia: "Mensaje hablado 🎙️" ✓';
+        dom.commSentStatus.textContent = spokenText
+          ? `Enviado a Familia: "${spokenText}" ✓`
+          : 'Enviado a Familia: "Mensaje hablado 🎙️" ✓';
         dom.commSentStatus.hidden = false;
       } catch (err) {
         dom.commSentStatus.textContent = 'No se pudo enviar el mensaje de voz.';
@@ -1309,6 +1405,18 @@ function bindPhraseBar() {
         });
       }
 
+      // Best-effort: transcripción paralela para que Familia también pueda leer el mensaje si el navegador lo permite
+      try {
+        state.teenVoice.transcriber = startLiveTranscript({
+          lang: 'es-AR',
+          onUpdate: (text) => {
+            state.teenVoice.transcriptText = text;
+          },
+          onError: () => {},
+          onEnd: () => {}
+        });
+      } catch {}
+
       markReadyToSpeak();
 
       state.teenVoice.autoStopTimer = setTimeout(() => {
@@ -1336,11 +1444,17 @@ function bindPhraseBar() {
       const audio = new Audio();
       audio.volume = state.settings.musicVolume ?? 0.65;
       audio.addEventListener('ended', () => {
-        playMusicTrack(state.music.trackIndex + 1);
+        if ((state.settings.musicCategory || 'calma') !== 'stream') {
+          playMusicTrack(state.music.trackIndex + 1);
+        }
       });
       audio.addEventListener('error', () => {
+        if (!audio.getAttribute('src')) return;
         state.music.isPlaying = false;
-        dom.commSentStatus.textContent = 'Todavía falta subir los archivos MP3 en assets/music/.';
+        const isStream = (state.settings.musicCategory || 'calma') === 'stream';
+        dom.commSentStatus.textContent = isStream
+          ? 'No se pudo conectar con esta estación musical ahora. Probá elegir otra en Ajustes.'
+          : 'Todavía falta subir los archivos MP3 en assets/music/.';
         dom.commSentStatus.hidden = false;
         renderCardsGrid();
       });
@@ -1351,14 +1465,39 @@ function bindPhraseBar() {
 
   const playMusicTrack = (index) => {
     const key = state.settings.musicCategory || 'calma';
+    const audio = ensureMusicAudio();
+    audio.volume = state.settings.musicVolume ?? 0.65;
+
+    if (key === 'stream') {
+      const streamUrl = (state.settings.musicStreamUrl || '').trim();
+      if (!streamUrl) {
+        dom.commSentStatus.textContent = 'Elegí una estación musical en Ajustes de Familia.';
+        dom.commSentStatus.hidden = false;
+        return;
+      }
+      audio.src = streamUrl;
+      audio
+        .play()
+        .then(() => {
+          state.music.isPlaying = true;
+          renderCardsGrid();
+        })
+        .catch(() => {
+          state.music.isPlaying = false;
+          dom.commSentStatus.textContent =
+            'No se pudo conectar con esta estación musical ahora. Probá elegir otra en Ajustes.';
+          dom.commSentStatus.hidden = false;
+          renderCardsGrid();
+        });
+      return;
+    }
+
     const cat = MUSIC_CATEGORIES[key] || MUSIC_CATEGORIES.calma;
     const total = cat.tracks.length;
     const safeIdx = ((index % total) + total) % total;
     state.music.trackIndex = safeIdx;
     const track = cat.tracks[safeIdx];
 
-    const audio = ensureMusicAudio();
-    audio.volume = state.settings.musicVolume ?? 0.65;
     audio.src = track.src;
     audio
       .play()
@@ -1378,12 +1517,18 @@ function bindPhraseBar() {
     const audio = ensureMusicAudio();
     if (state.music.isPlaying) {
       audio.pause();
+      if ((state.settings.musicCategory || 'calma') === 'stream') {
+        audio.removeAttribute('src');
+        audio.load();
+      }
       state.music.isPlaying = false;
       renderCardsGrid();
     } else {
       // Si la radio estaba sonando, apagarla para que no se superpongan
       if (state.radio.audio && state.radio.isPlaying) {
         state.radio.audio.pause();
+        state.radio.audio.removeAttribute('src');
+        state.radio.audio.load();
         state.radio.isPlaying = false;
       }
       playMusicTrack(state.music.trackIndex);
@@ -1720,7 +1865,15 @@ function renderCardsGrid() {
 
     const label = document.createElement('span');
     label.className = 'aac-card__text';
-    label.textContent = state.music.isPlaying ? '⏸ Pausar música' : '🎵 Escuchar música';
+    const isStreamMusic = (state.settings.musicCategory || 'calma') === 'stream';
+    const streamLabel = (state.settings.musicStreamName || '').trim();
+    const shortStreamLabel =
+      streamLabel.length > 22 ? `${streamLabel.slice(0, 21)}…` : streamLabel;
+    label.textContent = state.music.isPlaying
+      ? '⏸ Pausar música'
+      : isStreamMusic && shortStreamLabel
+        ? `🎵 ${shortStreamLabel}`
+        : '🎵 Escuchar música';
 
     musicBtn.append(visual, label);
     musicBtn.addEventListener('click', () => {
@@ -2355,6 +2508,11 @@ function bindFamilyMode() {
   const stopFamRecording = async () => {
     if (!state.familyReply.isRecording || !state.familyReply.recorder) return;
     clearTimeout(state.familyReply.autoStopTimer);
+    stopFamOrbVisuals();
+    if (state.familyReply.companionTranscriber) {
+      state.familyReply.companionTranscriber.stop();
+      state.familyReply.companionTranscriber = null;
+    }
     const dataUrl = await state.familyReply.recorder.stop();
     state.familyReply.isRecording = false;
     state.familyReply.recorder = null;
@@ -2366,23 +2524,46 @@ function bindFamilyMode() {
   };
 
   dom.btnFamRecord.addEventListener('click', async () => {
+    stopAllAudio();
     // Si estaba dictando en vivo, detener dictado para evitar conflicto de micrófono
     if (state.familyReply.transcriber) {
       state.familyReply.transcriber.stop();
       state.familyReply.transcriber = null;
+      stopFamOrbVisuals();
       dom.btnFamDictate.textContent = '🗣️ Hablar (transcribir en vivo)';
       dom.btnFamDictate.classList.remove('btn--danger');
     }
 
     if (!state.familyReply.isRecording) {
       try {
-        state.familyReply.recorder = await startVoiceRecording();
+        const rec = await startVoiceRecording();
+        state.familyReply.recorder = rec;
         state.familyReply.isRecording = true;
         dom.btnFamRecord.textContent = '⏹ Detener audio';
         dom.btnFamRecord.classList.add('btn--danger');
         dom.famRecordStatus.textContent = 'Grabando nota de voz... (máx. 15 seg)';
+        if (rec.stream) {
+          setFamOrbState({ live: true, pulsing: false });
+          state.familyReply.meter = createVoiceLevelMeter(rec.stream, setFamOrbLevels);
+        } else {
+          setFamOrbState({ live: true, pulsing: true });
+        }
+        // Best-effort: transcripción en paralelo mientras graba la nota de voz
+        try {
+          state.familyReply.companionTranscriber = startLiveTranscript({
+            lang: 'es-AR',
+            onUpdate: (text) => {
+              if (text) dom.famTranscriptInput.value = text;
+            },
+            onError: () => {},
+            onEnd: () => {
+              state.familyReply.companionTranscriber = null;
+            }
+          });
+        } catch {}
         state.familyReply.autoStopTimer = setTimeout(stopFamRecording, 15000);
       } catch {
+        stopFamOrbVisuals();
         dom.famRecordStatus.textContent = 'Permiso de micrófono denegado.';
       }
     } else {
@@ -2392,6 +2573,7 @@ function bindFamilyMode() {
 
   // Botón principal de transcripción en vivo (sin conflicto con MediaRecorder, igual que ListeningLab)
   dom.btnFamDictate?.addEventListener('click', async () => {
+    stopAllAudio();
     if (state.familyReply.isRecording) {
       await stopFamRecording();
     }
@@ -2399,45 +2581,87 @@ function bindFamilyMode() {
     if (state.familyReply.transcriber) {
       state.familyReply.transcriber.stop();
       state.familyReply.transcriber = null;
+      stopFamOrbVisuals();
       dom.btnFamDictate.textContent = '🗣️ Hablar (transcribir en vivo)';
       dom.btnFamDictate.classList.remove('btn--danger');
-      dom.famRecordStatus.textContent = 'Transcripción detenida. Tocá "📤 Enviar".';
+      dom.famRecordStatus.textContent = dom.famTranscriptInput.value.trim()
+        ? 'Transcripción detenida. Tocá "📤 Enviar".'
+        : 'Transcripción detenida.';
       return;
     }
 
     dom.famTranscriptInput.value = '';
     dom.btnFamDictate.textContent = '⏹ Detener transcripción';
     dom.btnFamDictate.classList.add('btn--danger');
-    dom.famRecordStatus.textContent = 'Escuchando en vivo... hablá ahora.';
+    dom.famRecordStatus.textContent = 'Iniciando micrófono... hablá ahora.';
+    setFamOrbState({ live: true, pulsing: true });
 
-    state.familyReply.transcriber = startLiveTranscript({
+    const tr = startLiveTranscript({
       lang: 'es-AR',
+      onStart: () => {
+        dom.famRecordStatus.textContent = '🎙️ Escuchando en vivo... hablá ahora.';
+        setFamOrbState({ live: true, pulsing: true });
+      },
       onUpdate: (text) => {
         dom.famTranscriptInput.value = text;
+        dom.famTranscriptInput.scrollTop = dom.famTranscriptInput.scrollHeight;
       },
       onError: (errCode) => {
+        state.familyReply.transcriber = null;
+        stopFamOrbVisuals();
+        dom.btnFamDictate.textContent = '🗣️ Hablar (transcribir en vivo)';
+        dom.btnFamDictate.classList.remove('btn--danger');
         dom.famRecordStatus.textContent = `No se pudo transcribir (${errCode}). Podés escribir el texto directo.`;
       },
       onEnd: () => {
         state.familyReply.transcriber = null;
+        stopFamOrbVisuals();
         dom.btnFamDictate.textContent = '🗣️ Hablar (transcribir en vivo)';
         dom.btnFamDictate.classList.remove('btn--danger');
         if (dom.famTranscriptInput.value.trim()) {
           dom.famRecordStatus.textContent = 'Listo. Tocá "📤 Enviar" para mandárselo.';
+        } else {
+          dom.famRecordStatus.textContent = 'No se detectó voz. Probá hablar más cerca o escribí tu respuesta.';
         }
       }
     });
-  });
 
-  dom.btnFamPlayTeenAudio?.addEventListener('click', () => {
-    const ev = state.liveEvents.find((e) => e.id === state.activeFamilyAlertId);
-    if (ev?.audioData) {
-      playAudioDataUrl(ev.audioData);
+    if (!tr) {
+      stopFamOrbVisuals();
+      dom.btnFamDictate.textContent = '🗣️ Hablar (transcribir en vivo)';
+      dom.btnFamDictate.classList.remove('btn--danger');
+      return;
     }
+    state.familyReply.transcriber = tr;
   });
 
-  dom.btnFamPlayAudio.addEventListener('click', () => {
-    if (state.familyReply.audioData) playAudioDataUrl(state.familyReply.audioData);
+  dom.btnFamPlayTeenAudio?.addEventListener('click', async () => {
+    const ev = state.liveEvents.find((e) => e.id === state.activeFamilyAlertId);
+    if (!ev?.audioData) return;
+    dom.btnFamPlayTeenAudio.textContent = '🔊 Reproduciendo mensaje...';
+    setFamOrbState({ live: true, pulsing: false });
+    await playAudioDataUrl(ev.audioData, {
+      onLevels: setFamOrbLevels,
+      onFallbackPulse: () => setFamOrbState({ live: true, pulsing: true })
+    });
+    if (!state.familyReply.isRecording && !state.familyReply.transcriber) {
+      stopFamOrbVisuals();
+    }
+    dom.btnFamPlayTeenAudio.textContent = '▶ Escuchar mensaje hablado';
+  });
+
+  dom.btnFamPlayAudio.addEventListener('click', async () => {
+    if (!state.familyReply.audioData) return;
+    dom.btnFamPlayAudio.textContent = '🔊 Reproduciendo...';
+    setFamOrbState({ live: true, pulsing: false });
+    await playAudioDataUrl(state.familyReply.audioData, {
+      onLevels: setFamOrbLevels,
+      onFallbackPulse: () => setFamOrbState({ live: true, pulsing: true })
+    });
+    if (!state.familyReply.isRecording && !state.familyReply.transcriber) {
+      stopFamOrbVisuals();
+    }
+    dom.btnFamPlayAudio.textContent = '▶ Escuchar';
   });
 
   dom.btnFamSendAudio.addEventListener('click', async () => {
@@ -2803,6 +3027,68 @@ function bindFamilyMode() {
     await saveBoardPreference({ teenVoiceMode: mode });
   });
 
+  let musicGenreStationsCache = [];
+
+  const loadGenreStationsIntoUI = async (genreId, { autoSelectFirst = false } = {}) => {
+    if (!dom.settingMusicStation) return;
+    dom.settingMusicStation.innerHTML = '<option value="">Cargando estaciones...</option>';
+    dom.settingMusicStation.disabled = true;
+    if (dom.musicStreamActive) {
+      dom.musicStreamActive.textContent = 'Buscando estaciones en vivo...';
+    }
+    try {
+      const stations = await loadMusicStationsByGenre(genreId);
+      musicGenreStationsCache = stations;
+      dom.settingMusicStation.innerHTML = '';
+      if (stations.length === 0) {
+        dom.settingMusicStation.innerHTML = '<option value="">Sin estaciones disponibles ahora</option>';
+        if (dom.musicStreamActive) {
+          dom.musicStreamActive.textContent = 'No se encontraron estaciones en este estilo. Probá otro.';
+        }
+        return;
+      }
+
+      stations.forEach((st, idx) => {
+        const opt = document.createElement('option');
+        opt.value = String(idx);
+        const place = st.country ? ` (${st.country})` : '';
+        opt.textContent = `${st.name}${place}`;
+        dom.settingMusicStation.appendChild(opt);
+      });
+      dom.settingMusicStation.disabled = false;
+
+      // Mantener seleccionada la estación guardada si coincide, o elegir la primera automáticamente
+      const savedIdx = stations.findIndex((st) => st.url === state.settings.musicStreamUrl);
+      const chosenIdx = !autoSelectFirst && savedIdx >= 0 ? savedIdx : 0;
+      dom.settingMusicStation.value = String(chosenIdx);
+
+      const chosen = stations[chosenIdx];
+      if (chosen && (autoSelectFirst || savedIdx < 0 || !state.settings.musicStreamUrl)) {
+        const patch = {
+          musicStreamGenre: genreId,
+          musicStreamName: chosen.name,
+          musicStreamUrl: chosen.url
+        };
+        state.settings = saveSettings(patch);
+        renderCardsGrid();
+        await saveBoardPreference(patch);
+      }
+      if (dom.musicStreamActive && chosen) {
+        dom.musicStreamActive.textContent = `Activa: ${state.settings.musicStreamName || chosen.name} ✓`;
+      }
+      if (dom.btnTestMusic) {
+        dom.btnTestMusic.disabled = !state.settings.musicStreamUrl;
+      }
+    } catch {
+      dom.settingMusicStation.innerHTML = '<option value="">Sin conexión para cargar estaciones</option>';
+      if (dom.musicStreamActive) {
+        dom.musicStreamActive.textContent = 'Necesitás conexión a internet para cargar estaciones.';
+      }
+    }
+  };
+
+  window.__loadMusicGenreStations = loadGenreStationsIntoUI;
+
   const playMusicPreviewTrack = (index) => {
     const catKey = dom.settingMusicCategory?.value || state.settings.musicCategory || 'calma';
     if (catKey === 'off') {
@@ -2813,29 +3099,70 @@ function bindFamilyMode() {
       return;
     }
 
-    const cat = MUSIC_CATEGORIES[catKey] || MUSIC_CATEGORIES.calma;
-    const total = cat.tracks.length;
-    const safeIdx = ((index % total) + total) % total;
-    state.music.previewTrackIndex = safeIdx;
-    const track = cat.tracks[safeIdx];
-
     if (!state.music.previewAudio) {
       const audio = new Audio();
       audio.addEventListener('ended', () => {
-        if (state.music.previewPlaying) {
+        if (state.music.previewPlaying && (state.settings.musicCategory || 'calma') !== 'stream') {
           playMusicPreviewTrack(state.music.previewTrackIndex + 1);
         }
       });
       audio.addEventListener('error', () => {
+        if (!audio.getAttribute('src')) return;
+        const isStream = (dom.settingMusicCategory?.value || state.settings.musicCategory) === 'stream';
         stopMusicPreview();
         if (dom.musicPreviewStatus) {
-          dom.musicPreviewStatus.textContent = 'Todavía no hay archivos MP3 cargados en esta categoría.';
+          dom.musicPreviewStatus.textContent = isStream
+            ? 'Esta estación no respondió ahora. Elegí otra de la lista y probá de nuevo.'
+            : 'Todavía no hay archivos MP3 cargados en esta categoría.';
         }
       });
       state.music.previewAudio = audio;
     }
 
     state.music.previewAudio.volume = state.settings.musicVolume ?? 0.65;
+
+    if (catKey === 'stream') {
+      const streamUrl = (state.settings.musicStreamUrl || '').trim();
+      const streamName = state.settings.musicStreamName || 'Estación musical';
+      if (!streamUrl) {
+        if (dom.musicPreviewStatus) {
+          dom.musicPreviewStatus.textContent = 'Esperá a que cargue una estación musical.';
+        }
+        return;
+      }
+      if (dom.musicPreviewStatus) {
+        dom.musicPreviewStatus.textContent = `Conectando con ${streamName}...`;
+      }
+      state.music.previewAudio.src = streamUrl;
+      state.music.previewAudio
+        .play()
+        .then(() => {
+          state.music.previewPlaying = true;
+          if (dom.btnTestMusic) {
+            dom.btnTestMusic.textContent = '⏹ Detener';
+            dom.btnTestMusic.classList.add('btn--danger');
+            dom.btnTestMusic.classList.remove('btn--accent');
+          }
+          if (dom.musicPreviewStatus) {
+            dom.musicPreviewStatus.textContent = `Sonando en vivo: ${streamName}`;
+          }
+        })
+        .catch(() => {
+          stopMusicPreview();
+          if (dom.musicPreviewStatus) {
+            dom.musicPreviewStatus.textContent =
+              'Esta estación no respondió ahora. Elegí otra de la lista y probá de nuevo.';
+          }
+        });
+      return;
+    }
+
+    const cat = MUSIC_CATEGORIES[catKey] || MUSIC_CATEGORIES.calma;
+    const total = cat.tracks.length;
+    const safeIdx = ((index % total) + total) % total;
+    state.music.previewTrackIndex = safeIdx;
+    const track = cat.tracks[safeIdx];
+
     state.music.previewAudio.src = track.src;
     state.music.previewAudio
       .play()
@@ -2872,14 +3199,53 @@ function bindFamilyMode() {
     stopMusicPreview();
     state.settings = saveSettings({ musicCategory: cat });
     state.music.trackIndex = 0;
-    if (cat === 'off' && state.music.audio) {
+    if (state.music.audio && state.music.isPlaying) {
       state.music.audio.pause();
+      state.music.audio.removeAttribute('src');
+      state.music.audio.load();
       state.music.isPlaying = false;
     }
     applySettingsToUI();
     renderCardsGrid();
     await saveBoardPreference({ musicCategory: cat });
+    if (cat === 'stream') {
+      const genreId = dom.settingMusicGenre?.value || state.settings.musicStreamGenre || 'chillout';
+      await loadGenreStationsIntoUI(genreId, { autoSelectFirst: !state.settings.musicStreamUrl });
+    }
     if (wasPreviewPlaying && cat !== 'off') {
+      playMusicPreviewTrack(0);
+    }
+  });
+
+  dom.settingMusicGenre?.addEventListener('change', async () => {
+    const genreId = dom.settingMusicGenre.value || 'chillout';
+    const wasPreviewPlaying = state.music.previewPlaying;
+    stopMusicPreview();
+    state.settings = saveSettings({ musicStreamGenre: genreId });
+    await loadGenreStationsIntoUI(genreId, { autoSelectFirst: true });
+    if (wasPreviewPlaying) {
+      playMusicPreviewTrack(0);
+    }
+  });
+
+  dom.settingMusicStation?.addEventListener('change', async () => {
+    const idx = Number(dom.settingMusicStation.value);
+    const chosen = musicGenreStationsCache[idx];
+    if (!chosen) return;
+    const wasPreviewPlaying = state.music.previewPlaying;
+    stopMusicPreview();
+    const patch = {
+      musicStreamGenre: dom.settingMusicGenre?.value || state.settings.musicStreamGenre || 'chillout',
+      musicStreamName: chosen.name,
+      musicStreamUrl: chosen.url
+    };
+    state.settings = saveSettings(patch);
+    if (dom.musicStreamActive) {
+      dom.musicStreamActive.textContent = `Activa: ${chosen.name} ✓`;
+    }
+    renderCardsGrid();
+    await saveBoardPreference(patch);
+    if (wasPreviewPlaying) {
       playMusicPreviewTrack(0);
     }
   });
@@ -3425,6 +3791,8 @@ function bindFamilyMode() {
 function stopMusicPreview() {
   if (state.music.previewAudio) {
     state.music.previewAudio.pause();
+    state.music.previewAudio.removeAttribute('src');
+    state.music.previewAudio.load();
   }
   state.music.previewPlaying = false;
   if (dom.btnTestMusic) {
@@ -4178,7 +4546,31 @@ function applySettingsToUI() {
 
   const musicCat = state.settings.musicCategory || 'calma';
   if (dom.settingMusicCategory) dom.settingMusicCategory.value = musicCat;
-  if (dom.btnTestMusic) dom.btnTestMusic.disabled = musicCat === 'off';
+  if (dom.musicStreamPicker) {
+    dom.musicStreamPicker.hidden = musicCat !== 'stream';
+  }
+  if (dom.settingMusicGenre) {
+    dom.settingMusicGenre.value = state.settings.musicStreamGenre || 'chillout';
+  }
+  if (dom.musicStreamActive) {
+    dom.musicStreamActive.textContent = state.settings.musicStreamName
+      ? `Activa: ${state.settings.musicStreamName} ✓`
+      : '';
+  }
+  if (
+    musicCat === 'stream' &&
+    dom.settingMusicStation &&
+    dom.settingMusicStation.options.length === 0 &&
+    typeof window.__loadMusicGenreStations === 'function'
+  ) {
+    window.__loadMusicGenreStations(state.settings.musicStreamGenre || 'chillout', {
+      autoSelectFirst: !state.settings.musicStreamUrl
+    });
+  }
+  if (dom.btnTestMusic) {
+    dom.btnTestMusic.disabled =
+      musicCat === 'off' || (musicCat === 'stream' && !state.settings.musicStreamUrl);
+  }
 
   const musicVol = typeof state.settings.musicVolume === 'number' ? state.settings.musicVolume : 0.65;
   if (dom.settingMusicVolume) dom.settingMusicVolume.value = String(musicVol);

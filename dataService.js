@@ -50,8 +50,11 @@ export const DEFAULT_SETTINGS = {
   notifyFamilyOnTap: true,
   allowTeenVoiceMessage: true,
   teenVoiceMode: 'audio', // 'audio' | 'transcript'
-  musicCategory: 'calma', // 'calma' | 'ritmo' | 'noche' | 'off'
+  musicCategory: 'calma', // 'calma' | 'ritmo' | 'noche' | 'stream' | 'off'
   musicVolume: 0.65,
+  musicStreamGenre: 'chillout',
+  musicStreamName: '',
+  musicStreamUrl: '',
   enableRadioCard: false,
   radioName: '',
   radioUrl: '',
@@ -599,13 +602,15 @@ async function saveLiveEvent(eventObj) {
 /**
  * El adolescente envía un pedido/aviso silencioso o mensaje de voz a Familia.
  */
-export async function sendTeenRequest({ label, category = 'general', audioData = null }) {
+export async function sendTeenRequest({ label, category = 'general', audioData = null, transcript = '' }) {
+  const cleanTranscript = (transcript || '').trim();
   const ev = {
     id: `ev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     type: 'teen_request',
     label,
     category,
     audioData: audioData || null,
+    transcript: cleanTranscript || null,
     status: 'sent', // 'sent' -> 'replied' / 'seen'
     createdAt: Date.now()
   };
@@ -613,7 +618,7 @@ export async function sendTeenRequest({ label, category = 'general', audioData =
   triggerBackgroundPush({
     targetRole: 'family',
     title: audioData ? '🎙️ Mi Espacio — Mensaje de voz' : 'Mi Espacio — Nuevo aviso',
-    body: audioData ? 'Te envió un mensaje hablado. Tocá para escuchar.' : label
+    body: cleanTranscript || (audioData ? 'Te envió un mensaje hablado. Tocá para escuchar.' : label)
   });
   return saved;
 }

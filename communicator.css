@@ -448,9 +448,16 @@
 
 .voice-orb__bar {
   width: 6px;
-  height: 16px;
+  height: 18px;
   border-radius: 999px;
   transition: height 0.08s ease-out;
+}
+.voice-orb__bar:nth-child(2),
+.voice-orb__bar:nth-child(4) {
+  height: 30px;
+}
+.voice-orb__bar:nth-child(3) {
+  height: 44px;
 }
 
 .voice-orb__bar--sky {
@@ -466,13 +473,47 @@
   50% { height: 52px; }
 }
 
-.voice-orb.is-pulsing .voice-orb__bar {
-  animation: voiceWavePulse 0.9s ease-in-out infinite;
+@keyframes voiceWavePulseSm {
+  0%, 100% { height: 10px; }
+  50% { height: 38px; }
 }
-.voice-orb.is-pulsing .voice-orb__bar:nth-child(2) { animation-delay: 0.15s; }
-.voice-orb.is-pulsing .voice-orb__bar:nth-child(3) { animation-delay: 0.3s; }
-.voice-orb.is-pulsing .voice-orb__bar:nth-child(4) { animation-delay: 0.45s; }
-.voice-orb.is-pulsing .voice-orb__bar:nth-child(5) { animation-delay: 0.6s; }
+
+.voice-orb.is-pulsing .voice-orb__bar {
+  animation: voiceWavePulse 0.85s ease-in-out infinite;
+}
+.voice-orb.is-pulsing .voice-orb__bar:nth-child(2) { animation-delay: 0.14s; }
+.voice-orb.is-pulsing .voice-orb__bar:nth-child(3) { animation-delay: 0.28s; }
+.voice-orb.is-pulsing .voice-orb__bar:nth-child(4) { animation-delay: 0.42s; }
+.voice-orb.is-pulsing .voice-orb__bar:nth-child(5) { animation-delay: 0.56s; }
+
+/* Variante compacta para el modal de aviso en Modo Familia */
+.voice-orb--sm {
+  width: 74px;
+  height: 74px;
+}
+
+.voice-orb--sm .voice-orb__bars {
+  gap: 6px;
+  height: 44px;
+}
+
+.voice-orb--sm .voice-orb__bar {
+  width: 5px;
+  height: 12px;
+}
+
+.voice-orb--sm .voice-orb__bar:nth-child(2),
+.voice-orb--sm .voice-orb__bar:nth-child(4) {
+  height: 22px;
+}
+
+.voice-orb--sm .voice-orb__bar:nth-child(3) {
+  height: 32px;
+}
+
+.voice-orb--sm.is-pulsing .voice-orb__bar {
+  animation-name: voiceWavePulseSm;
+}
 
 .teen-transcript-box {
   width: 100%;

@@ -26,6 +26,73 @@ async function fetchJsonWithFallback(paths) {
 }
 
 let cachedArStations = null;
+const cachedGenreStations = new Map();
+
+export const MUSIC_THEMATIC_GENRES = [
+  { id: 'chillout', label: '🧘 Calma, Piano y Relax', tag: 'chillout' },
+  { id: 'classical', label: '🎻 Música Clásica e Instrumental', tag: 'classical' },
+  { id: 'tango', label: '💃 Tango y Milonga', tag: 'tango' },
+  { id: 'folklore', label: '🪘 Folklore Argentino', tag: 'folklore', countrycode: 'AR' },
+  { id: 'rock_ar', label: '🎸 Rock Nacional / en Español', tag: 'rock', countrycode: 'AR' },
+  { id: 'jazz', label: '🎷 Jazz y Bossa Nova', tag: 'jazz' },
+  { id: '80s', label: '📼 Clásicos de los 70s y 80s', tag: '80s' },
+  { id: 'romantic', label: '💕 Melódica y Romántica', tag: 'romantic' },
+  { id: 'cumbia', label: '🎉 Cumbia y Latinos', tag: 'cumbia' },
+  { id: 'lofi', label: '🎧 Lo-Fi y Concentración', tag: 'lofi' }
+];
+
+/**
+ * Carga estaciones musicales HTTPS (sin HLS) por género temático usando Radio Browser API.
+ * No requiere pegar ninguna URL manualmente.
+ */
+export async function loadMusicStationsByGenre(genreId) {
+  const genre =
+    MUSIC_THEMATIC_GENRES.find((g) => g.id === genreId) || MUSIC_THEMATIC_GENRES[0];
+  if (cachedGenreStations.has(genre.id)) {
+    return cachedGenreStations.get(genre.id);
+  }
+
+  const encodedTag = encodeURIComponent(genre.tag);
+  const countryParam = genre.countrycode ? `&countrycode=${genre.countrycode}` : '';
+  const primaryUrls = RADIO_SERVERS.map(
+    (s) =>
+      `${s}/json/stations/search?tag=${encodedTag}${countryParam}&hidebroken=true&order=clickcount&reverse=true&limit=30`
+  );
+
+  let raw = [];
+  try {
+    raw = await fetchJsonWithFallback(primaryUrls);
+  } catch {
+    raw = [];
+  }
+
+  let filtered = filterHttpsStations(raw);
+
+  // Si se filtró por AR y hubo pocos resultados, ampliar búsqueda global del mismo género
+  if (genre.countrycode && filtered.length < 4) {
+    const fallbackUrls = RADIO_SERVERS.map(
+      (s) =>
+        `${s}/json/stations/search?tag=${encodedTag}&hidebroken=true&order=clickcount&reverse=true&limit=25`
+    );
+    try {
+      const extraRaw = await fetchJsonWithFallback(fallbackUrls);
+      const extra = filterHttpsStations(extraRaw);
+      const seen = new Set(filtered.map((st) => st.url));
+      extra.forEach((st) => {
+        if (!seen.has(st.url)) {
+          seen.add(st.url);
+          filtered.push(st);
+        }
+      });
+    } catch {}
+  }
+
+  const result = filtered.slice(0, 15);
+  if (result.length > 0) {
+    cachedGenreStations.set(genre.id, result);
+  }
+  return result;
+}
 
 function normalizeText(str) {
   return String(str || '')

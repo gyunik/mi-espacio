@@ -877,12 +877,31 @@
               <label for="setting-music-category" class="field-label">Lista musical activa en el Comunicador:</label>
               <div class="pin-row">
                 <select id="setting-music-category" class="select" style="flex: 1;">
-                  <option value="calma">🌊 Calma y Regulación (5 temas)</option>
-                  <option value="ritmo">🎧 Ritmo Suave / Enfoque (5 temas)</option>
-                  <option value="noche">🌙 Descanso y Noche (5 temas)</option>
+                  <option value="calma">🌊 Calma y Regulación (5 temas offline)</option>
+                  <option value="ritmo">🎧 Ritmo Suave / Enfoque (5 temas offline)</option>
+                  <option value="noche">🌙 Descanso y Noche (5 temas offline)</option>
+                  <option value="stream">🎶 Estación musical temática en vivo (sin URL)</option>
                   <option value="off">Ocultar tarjeta de música</option>
                 </select>
                 <button type="button" id="btn-test-music" class="btn btn--accent btn--sm">▶ Probar</button>
+              </div>
+              <div id="music-stream-picker" class="stitch-inner-box" hidden>
+                <label for="setting-music-genre" class="field-label">Elegí el estilo musical (suena automático con 1 toque):</label>
+                <select id="setting-music-genre" class="select">
+                  <option value="chillout">🧘 Calma, Piano y Relax</option>
+                  <option value="classical">🎻 Música Clásica e Instrumental</option>
+                  <option value="tango">💃 Tango y Milonga</option>
+                  <option value="folklore">🪘 Folklore Argentino</option>
+                  <option value="rock_ar">🎸 Rock Nacional / en Español</option>
+                  <option value="jazz">🎷 Jazz y Bossa Nova</option>
+                  <option value="80s">📼 Clásicos de los 70s y 80s</option>
+                  <option value="romantic">💕 Melódica y Romántica</option>
+                  <option value="cumbia">🎉 Cumbia y Latinos</option>
+                  <option value="lofi">🎧 Lo-Fi y Concentración</option>
+                </select>
+                <label for="setting-music-station" class="field-label">Estación:</label>
+                <select id="setting-music-station" class="select"></select>
+                <span id="music-stream-active" style="font-size: 0.78rem; color: #2dd4bf; font-weight: 600;"></span>
               </div>
               <span id="music-preview-status" class="muted-text" style="font-size: 0.78rem;"></span>
             </div>
@@ -1147,7 +1166,8 @@
         <div class="push-modal__hero">
           <div id="fam-alert-visual" class="push-modal__visual push-modal__visual--sm">📣</div>
           <h2 id="fam-alert-title" class="push-modal__title">Tengo hambre</h2>
-          <button type="button" id="btn-fam-play-teen-audio" class="btn btn--emerald btn--lg" style="width: 100%;" hidden>
+          <p id="fam-alert-transcript" class="fam-alert-transcript" hidden></p>
+          <button type="button" id="btn-fam-play-teen-audio" class="btn btn--emerald" style="width: 100%;" hidden>
             ▶ Escuchar mensaje hablado
           </button>
         </div>
@@ -1156,7 +1176,7 @@
         <div class="family-reply-box">
           <span class="field-label">Responder hablando (transcripción en vivo):</span>
           <div class="voice-record-row">
-            <button type="button" id="btn-fam-dictate" class="btn btn--accent">
+            <button type="button" id="btn-fam-dictate" class="btn btn--accent btn--sm">
               🗣️ Hablar (transcribir en vivo)
             </button>
             <button type="button" id="btn-fam-record" class="btn btn--ghost btn--sm">
@@ -1167,13 +1187,13 @@
             </button>
           </div>
           <div class="pin-row">
-            <input
+            <textarea
               id="fam-transcript-input"
-              type="text"
-              class="input"
+              class="input fam-transcript-input"
+              rows="2"
               placeholder="A medida que hablás, tu respuesta se escribe acá..."
-              maxlength="160"
-            />
+              maxlength="240"
+            ></textarea>
             <button type="button" id="btn-fam-send-audio" class="btn btn--emerald">
               📤 Enviar
             </button>
