@@ -157,6 +157,91 @@ function filterHttpsStations(list) {
 }
 
 /**
+ * Principales ciudades y localidades argentinas precargadas para filtrado instantáneo al escribir.
+ */
+export const ARGENTINE_CITIES = [
+  { name: 'Buenos Aires', label: 'Buenos Aires, CABA, Argentina', lat: -34.6037, lon: -58.3816 },
+  { name: 'Córdoba', label: 'Córdoba, Córdoba, Argentina', lat: -31.4201, lon: -64.1888 },
+  { name: 'Rosario', label: 'Rosario, Santa Fe, Argentina', lat: -32.9442, lon: -60.6505 },
+  { name: 'Mendoza', label: 'Mendoza, Mendoza, Argentina', lat: -32.8895, lon: -68.8458 },
+  { name: 'La Plata', label: 'La Plata, Buenos Aires, Argentina', lat: -34.9205, lon: -57.9536 },
+  { name: 'Mar del Plata', label: 'Mar del Plata, Buenos Aires, Argentina', lat: -38.0055, lon: -57.5426 },
+  { name: 'San Miguel de Tucumán', label: 'San Miguel de Tucumán, Tucumán, Argentina', lat: -26.8083, lon: -65.2176 },
+  { name: 'Salta', label: 'Salta, Salta, Argentina', lat: -24.7821, lon: -65.4232 },
+  { name: 'Santa Fe', label: 'Santa Fe, Santa Fe, Argentina', lat: -31.6107, lon: -60.6973 },
+  { name: 'Neuquén', label: 'Neuquén, Neuquén, Argentina', lat: -38.9516, lon: -68.0591 },
+  { name: 'Bahía Blanca', label: 'Bahía Blanca, Buenos Aires, Argentina', lat: -38.7183, lon: -62.2663 },
+  { name: 'San Juan', label: 'San Juan, San Juan, Argentina', lat: -31.5375, lon: -68.5364 },
+  { name: 'Resistencia', label: 'Resistencia, Chaco, Argentina', lat: -27.4514, lon: -58.9867 },
+  { name: 'Corrientes', label: 'Corrientes, Corrientes, Argentina', lat: -27.4692, lon: -58.8306 },
+  { name: 'Posadas', label: 'Posadas, Misiones, Argentina', lat: -27.3671, lon: -55.8961 },
+  { name: 'Paraná', label: 'Paraná, Entre Ríos, Argentina', lat: -31.7320, lon: -60.5238 },
+  { name: 'San Carlos de Bariloche', label: 'Bariloche, Río Negro, Argentina', lat: -41.1335, lon: -71.3103 },
+  { name: 'Tandil', label: 'Tandil, Buenos Aires, Argentina', lat: -37.3217, lon: -59.1332 },
+  { name: 'Pilar', label: 'Pilar, Buenos Aires, Argentina', lat: -34.4587, lon: -58.9142 },
+  { name: 'Del Viso', label: 'Del Viso, Buenos Aires, Argentina', lat: -34.4567, lon: -58.8031 },
+  { name: 'Tigre', label: 'Tigre, Buenos Aires, Argentina', lat: -34.4260, lon: -58.5796 },
+  { name: 'San Isidro', label: 'San Isidro, Buenos Aires, Argentina', lat: -34.4708, lon: -58.5286 },
+  { name: 'Vicente López', label: 'Vicente López, Buenos Aires, Argentina', lat: -34.5250, lon: -58.4789 },
+  { name: 'Quilmes', label: 'Quilmes, Buenos Aires, Argentina', lat: -34.7206, lon: -58.2546 },
+  { name: 'Lanús', label: 'Lanús, Buenos Aires, Argentina', lat: -34.7000, lon: -58.4000 },
+  { name: 'Lomas de Zamora', label: 'Lomas de Zamora, Buenos Aires, Argentina', lat: -34.7609, lon: -58.4063 },
+  { name: 'Avellaneda', label: 'Avellaneda, Buenos Aires, Argentina', lat: -34.6617, lon: -58.3647 },
+  { name: 'Morón', label: 'Morón, Buenos Aires, Argentina', lat: -34.6534, lon: -58.6198 },
+  { name: 'Ramos Mejía', label: 'Ramos Mejía, Buenos Aires, Argentina', lat: -34.6406, lon: -58.5646 },
+  { name: 'San Miguel', label: 'San Miguel, Buenos Aires, Argentina', lat: -34.5433, lon: -58.7123 },
+  { name: 'Escobar', label: 'Belén de Escobar, Buenos Aires, Argentina', lat: -34.3483, lon: -58.7926 },
+  { name: 'Montevideo', label: 'Montevideo, Uruguay', lat: -34.9011, lon: -56.1645 }
+];
+
+export function filterCitiesLocal(query) {
+  const q = normalizeText(query).trim();
+  if (!q) return ARGENTINE_CITIES.slice(0, 12);
+  return ARGENTINE_CITIES.filter((c) => normalizeText(c.label).includes(q));
+}
+
+/**
+ * Obras sociales, prepagas y líneas de emergencia más conocidas de Argentina
+ * con su número de emergencias/urgencias (editable por la familia).
+ */
+export const ARGENTINE_HEALTH_PLANS = [
+  { name: 'PAMI', label: 'PAMI — Emergencias médicas (139)', phone: '139' },
+  { name: 'PAMI Escucha', label: 'PAMI — Atención y consultas (138)', phone: '138' },
+  { name: 'SAME', label: 'SAME — Emergencias médicas públicas (107)', phone: '107' },
+  { name: 'Emergencias 911', label: 'Emergencias Generales (911)', phone: '911' },
+  { name: 'OSDE', label: 'OSDE — Urgencias y Emergencias', phone: '08108887788' },
+  { name: 'Swiss Medical', label: 'Swiss Medical — Emergencias', phone: '08007777800' },
+  { name: 'Galeno', label: 'Galeno — Emergencias', phone: '08109998743' },
+  { name: 'IOMA', label: 'IOMA — Emergencias (PBA)', phone: '08109994662' },
+  { name: 'Medifé', label: 'Medifé — Urgencias y Emergencias', phone: '08003330075' },
+  { name: 'OMINT', label: 'OMINT — Emergencias', phone: '08005556646' },
+  { name: 'Hospital Italiano', label: 'Hospital Italiano — Plan de Salud', phone: '08007777008' },
+  { name: 'Hospital Alemán', label: 'Hospital Alemán — Plan Médico', phone: '08003330080' },
+  { name: 'Hospital Británico', label: 'Hospital Británico — Plan de Salud', phone: '08102222748' },
+  { name: 'Accord Salud', label: 'Accord Salud — Emergencias', phone: '08108882226' },
+  { name: 'Sancor Salud', label: 'Sancor Salud — Emergencias', phone: '08007777262' },
+  { name: 'OSECAC', label: 'OSECAC — Urgencias médicas', phone: '08006660400' },
+  { name: 'Medicus', label: 'Medicus — Urgencias', phone: '08009992064' },
+  { name: 'OSDEPYM', label: 'OSDEPYM — Emergencias', phone: '08002887963' },
+  { name: 'OSPE', label: 'OSPE — Emergencias', phone: '08004446773' },
+  { name: 'OSPAT', label: 'OSPAT — Emergencias', phone: '08009991656' },
+  { name: 'Luis Pasteur', label: 'Obra Social Luis Pasteur — Emergencias', phone: '08003337278' },
+  { name: 'OBSBA', label: 'OBSBA — Emergencias', phone: '08003336722' },
+  { name: 'OSPLAD', label: 'OSPLAD — Emergencias', phone: '08106667752' },
+  { name: 'APROSS', label: 'APROSS (Córdoba) — Emergencias', phone: '08008882776' },
+  { name: 'IAPOS', label: 'IAPOS (Santa Fe) — Atención/Urgencias', phone: '08004444276' },
+  { name: 'OSEP', label: 'OSEP (Mendoza) — Urgencias', phone: '08108101033' }
+];
+
+export function filterHealthPlans(query) {
+  const q = normalizeText(query).trim();
+  if (!q) return ARGENTINE_HEALTH_PLANS;
+  return ARGENTINE_HEALTH_PLANS.filter(
+    (p) => normalizeText(p.name).includes(q) || normalizeText(p.label).includes(q)
+  );
+}
+
+/**
  * Busca ciudades con Open-Meteo Geocoding (sin API key).
  */
 export async function searchCities(query) {

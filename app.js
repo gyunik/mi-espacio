@@ -21,7 +21,9 @@ import {
   loadArgentineStations,
   filterStationsLocal,
   searchRadioStations,
+  filterCitiesLocal,
   searchCities,
+  filterHealthPlans,
   fetchWeatherSummary,
   getDateTimeSummary
 } from './seniorServices.js';
@@ -169,8 +171,10 @@ const state = {
     searchResults: []
   },
   weather: {
-    searchResults: []
+    searchResults: [],
+    searchDebounce: null
   },
+  healthSuggestions: [],
   commInfoSpeech: '',
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
@@ -443,6 +447,9 @@ function cacheDom() {
   dom.settingEnableHealthCall = document.getElementById('setting-enable-health-call');
   dom.healthCallName = document.getElementById('health-call-name');
   dom.healthCallPhone = document.getElementById('health-call-phone');
+  dom.healthSuggestionsRow = document.getElementById('health-suggestions-row');
+  dom.healthSuggestionsSelect = document.getElementById('health-suggestions-select');
+  dom.btnApplyHealthSuggestion = document.getElementById('btn-apply-health-suggestion');
   dom.btnSaveHealthCall = document.getElementById('btn-save-health-call');
   dom.healthCallStatus = document.getElementById('health-call-status');
 
@@ -2890,41 +2897,97 @@ function bindFamilyMode() {
     await saveBoardPreference({ enableWeatherCard: enabled });
   });
 
-  const runCitySearch = async () => {
-    const q = dom.weatherCityInput?.value.trim() || '';
-    if (q.length < 2) return;
-    if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = 'Buscando ciudad...';
-    if (dom.btnSearchCity) dom.btnSearchCity.disabled = true;
-    try {
-      const results = await searchCities(q);
-      state.weather.searchResults = results;
-      if (results.length === 0) {
-        if (dom.weatherResultsRow) dom.weatherResultsRow.hidden = true;
-        if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = 'No encontramos esa ciudad. Probá escribiéndola sin abreviaturas.';
-      } else {
-        if (dom.weatherCityResults) {
-          dom.weatherCityResults.innerHTML = '';
-          results.forEach((c, idx) => {
-            const opt = document.createElement('option');
-            opt.value = String(idx);
-            opt.textContent = c.label;
-            dom.weatherCityResults.appendChild(opt);
-          });
-        }
-        if (dom.weatherResultsRow) dom.weatherResultsRow.hidden = false;
-        if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = 'Elegí la ciudad correcta y tocá "Guardar".';
-      }
-    } catch {
-      if (dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = 'No se pudo buscar la ciudad. Revisá tu conexión.';
+  const renderCityOptions = (list, statusMsg) => {
+    state.weather.searchResults = list;
+    if (!dom.weatherCityResults || !dom.weatherResultsRow) return;
+    if (list.length === 0) {
+      dom.weatherResultsRow.hidden = true;
+      if (dom.weatherSearchStatus && statusMsg) dom.weatherSearchStatus.textContent = statusMsg;
+      return;
     }
-    if (dom.btnSearchCity) dom.btnSearchCity.disabled = false;
+    dom.weatherCityResults.innerHTML = '';
+    list.forEach((c, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = c.label;
+      dom.weatherCityResults.appendChild(opt);
+    });
+    dom.weatherResultsRow.hidden = false;
+    if (dom.weatherSearchStatus) {
+      dom.weatherSearchStatus.textContent = statusMsg || 'Elegí la ciudad correcta y tocá "Guardar".';
+    }
   };
 
-  dom.btnSearchCity?.addEventListener('click', runCitySearch);
+  const runCitySearch = async (isAuto = false) => {
+    const q = dom.weatherCityInput?.value.trim() || '';
+    const localMatches = filterCitiesLocal(q);
+    if (q.length < 2) {
+      renderCityOptions(
+        localMatches,
+        localMatches.length > 0
+          ? `${localMatches.length} ciudades sugeridas. Seguí escribiendo o tocá "Guardar".`
+          : 'Seguí escribiendo para buscar en todo el país...'
+      );
+      return;
+    }
+
+    if (!isAuto && dom.weatherSearchStatus) dom.weatherSearchStatus.textContent = 'Buscando ciudad...';
+    if (!isAuto && dom.btnSearchCity) dom.btnSearchCity.disabled = true;
+    try {
+      const remote = await searchCities(q);
+      // Fusionar coincidencias locales + Open-Meteo sin duplicar
+      const merged = [...localMatches];
+      const seen = new Set(merged.map((c) => c.label.toLowerCase()));
+      remote.forEach((c) => {
+        if (!seen.has(c.label.toLowerCase())) {
+          seen.add(c.label.toLowerCase());
+          merged.push(c);
+        }
+      });
+      renderCityOptions(
+        merged,
+        merged.length > 0
+          ? `${merged.length} coincidencias. Elegí la ciudad y tocá "Guardar".`
+          : 'No encontramos esa ciudad. Probá escribiéndola sin abreviaturas.'
+      );
+    } catch {
+      if (localMatches.length > 0) {
+        renderCityOptions(localMatches);
+      } else if (!isAuto && dom.weatherSearchStatus) {
+        dom.weatherSearchStatus.textContent = 'No se pudo buscar la ciudad. Revisá tu conexión.';
+      }
+    }
+    if (!isAuto && dom.btnSearchCity) dom.btnSearchCity.disabled = false;
+  };
+
+  dom.weatherCityInput?.addEventListener('focus', () => {
+    const q = dom.weatherCityInput.value.trim();
+    const localMatches = filterCitiesLocal(q);
+    if (localMatches.length > 0) renderCityOptions(localMatches);
+  });
+
+  dom.weatherCityInput?.addEventListener('input', () => {
+    clearTimeout(state.weather.searchDebounce);
+    const q = dom.weatherCityInput.value.trim();
+    const localMatches = filterCitiesLocal(q);
+    renderCityOptions(
+      localMatches,
+      localMatches.length > 0
+        ? `${localMatches.length} coincidencias. Elegí una y tocá "Guardar".`
+        : 'Buscando localidades...'
+    );
+    if (q.length >= 2) {
+      state.weather.searchDebounce = setTimeout(() => {
+        runCitySearch(true);
+      }, 320);
+    }
+  });
+
+  dom.btnSearchCity?.addEventListener('click', () => runCitySearch(false));
   dom.weatherCityInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      runCitySearch();
+      runCitySearch(false);
     }
   });
 
@@ -3010,7 +3073,7 @@ function bindFamilyMode() {
     });
   });
 
-  // Teléfono de Obra Social / Salud (ej: PAMI)
+  // Teléfono de Obra Social / Salud (ej: PAMI) con autocompletado de emergencias + libre edición
   dom.settingEnableHealthCall?.addEventListener('change', async () => {
     const enabled = dom.settingEnableHealthCall.checked;
     state.settings = saveSettings({ enableHealthCall: enabled });
@@ -3018,6 +3081,50 @@ function bindFamilyMode() {
     renderCardsGrid();
     await saveBoardPreference({ enableHealthCall: enabled });
   });
+
+  const renderHealthSuggestions = (q) => {
+    if (!dom.healthSuggestionsRow || !dom.healthSuggestionsSelect) return;
+    const matches = filterHealthPlans(q);
+    state.healthSuggestions = matches;
+    if (matches.length === 0) {
+      dom.healthSuggestionsRow.hidden = true;
+      if (dom.healthCallStatus && q) {
+        dom.healthCallStatus.textContent = 'Obra social personalizada: escribí el teléfono y tocá "Guardar".';
+      }
+      return;
+    }
+    dom.healthSuggestionsSelect.innerHTML = '';
+    matches.forEach((p, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = `${p.label} · ${p.phone}`;
+      dom.healthSuggestionsSelect.appendChild(opt);
+    });
+    dom.healthSuggestionsRow.hidden = false;
+  };
+
+  const applySelectedHealthPlan = () => {
+    const idx = parseInt(dom.healthSuggestionsSelect?.value || '0', 10);
+    const chosen = state.healthSuggestions[idx];
+    if (!chosen) return;
+    if (dom.healthCallName) dom.healthCallName.value = chosen.name;
+    if (dom.healthCallPhone) dom.healthCallPhone.value = chosen.phone;
+    if (dom.healthSuggestionsRow) dom.healthSuggestionsRow.hidden = true;
+    if (dom.healthCallStatus) {
+      dom.healthCallStatus.textContent = `Sugerido: ${chosen.name} (${chosen.phone}). Podés editar el número si querés y tocar "Guardar".`;
+    }
+  };
+
+  dom.healthCallName?.addEventListener('focus', () => {
+    renderHealthSuggestions(dom.healthCallName.value.trim());
+  });
+
+  dom.healthCallName?.addEventListener('input', () => {
+    renderHealthSuggestions(dom.healthCallName.value.trim());
+  });
+
+  dom.healthSuggestionsSelect?.addEventListener('change', applySelectedHealthPlan);
+  dom.btnApplyHealthSuggestion?.addEventListener('click', applySelectedHealthPlan);
 
   dom.btnSaveHealthCall?.addEventListener('click', async () => {
     const name = (dom.healthCallName?.value || '').trim() || 'Obra Social';
@@ -3028,6 +3135,7 @@ function bindFamilyMode() {
       }
       return;
     }
+    if (dom.healthSuggestionsRow) dom.healthSuggestionsRow.hidden = true;
     state.settings = saveSettings({
       healthCallName: name,
       healthCallPhone: phone,

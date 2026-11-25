@@ -947,7 +947,7 @@
 
               <div class="stitch-inner-box">
                 <div class="pin-row">
-                  <input id="weather-city-input" type="text" class="input" placeholder="Ciudad (ej: Córdoba...)" style="flex: 1;" />
+                  <input id="weather-city-input" type="text" class="input" placeholder="Escribí para filtrar ciudad (ej: Córdoba, Pilar...)" style="flex: 1;" autocomplete="off" />
                   <button type="button" id="btn-search-city" class="btn btn--accent btn--sm">Buscar</button>
                 </div>
 
@@ -1050,8 +1050,12 @@
 
               <div class="stitch-inner-box">
                 <div class="pin-row">
-                  <input id="health-call-name" type="text" class="input" placeholder="Obra social (ej: PAMI)" maxlength="30" style="flex: 1;" />
-                  <input id="health-call-phone" type="tel" class="input" placeholder="Teléfono (ej: 138)" maxlength="24" style="flex: 1;" />
+                  <input id="health-call-name" type="text" class="input" placeholder="Escribí obra social (ej: PAMI, OSDE...)" maxlength="36" style="flex: 1;" autocomplete="off" />
+                  <input id="health-call-phone" type="tel" class="input" placeholder="Teléfono (editable)" maxlength="24" style="flex: 1;" />
+                </div>
+                <div class="pin-row" id="health-suggestions-row" hidden>
+                  <select id="health-suggestions-select" class="select" style="flex: 1;"></select>
+                  <button type="button" id="btn-apply-health-suggestion" class="btn btn--ghost btn--sm">Elegir</button>
                 </div>
                 <div class="pin-row" style="justify-content: flex-end;">
                   <button type="button" id="btn-save-health-call" class="btn btn--emerald btn--sm">Guardar</button>
