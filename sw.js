@@ -3,7 +3,7 @@
  * Cachea el App Shell para funcionamiento offline en Android / iOS / Desktop.
  */
 
-const CACHE_NAME = 'mi-espacio-v35';
+const CACHE_NAME = 'mi-espacio-v36';
 const APP_SHELL = [
   './',
   './index.html',
@@ -41,8 +41,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) return;
+  // Nunca interceptar peticiones externas (radios en vivo, Open-Meteo, Firebase, etc.)
+  const reqUrl = new URL(event.request.url);
+  if (reqUrl.origin !== self.location.origin) return;
   // No interceptar archivos de audio MP3 en caché de App Shell (se reproducen bajo demanda)
-  if (event.request.url.endsWith('.mp3')) return;
+  if (reqUrl.pathname.endsWith('.mp3')) return;
 
   // Network-first: siempre busca la versión más reciente online y usa caché si no hay internet
   event.respondWith(

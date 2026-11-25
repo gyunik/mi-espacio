@@ -77,8 +77,8 @@ function filterHttpsStations(list) {
     const url = (st.url_resolved || st.url || '').trim();
     const name = (st.name || '').trim();
     if (!url.startsWith('https://') || !name) continue;
-    // Evitar playlists .pls/.m3u que <audio> no reproduce directo en todos los navegadores
-    if (/\.(pls|m3u)(\?|$)/i.test(url)) continue;
+    // Evitar playlists .pls/.m3u y streams HLS (.m3u8) que <audio> no reproduce directo en Chrome/Android
+    if (st.hls === 1 || /\.(pls|m3u|m3u8)(\?|$)/i.test(url)) continue;
     const key = `${name.toLowerCase()}|${url}`;
     if (seen.has(key)) continue;
     seen.add(key);

@@ -1154,6 +1154,7 @@ function bindPhraseBar() {
       const audio = new Audio();
       audio.volume = state.settings.musicVolume ?? 0.65;
       audio.addEventListener('error', () => {
+        if (!audio.getAttribute('src')) return;
         state.radio.isPlaying = false;
         dom.commSentStatus.textContent = 'No se pudo conectar con esta radio ahora. Probá elegir otra en Ajustes.';
         dom.commSentStatus.hidden = false;
@@ -1174,7 +1175,8 @@ function bindPhraseBar() {
     const audio = ensureRadioAudio();
     if (state.radio.isPlaying) {
       audio.pause();
-      audio.src = '';
+      audio.removeAttribute('src');
+      audio.load();
       state.radio.isPlaying = false;
       renderCardsGrid();
     } else {
@@ -2399,6 +2401,7 @@ function bindFamilyMode() {
     if (!state.radio.previewAudio) {
       const audio = new Audio();
       audio.addEventListener('error', () => {
+        if (!audio.getAttribute('src')) return;
         stopRadioPreview();
         if (dom.radioSearchStatus) {
           dom.radioSearchStatus.textContent = 'Esta transmisión no respondió. Probá elegir otra estación de la lista.';
@@ -2549,7 +2552,8 @@ function stopMusicPreview() {
 function stopRadioPreview() {
   if (state.radio.previewAudio) {
     state.radio.previewAudio.pause();
-    state.radio.previewAudio.src = '';
+    state.radio.previewAudio.removeAttribute('src');
+    state.radio.previewAudio.load();
   }
   state.radio.previewPlaying = false;
   if (dom.btnTestRadio) {
