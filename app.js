@@ -446,6 +446,12 @@ function cacheDom() {
   dom.btnSaveHealthCall = document.getElementById('btn-save-health-call');
   dom.healthCallStatus = document.getElementById('health-call-status');
 
+  dom.settingEnableSpotify = document.getElementById('setting-enable-spotify');
+  dom.spotifyName = document.getElementById('spotify-name');
+  dom.spotifyUrl = document.getElementById('spotify-url');
+  dom.btnSaveSpotify = document.getElementById('btn-save-spotify');
+  dom.spotifyStatus = document.getElementById('spotify-status');
+
   // Controles adicionales del rediseño Stitch
   dom.btnShareWhatsapp = document.getElementById('btn-share-whatsapp');
   dom.speedPresetBtns = document.querySelectorAll('[data-speed-preset]');
@@ -694,6 +700,15 @@ function startBoardSubscription() {
       }
       if (typeof remoteSettings.healthCallPhone === 'string') {
         updates.healthCallPhone = remoteSettings.healthCallPhone;
+      }
+      if (typeof remoteSettings.enableSpotifyCard === 'boolean') {
+        updates.enableSpotifyCard = remoteSettings.enableSpotifyCard;
+      }
+      if (typeof remoteSettings.spotifyName === 'string') {
+        updates.spotifyName = remoteSettings.spotifyName;
+      }
+      if (typeof remoteSettings.spotifyUrl === 'string') {
+        updates.spotifyUrl = remoteSettings.spotifyUrl;
       }
       if (typeof remoteSettings.largeTextMode === 'boolean') {
         updates.largeTextMode = remoteSettings.largeTextMode;
@@ -1116,7 +1131,7 @@ function bindPhraseBar() {
     dom.teenRecordModal.hidden = true;
   };
 
-  dom.btnTeenVoiceMsg?.addEventListener('click', async () => {
+  const openTeenVoiceModal = async () => {
     if (!isAudioRecordingSupported()) {
       dom.commSentStatus.textContent = 'Tu navegador no permite grabar audio.';
       dom.commSentStatus.hidden = false;
@@ -1141,7 +1156,10 @@ function bindPhraseBar() {
       dom.commSentStatus.textContent = 'Necesitás permitir el micrófono para enviar mensajes hablados.';
       dom.commSentStatus.hidden = false;
     }
-  });
+  };
+
+  window.__openTeenVoiceModal = openTeenVoiceModal;
+  dom.btnTeenVoiceMsg?.addEventListener('click', openTeenVoiceModal);
 
   dom.btnTeenSendVoice?.addEventListener('click', () => closeTeenVoiceModal(true));
   dom.btnTeenCancelVoice?.addEventListener('click', () => closeTeenVoiceModal(false));
@@ -1343,6 +1361,14 @@ function bindPhraseBar() {
     }
   };
 
+  window.__openSpotifyCard = () => {
+    const url = (state.settings.spotifyUrl || '').trim();
+    if (!url) return;
+    const name = (state.settings.spotifyName || 'Spotify').trim();
+    speak(`Abriendo ${name}`, ttsOptions());
+    window.open(url, '_blank', 'noopener');
+  };
+
   dom.btnCommEnablePush?.addEventListener('click', async () => {
     if (typeof Notification === 'undefined') return;
     const res = await Notification.requestPermission();
@@ -1439,13 +1465,46 @@ function renderCategories() {
 }
 
 function renderCardsGrid() {
-  const visibleCards = state.cards.filter((c) => !c.hidden);
+  const visibleCards = state.cards
+    .filter((c) => !c.hidden)
+    .sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
   const filtered =
     state.activeCategory === 'all'
       ? visibleCards
       : visibleCards.filter((c) => c.category === state.activeCategory);
 
   dom.cardsGrid.innerHTML = '';
+
+  // Tarjeta integrada "🎙️ Hablar a Familia" (1 toque para grabar y enviar audio)
+  const allowVoiceMsg = state.settings.allowTeenVoiceMessage !== false;
+  const showVoiceMsgCard =
+    allowVoiceMsg && (state.activeCategory === 'all' || state.activeCategory === 'familia');
+
+  if (showVoiceMsgCard) {
+    const voiceBtn = document.createElement('button');
+    voiceBtn.type = 'button';
+    voiceBtn.className = 'aac-card';
+    voiceBtn.setAttribute('aria-label', 'Hablar a Familia');
+
+    const visual = document.createElement('div');
+    visual.className = 'aac-card__visual';
+    const img = document.createElement('img');
+    img.src = './assets/cards/audio-familia.svg';
+    img.alt = 'Hablar a Familia';
+    visual.appendChild(img);
+
+    const label = document.createElement('span');
+    label.className = 'aac-card__text';
+    label.textContent = '🎙️ Hablar a Familia';
+
+    voiceBtn.append(visual, label);
+    voiceBtn.addEventListener('click', () => {
+      if (typeof window.__openTeenVoiceModal === 'function') {
+        window.__openTeenVoiceModal();
+      }
+    });
+    dom.cardsGrid.appendChild(voiceBtn);
+  }
 
   // Tarjeta integrada de Música (1 toque reproduce, 1 toque pausa; categoría elegida en Modo Familia)
   const musicEnabled = (state.settings.musicCategory || 'calma') !== 'off';
@@ -1651,14 +1710,48 @@ function renderCardsGrid() {
     dom.cardsGrid.appendChild(healthBtn);
   }
 
+  // Tarjeta opcional de acceso directo a Playlist de Spotify
+  const spotifyEnabled = Boolean(state.settings.enableSpotifyCard && state.settings.spotifyUrl);
+  const showSpotifyCard =
+    spotifyEnabled && (state.activeCategory === 'all' || state.activeCategory === 'ocio');
+
+  if (showSpotifyCard) {
+    const spName = (state.settings.spotifyName || 'Mi Spotify').trim();
+    const spBtn = document.createElement('button');
+    spBtn.type = 'button';
+    spBtn.className = 'aac-card';
+    spBtn.setAttribute('aria-label', `Abrir playlist ${spName} en Spotify`);
+
+    const visual = document.createElement('div');
+    visual.className = 'aac-card__visual';
+    const img = document.createElement('img');
+    img.src = './assets/cards/spotify.svg';
+    img.alt = 'Spotify';
+    visual.appendChild(img);
+
+    const label = document.createElement('span');
+    label.className = 'aac-card__text';
+    label.textContent = `🎧 ${spName}`;
+
+    spBtn.append(visual, label);
+    spBtn.addEventListener('click', () => {
+      if (typeof window.__openSpotifyCard === 'function') {
+        window.__openSpotifyCard();
+      }
+    });
+    dom.cardsGrid.appendChild(spBtn);
+  }
+
   if (
     filtered.length === 0 &&
+    !showVoiceMsgCard &&
     !showMusicCard &&
     !showRadioCard &&
     !showWeatherCard &&
     !showDateTimeCard &&
     !showContactCallCard &&
-    !showHealthCallCard
+    !showHealthCallCard &&
+    !showSpotifyCard
   ) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
@@ -2338,6 +2431,7 @@ function bindFamilyMode() {
       imageData: state.form.imageData,
       audioData: state.form.audioData,
       hidden: Boolean(existingCard?.hidden),
+      order: typeof existingCard?.order === 'number' ? existingCard.order : undefined,
       authorRole: 'family'
     });
 
@@ -2951,6 +3045,41 @@ function bindFamilyMode() {
     });
   });
 
+  // Acceso directo a Playlist de Spotify
+  dom.settingEnableSpotify?.addEventListener('change', async () => {
+    const enabled = dom.settingEnableSpotify.checked;
+    state.settings = saveSettings({ enableSpotifyCard: enabled });
+    applySettingsToUI();
+    renderCardsGrid();
+    await saveBoardPreference({ enableSpotifyCard: enabled });
+  });
+
+  dom.btnSaveSpotify?.addEventListener('click', async () => {
+    const name = (dom.spotifyName?.value || '').trim() || 'Mi Spotify';
+    const url = (dom.spotifyUrl?.value || '').trim();
+    if (!url || (!url.startsWith('https://') && !url.startsWith('spotify:'))) {
+      if (dom.spotifyStatus) {
+        dom.spotifyStatus.textContent = 'Pegá un link válido de Spotify (ej: https://open.spotify.com/playlist/...).';
+      }
+      return;
+    }
+    state.settings = saveSettings({
+      spotifyName: name,
+      spotifyUrl: url,
+      enableSpotifyCard: true
+    });
+    applySettingsToUI();
+    renderCardsGrid();
+    if (dom.spotifyStatus) {
+      dom.spotifyStatus.textContent = `Guardada: ${name} ✓ (se abrirá directo en la app de Spotify)`;
+    }
+    await saveBoardPreference({
+      spotifyName: name,
+      spotifyUrl: url,
+      enableSpotifyCard: true
+    });
+  });
+
   dom.btnJoinCode.addEventListener('click', () => {
     const code = dom.joinCodeInput.value.replace(/\D/g, '');
     if (code.length === 6) {
@@ -3086,6 +3215,53 @@ async function setCardHidden(cardId, isHidden) {
   await saveCard({ ...card, hidden: Boolean(isHidden) });
 }
 
+async function persistVisibleOrder(orderedVisible) {
+  const changed = [];
+  orderedVisible.forEach((card, i) => {
+    const nextOrder = (i + 1) * 100;
+    if (card.order !== nextOrder) {
+      card.order = nextOrder;
+      changed.push(card);
+    }
+  });
+  state.cards.sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
+  renderManageCardsList();
+  renderCardsGrid();
+  if (changed.length > 0) {
+    await Promise.all(changed.map((c) => saveCard({ ...c })));
+  }
+}
+
+async function moveCardOrder(cardId, delta) {
+  const visible = state.cards
+    .filter((c) => !c.hidden)
+    .sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
+  const idx = visible.findIndex((c) => c.id === cardId);
+  const targetIdx = idx + delta;
+  if (idx === -1 || targetIdx < 0 || targetIdx >= visible.length) return;
+  const [moved] = visible.splice(idx, 1);
+  visible.splice(targetIdx, 0, moved);
+  await persistVisibleOrder(visible);
+}
+
+async function reorderCardBefore(draggedId, targetId) {
+  if (!draggedId || !targetId || draggedId === targetId) return;
+  const draggedCard = state.cards.find((c) => c.id === draggedId);
+  if (!draggedCard) return;
+  draggedCard.hidden = false;
+
+  const visible = state.cards
+    .filter((c) => !c.hidden && c.id !== draggedId)
+    .sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
+  const targetIdx = visible.findIndex((c) => c.id === targetId);
+  if (targetIdx === -1) {
+    visible.push(draggedCard);
+  } else {
+    visible.splice(targetIdx, 0, draggedCard);
+  }
+  await persistVisibleOrder(visible);
+}
+
 function renderManageCardsList() {
   dom.cardsCount.textContent = String(state.cards.length);
   if (!dom.manageVisibleList || !dom.manageHiddenList) return;
@@ -3106,12 +3282,16 @@ function renderManageCardsList() {
     return hay.includes(q);
   };
 
-  const allVisible = state.cards.filter((c) => !c.hidden);
-  const allHidden = state.cards.filter((c) => Boolean(c.hidden));
+  const allVisible = state.cards
+    .filter((c) => !c.hidden)
+    .sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
+  const allHidden = state.cards
+    .filter((c) => Boolean(c.hidden))
+    .sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
   if (dom.visibleCardsCount) dom.visibleCardsCount.textContent = String(allVisible.length);
   if (dom.hiddenCardsCount) dom.hiddenCardsCount.textContent = String(allHidden.length);
 
-  const buildCardRow = (card, isHidden) => {
+  const buildCardRow = (card, isHidden, visibleIdx, visibleTotal) => {
     const item = document.createElement('div');
     item.className = 'manage-item manage-item--draggable';
     item.draggable = true;
@@ -3126,7 +3306,32 @@ function renderManageCardsList() {
       item.classList.remove('is-dragging');
       dom.dropzoneVisible?.classList.remove('is-drag-over');
       dom.dropzoneHidden?.classList.remove('is-drag-over');
+      document.querySelectorAll('.manage-item--drop-before').forEach((el) =>
+        el.classList.remove('manage-item--drop-before')
+      );
     });
+
+    // Permitir soltar una tarjeta sobre otra en la columna de Visibles para reordenar
+    if (!isHidden) {
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        item.classList.add('manage-item--drop-before');
+      });
+      item.addEventListener('dragleave', () => {
+        item.classList.remove('manage-item--drop-before');
+      });
+      item.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        item.classList.remove('manage-item--drop-before');
+        dom.dropzoneVisible?.classList.remove('is-drag-over');
+        const draggedId = e.dataTransfer.getData('text/plain');
+        if (draggedId && draggedId !== card.id) {
+          await reorderCardBefore(draggedId, card.id);
+        }
+      });
+    }
 
     const info = document.createElement('div');
     info.className = 'manage-item__info';
@@ -3134,7 +3339,7 @@ function renderManageCardsList() {
     const handle = document.createElement('span');
     handle.className = 'drag-handle';
     handle.textContent = '⋮⋮';
-    handle.title = 'Arrastrar a la otra columna';
+    handle.title = 'Arrastrar para mover o reordenar';
 
     const thumb = document.createElement('div');
     thumb.className = 'manage-item__thumb';
@@ -3161,6 +3366,26 @@ function renderManageCardsList() {
 
     const actions = document.createElement('div');
     actions.className = 'manage-item__actions';
+
+    if (!isHidden) {
+      const upBtn = document.createElement('button');
+      upBtn.type = 'button';
+      upBtn.className = 'btn btn--ghost btn--sm reorder-btn';
+      upBtn.textContent = '↑';
+      upBtn.title = 'Subir posición';
+      upBtn.disabled = visibleIdx <= 0;
+      upBtn.addEventListener('click', () => moveCardOrder(card.id, -1));
+
+      const downBtn = document.createElement('button');
+      downBtn.type = 'button';
+      downBtn.className = 'btn btn--ghost btn--sm reorder-btn';
+      downBtn.textContent = '↓';
+      downBtn.title = 'Bajar posición';
+      downBtn.disabled = visibleIdx >= visibleTotal - 1;
+      downBtn.addEventListener('click', () => moveCardOrder(card.id, 1));
+
+      actions.append(upBtn, downBtn);
+    }
 
     const toggleBtn = document.createElement('button');
     toggleBtn.type = 'button';
@@ -3195,7 +3420,10 @@ function renderManageCardsList() {
     dom.manageVisibleList.innerHTML =
       '<p class="muted-text" style="padding: 12px 6px;">Arrastrá tarjetas acá o tocá "👁️ Mostrar" para que aparezcan en el Comunicador.</p>';
   } else {
-    filteredVisible.forEach((card) => dom.manageVisibleList.appendChild(buildCardRow(card, false)));
+    filteredVisible.forEach((card) => {
+      const realIdx = allVisible.findIndex((c) => c.id === card.id);
+      dom.manageVisibleList.appendChild(buildCardRow(card, false, realIdx, allVisible.length));
+    });
   }
 
   dom.manageHiddenList.innerHTML = '';
@@ -3204,7 +3432,7 @@ function renderManageCardsList() {
     dom.manageHiddenList.innerHTML =
       '<p class="muted-text" style="padding: 12px 6px;">Arrastrá acá las tarjetas que quieras ocultar sin borrarlas.</p>';
   } else {
-    filteredHidden.forEach((card) => dom.manageHiddenList.appendChild(buildCardRow(card, true)));
+    filteredHidden.forEach((card) => dom.manageHiddenList.appendChild(buildCardRow(card, true, 0, 0)));
   }
 }
 
@@ -3513,6 +3741,19 @@ function applySettingsToUI() {
   }
   if (dom.healthCallPhone && document.activeElement !== dom.healthCallPhone) {
     dom.healthCallPhone.value = state.settings.healthCallPhone || '';
+  }
+
+  if (dom.settingEnableSpotify) {
+    dom.settingEnableSpotify.checked = Boolean(state.settings.enableSpotifyCard);
+  }
+  if (dom.spotifyName && document.activeElement !== dom.spotifyName) {
+    dom.spotifyName.value = state.settings.spotifyName || '';
+  }
+  if (dom.spotifyUrl && document.activeElement !== dom.spotifyUrl) {
+    dom.spotifyUrl.value = state.settings.spotifyUrl || '';
+  }
+  if (dom.spotifyStatus && !dom.spotifyStatus.textContent && state.settings.spotifyUrl) {
+    dom.spotifyStatus.textContent = `Playlist activa: ${state.settings.spotifyName || 'Mi Spotify'}`;
   }
 
   const largeText = Boolean(state.settings.largeTextMode);

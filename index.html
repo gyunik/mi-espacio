@@ -321,9 +321,6 @@
         <div class="voice-toolbar">
           <span id="comm-channel-pill" class="channel-pill">Canal: ------</span>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button type="button" id="btn-teen-voice-msg" class="btn btn--accent btn--sm">
-              🎙️ Hablar a Familia
-            </button>
             <button type="button" id="btn-comm-enable-push" class="chip-btn" hidden>
               🔔 Activar notificaciones
             </button>
@@ -832,8 +829,8 @@
             <label class="stitch-toggle-card" for="setting-teen-voice-msg">
               <input id="setting-teen-voice-msg" type="checkbox" checked />
               <div>
-                <span class="stitch-toggle-card__title">Mostrar botón "🎙️ Hablar a Familia"</span>
-                <span class="stitch-toggle-card__desc">Acceso rápido y grande para mandar un mensaje hablado corto a la familia.</span>
+                <span class="stitch-toggle-card__title">Mostrar tarjeta "🎙️ Hablar a Familia"</span>
+                <span class="stitch-toggle-card__desc">Tarjeta grande en la grilla para mandar un mensaje hablado corto a la familia con 1 toque.</span>
               </div>
             </label>
           </div>
@@ -1039,13 +1036,13 @@
             </div>
 
             <!-- 3.6 Llamada directa a Obra Social / Salud -->
-            <div class="stitch-feature-card stitch-span-2">
+            <div class="stitch-feature-card">
               <div class="stitch-feature-card__top">
                 <div class="stitch-feature-card__meta">
                   <div class="stitch-icon-box stitch-icon-box--rose">🏥</div>
                   <div>
-                    <h3 class="stitch-feature-card__title">Teléfono de Obra Social / Salud</h3>
-                    <p class="stitch-feature-card__desc">Llamada telefónica directa (funciona incluso sin Wi-Fi ni datos, ej: PAMI 138, OSDE, SAME 107).</p>
+                    <h3 class="stitch-feature-card__title">Obra Social / Salud</h3>
+                    <p class="stitch-feature-card__desc">Llamada directa sin internet (ej: PAMI 138, OSDE, 107).</p>
                   </div>
                 </div>
                 <input id="setting-enable-health-call" type="checkbox" aria-label="Activar llamada a obra social" />
@@ -1053,11 +1050,39 @@
 
               <div class="stitch-inner-box">
                 <div class="pin-row">
-                  <input id="health-call-name" type="text" class="input" placeholder="Obra social (ej: PAMI, OSDE)" maxlength="30" style="flex: 1;" />
-                  <input id="health-call-phone" type="tel" class="input" placeholder="Teléfono (ej: 138 o 0800...)" maxlength="24" style="flex: 1;" />
+                  <input id="health-call-name" type="text" class="input" placeholder="Obra social (ej: PAMI)" maxlength="30" style="flex: 1;" />
+                  <input id="health-call-phone" type="tel" class="input" placeholder="Teléfono (ej: 138)" maxlength="24" style="flex: 1;" />
+                </div>
+                <div class="pin-row" style="justify-content: flex-end;">
                   <button type="button" id="btn-save-health-call" class="btn btn--emerald btn--sm">Guardar</button>
                 </div>
                 <span id="health-call-status" class="muted-text" style="font-size: 0.76rem;"></span>
+              </div>
+            </div>
+
+            <!-- 3.7 Acceso directo a Playlist de Spotify -->
+            <div class="stitch-feature-card">
+              <div class="stitch-feature-card__top">
+                <div class="stitch-feature-card__meta">
+                  <div class="stitch-icon-box stitch-icon-box--green">🎧</div>
+                  <div>
+                    <h3 class="stitch-feature-card__title">
+                      <span>Playlist de Spotify</span>
+                      <span class="stitch-pill stitch-pill--green">Offline en app</span>
+                    </h3>
+                    <p class="stitch-feature-card__desc">Abre la playlist elegida directo en Spotify (si está descargada con cuenta paga, funciona sin internet).</p>
+                  </div>
+                </div>
+                <input id="setting-enable-spotify" type="checkbox" aria-label="Activar tarjeta de Spotify" />
+              </div>
+
+              <div class="stitch-inner-box">
+                <input id="spotify-name" type="text" class="input" placeholder="Nombre (ej: Favoritas de Sofi)" maxlength="30" />
+                <div class="pin-row">
+                  <input id="spotify-url" type="url" class="input" placeholder="Link (https://open.spotify.com/playlist/...)" style="flex: 1;" />
+                  <button type="button" id="btn-save-spotify" class="btn btn--emerald btn--sm">Guardar</button>
+                </div>
+                <span id="spotify-status" class="muted-text" style="font-size: 0.76rem;"></span>
               </div>
             </div>
           </div>

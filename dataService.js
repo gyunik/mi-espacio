@@ -66,6 +66,9 @@ export const DEFAULT_SETTINGS = {
   enableHealthCall: false,
   healthCallName: '',
   healthCallPhone: '',
+  enableSpotifyCard: false,
+  spotifyName: '',
+  spotifyUrl: '',
   largeTextMode: false,
   seeded: false,
   starterVersion: 0
@@ -408,13 +411,14 @@ export function saveSettings(partial) {
 export async function getCards() {
   try {
     const list = await getAllFromStore(STORE_CARDS);
-    return list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    return list.sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
   } catch {
     return [];
   }
 }
 
 export async function saveCard(card) {
+  const created = card.createdAt || Date.now();
   const payload = {
     id: card.id || `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     text: (card.text || '').trim(),
@@ -423,8 +427,9 @@ export async function saveCard(card) {
     imageData: card.imageData || null,
     audioData: card.audioData || null,
     hidden: Boolean(card.hidden),
+    order: typeof card.order === 'number' ? card.order : created,
     authorRole: card.authorRole || 'family',
-    createdAt: card.createdAt || Date.now()
+    createdAt: created
   };
 
   await putInStore(STORE_CARDS, payload);
@@ -818,7 +823,7 @@ export function subscribeToBoard(pairingCode, callbacks = {}) {
       fb.onSnapshot(cardsRef, (snap) => {
         const cards = snap.docs
           .map((d) => d.data())
-          .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+          .sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
         callbacks.onCards?.(cards);
       })
     );
