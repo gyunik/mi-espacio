@@ -71,6 +71,7 @@ export const DEFAULT_SETTINGS = {
   spotifyName: '',
   spotifyUrl: '',
   largeTextMode: false,
+  categoryOrder: ['limites', 'necesidades', 'familia', 'ocio'],
   seeded: false,
   starterVersion: 0
 };

@@ -180,6 +180,8 @@ const state = {
     searchDebounce: null
   },
   healthSuggestions: [],
+  selectedVisibleIds: new Set(),
+  selectedHiddenIds: new Set(),
   commInfoSpeech: '',
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
@@ -381,6 +383,10 @@ function cacheDom() {
   dom.dropzoneHidden = document.getElementById('dropzone-hidden');
   dom.visibleCardsCount = document.getElementById('visible-cards-count');
   dom.hiddenCardsCount = document.getElementById('hidden-cards-count');
+  dom.btnSelectAllVisible = document.getElementById('btn-select-all-visible');
+  dom.btnMoveSelectedHide = document.getElementById('btn-move-selected-hide');
+  dom.btnSelectAllHidden = document.getElementById('btn-select-all-hidden');
+  dom.btnMoveSelectedShow = document.getElementById('btn-move-selected-show');
   dom.manageVisibleList = document.getElementById('manage-visible-list');
   dom.manageHiddenList = document.getElementById('manage-hidden-list');
 
@@ -734,6 +740,9 @@ function startBoardSubscription() {
       if (typeof remoteSettings.largeTextMode === 'boolean') {
         updates.largeTextMode = remoteSettings.largeTextMode;
       }
+      if (Array.isArray(remoteSettings.categoryOrder) && remoteSettings.categoryOrder.length > 0) {
+        updates.categoryOrder = remoteSettings.categoryOrder;
+      }
       if (Object.keys(updates).length > 0) {
         state.settings = saveSettings(updates);
         if (updates.musicCategory === 'off' && state.music.audio) {
@@ -751,7 +760,9 @@ function startBoardSubscription() {
           if (state.radio.previewAudio) state.radio.previewAudio.volume = updates.musicVolume;
         }
         applySettingsToUI();
+        renderCategories();
         renderCardsGrid();
+        renderManageCardsList();
       }
     }
   });
@@ -1603,9 +1614,30 @@ function renderPhraseBar() {
   });
 }
 
+function getOrderedCategories() {
+  const realCats = CATEGORIES.filter((c) => c.id !== 'all');
+  const savedOrder = Array.isArray(state.settings.categoryOrder)
+    ? state.settings.categoryOrder
+    : ['limites', 'necesidades', 'familia', 'ocio'];
+  const orderMap = new Map(savedOrder.map((id, i) => [id, i]));
+  return [...realCats].sort((a, b) => {
+    const ia = orderMap.has(a.id) ? orderMap.get(a.id) : 99;
+    const ib = orderMap.has(b.id) ? orderMap.get(b.id) : 99;
+    return ia - ib;
+  });
+}
+
+function getCategoryOrderIndex(catId) {
+  const ordered = getOrderedCategories();
+  const idx = ordered.findIndex((c) => c.id === catId);
+  return idx === -1 ? 99 : idx;
+}
+
 function renderCategories() {
   dom.categoryFilters.innerHTML = '';
-  CATEGORIES.forEach((cat) => {
+  const allCat = CATEGORIES.find((c) => c.id === 'all');
+  const orderedList = [allCat, ...getOrderedCategories()].filter(Boolean);
+  orderedList.forEach((cat) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `category-pill ${state.activeCategory === cat.id ? 'is-active' : ''}`;
@@ -1622,7 +1654,11 @@ function renderCategories() {
 function renderCardsGrid() {
   const visibleCards = state.cards
     .filter((c) => !c.hidden)
-    .sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
+    .sort((a, b) => {
+      const catDiff = getCategoryOrderIndex(a.category) - getCategoryOrderIndex(b.category);
+      if (catDiff !== 0) return catDiff;
+      return (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0);
+    });
   const filtered =
     state.activeCategory === 'all'
       ? visibleCards
@@ -2622,7 +2658,12 @@ function bindFamilyMode() {
       e.preventDefault();
       zoneEl.classList.remove('is-drag-over');
       const cardId = e.dataTransfer.getData('text/plain');
-      if (cardId) {
+      if (!cardId) return;
+      // Si la tarjeta arrastrada forma parte de una selección múltiple, mover todas juntas
+      const sourceSet = targetHidden ? state.selectedVisibleIds : state.selectedHiddenIds;
+      if (sourceSet.has(cardId) && sourceSet.size > 1) {
+        await setCardsHiddenBatch([...sourceSet], targetHidden);
+      } else {
         await setCardHidden(cardId, targetHidden);
       }
     });
@@ -2631,22 +2672,48 @@ function bindFamilyMode() {
   bindCardDropzone(dom.dropzoneVisible, false);
   bindCardDropzone(dom.dropzoneHidden, true);
 
-  dom.btnShowAllCards?.addEventListener('click', async () => {
-    const toUpdate = state.cards.filter((c) => c.hidden);
-    if (toUpdate.length === 0) return;
-    toUpdate.forEach((c) => (c.hidden = false));
+  dom.btnSelectAllVisible?.addEventListener('click', () => {
+    const visibleIds = state.cards.filter((c) => !c.hidden).map((c) => c.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every((id) => state.selectedVisibleIds.has(id));
+    state.selectedVisibleIds.clear();
+    if (!allSelected) {
+      visibleIds.forEach((id) => state.selectedVisibleIds.add(id));
+    }
     renderManageCardsList();
-    renderCardsGrid();
-    await Promise.all(toUpdate.map((c) => saveCard({ ...c, hidden: false })));
+  });
+
+  dom.btnMoveSelectedHide?.addEventListener('click', async () => {
+    const ids = [...state.selectedVisibleIds];
+    if (ids.length === 0) return;
+    await setCardsHiddenBatch(ids, true);
+  });
+
+  dom.btnSelectAllHidden?.addEventListener('click', () => {
+    const hiddenIds = state.cards.filter((c) => Boolean(c.hidden)).map((c) => c.id);
+    const allSelected = hiddenIds.length > 0 && hiddenIds.every((id) => state.selectedHiddenIds.has(id));
+    state.selectedHiddenIds.clear();
+    if (!allSelected) {
+      hiddenIds.forEach((id) => state.selectedHiddenIds.add(id));
+    }
+    renderManageCardsList();
+  });
+
+  dom.btnMoveSelectedShow?.addEventListener('click', async () => {
+    const ids = [...state.selectedHiddenIds];
+    if (ids.length === 0) return;
+    await setCardsHiddenBatch(ids, false);
+  });
+
+  dom.btnShowAllCards?.addEventListener('click', async () => {
+    const ids = state.cards.filter((c) => c.hidden).map((c) => c.id);
+    if (ids.length === 0) return;
+    await setCardsHiddenBatch(ids, false);
   });
 
   dom.btnHideAllCards?.addEventListener('click', async () => {
-    const toUpdate = state.cards.filter((c) => !c.hidden);
-    if (toUpdate.length === 0) return;
-    toUpdate.forEach((c) => (c.hidden = true));
-    renderManageCardsList();
-    renderCardsGrid();
-    await Promise.all(toUpdate.map((c) => saveCard({ ...c, hidden: true })));
+    const ids = state.cards.filter((c) => !c.hidden).map((c) => c.id);
+    if (ids.length === 0) return;
+    await setCardsHiddenBatch(ids, true);
   });
 
   // Preguntas rápidas del día
@@ -3471,12 +3538,35 @@ function renderIconPicker() {
 }
 
 async function setCardHidden(cardId, isHidden) {
-  const card = state.cards.find((c) => c.id === cardId);
-  if (!card || Boolean(card.hidden) === Boolean(isHidden)) return;
-  card.hidden = Boolean(isHidden);
+  await setCardsHiddenBatch([cardId], isHidden);
+}
+
+async function setCardsHiddenBatch(cardIds, isHidden) {
+  const idSet = new Set(cardIds);
+  const toUpdate = state.cards.filter((c) => idSet.has(c.id) && Boolean(c.hidden) !== Boolean(isHidden));
+  if (toUpdate.length === 0) return;
+  toUpdate.forEach((c) => {
+    c.hidden = Boolean(isHidden);
+    state.selectedVisibleIds.delete(c.id);
+    state.selectedHiddenIds.delete(c.id);
+  });
   renderManageCardsList();
   renderCardsGrid();
-  await saveCard({ ...card, hidden: Boolean(isHidden) });
+  await Promise.all(toUpdate.map((c) => saveCard({ ...c, hidden: Boolean(isHidden) })));
+}
+
+async function moveCategoryOrder(catId, delta) {
+  const ordered = getOrderedCategories().map((c) => c.id);
+  const idx = ordered.indexOf(catId);
+  const targetIdx = idx + delta;
+  if (idx === -1 || targetIdx < 0 || targetIdx >= ordered.length) return;
+  const [moved] = ordered.splice(idx, 1);
+  ordered.splice(targetIdx, 0, moved);
+  state.settings = saveSettings({ categoryOrder: ordered });
+  renderCategories();
+  renderCardsGrid();
+  renderManageCardsList();
+  await saveBoardPreference({ categoryOrder: ordered });
 }
 
 async function persistVisibleOrder(orderedVisible) {
@@ -3496,39 +3586,86 @@ async function persistVisibleOrder(orderedVisible) {
   }
 }
 
-async function moveCardOrder(cardId, delta) {
-  const visible = state.cards
-    .filter((c) => !c.hidden)
+async function moveCardOrderInCategory(cardId, delta) {
+  const card = state.cards.find((c) => c.id === cardId);
+  if (!card || card.hidden) return;
+  const catCards = state.cards
+    .filter((c) => !c.hidden && c.category === card.category)
     .sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
-  const idx = visible.findIndex((c) => c.id === cardId);
+  const idx = catCards.findIndex((c) => c.id === cardId);
   const targetIdx = idx + delta;
-  if (idx === -1 || targetIdx < 0 || targetIdx >= visible.length) return;
-  const [moved] = visible.splice(idx, 1);
-  visible.splice(targetIdx, 0, moved);
-  await persistVisibleOrder(visible);
+  if (idx === -1 || targetIdx < 0 || targetIdx >= catCards.length) return;
+  const [moved] = catCards.splice(idx, 1);
+  catCards.splice(targetIdx, 0, moved);
+  await persistVisibleOrder(catCards);
 }
 
 async function reorderCardBefore(draggedId, targetId) {
   if (!draggedId || !targetId || draggedId === targetId) return;
   const draggedCard = state.cards.find((c) => c.id === draggedId);
-  if (!draggedCard) return;
-  draggedCard.hidden = false;
+  const targetCard = state.cards.find((c) => c.id === targetId);
+  if (!draggedCard || !targetCard) return;
 
-  const visible = state.cards
-    .filter((c) => !c.hidden && c.id !== draggedId)
-    .sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
-  const targetIdx = visible.findIndex((c) => c.id === targetId);
-  if (targetIdx === -1) {
-    visible.push(draggedCard);
-  } else {
-    visible.splice(targetIdx, 0, draggedCard);
+  // Si venían seleccionadas varias tarjetas desde Ocultas, mover todas a Visibles en sus categorías
+  if (draggedCard.hidden && state.selectedHiddenIds.has(draggedId) && state.selectedHiddenIds.size > 1) {
+    await setCardsHiddenBatch([...state.selectedHiddenIds], false);
+    return;
   }
-  await persistVisibleOrder(visible);
+
+  // Si la tarjeta arrastrada es de otra categoría, simplemente pasarla a Visibles (se ubica en su categoría)
+  if (draggedCard.category !== targetCard.category) {
+    await setCardHidden(draggedId, false);
+    return;
+  }
+
+  draggedCard.hidden = false;
+  state.selectedHiddenIds.delete(draggedId);
+
+  const catCards = state.cards
+    .filter((c) => !c.hidden && c.category === targetCard.category && c.id !== draggedId)
+    .sort((a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0));
+  const targetIdx = catCards.findIndex((c) => c.id === targetId);
+  if (targetIdx === -1) {
+    catCards.push(draggedCard);
+  } else {
+    catCards.splice(targetIdx, 0, draggedCard);
+  }
+  await persistVisibleOrder(catCards);
 }
 
 function renderManageCardsList() {
   dom.cardsCount.textContent = String(state.cards.length);
   if (!dom.manageVisibleList || !dom.manageHiddenList) return;
+
+  // Limpiar selecciones de IDs que ya no existan o hayan cambiado de columna
+  const validVisible = new Set(state.cards.filter((c) => !c.hidden).map((c) => c.id));
+  const validHidden = new Set(state.cards.filter((c) => Boolean(c.hidden)).map((c) => c.id));
+  [...state.selectedVisibleIds].forEach((id) => {
+    if (!validVisible.has(id)) state.selectedVisibleIds.delete(id);
+  });
+  [...state.selectedHiddenIds].forEach((id) => {
+    if (!validHidden.has(id)) state.selectedHiddenIds.delete(id);
+  });
+
+  // Actualizar botones de acción masiva por columna
+  const selVisCount = state.selectedVisibleIds.size;
+  const selHidCount = state.selectedHiddenIds.size;
+  if (dom.btnMoveSelectedHide) {
+    dom.btnMoveSelectedHide.hidden = selVisCount === 0;
+    dom.btnMoveSelectedHide.textContent = `🙈 Ocultar seleccionadas (${selVisCount})`;
+  }
+  if (dom.btnSelectAllVisible) {
+    const allSel = validVisible.size > 0 && selVisCount === validVisible.size;
+    dom.btnSelectAllVisible.textContent = allSel ? '☐ Quitar sel.' : '☑️ Sel. todas';
+  }
+  if (dom.btnMoveSelectedShow) {
+    dom.btnMoveSelectedShow.hidden = selHidCount === 0;
+    dom.btnMoveSelectedShow.textContent = `👁️ Mostrar seleccionadas (${selHidCount})`;
+  }
+  if (dom.btnSelectAllHidden) {
+    const allSel = validHidden.size > 0 && selHidCount === validHidden.size;
+    dom.btnSelectAllHidden.textContent = allSel ? '☐ Quitar sel.' : '☑️ Sel. todas';
+  }
 
   const q = (dom.manageCardsSearch?.value || '')
     .normalize('NFD')
@@ -3536,6 +3673,7 @@ function renderManageCardsList() {
     .toLowerCase()
     .trim();
 
+  const orderedCats = getOrderedCategories();
   const catMap = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.label]));
   const matchesQuery = (card) => {
     if (!q) return true;
@@ -3555,9 +3693,12 @@ function renderManageCardsList() {
   if (dom.visibleCardsCount) dom.visibleCardsCount.textContent = String(allVisible.length);
   if (dom.hiddenCardsCount) dom.hiddenCardsCount.textContent = String(allHidden.length);
 
-  const buildCardRow = (card, isHidden, visibleIdx, visibleTotal) => {
+  const buildCardRow = (card, isHidden, idxInCat, catTotal) => {
+    const selSet = isHidden ? state.selectedHiddenIds : state.selectedVisibleIds;
+    const isSelected = selSet.has(card.id);
+
     const item = document.createElement('div');
-    item.className = 'manage-item manage-item--draggable';
+    item.className = `manage-item manage-item--draggable ${isSelected ? 'manage-item--selected' : ''}`;
     item.draggable = true;
     item.dataset.cardId = card.id;
 
@@ -3575,7 +3716,6 @@ function renderManageCardsList() {
       );
     });
 
-    // Permitir soltar una tarjeta sobre otra en la columna de Visibles para reordenar
     if (!isHidden) {
       item.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -3600,6 +3740,17 @@ function renderManageCardsList() {
     const info = document.createElement('div');
     info.className = 'manage-item__info';
 
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.className = 'card-select-chk';
+    chk.checked = isSelected;
+    chk.setAttribute('aria-label', `Seleccionar ${card.text}`);
+    chk.addEventListener('change', () => {
+      if (chk.checked) selSet.add(card.id);
+      else selSet.delete(card.id);
+      renderManageCardsList();
+    });
+
     const handle = document.createElement('span');
     handle.className = 'drag-handle';
     handle.textContent = '⋮⋮';
@@ -3621,12 +3772,8 @@ function renderManageCardsList() {
     title.className = 'manage-item__text';
     title.textContent = `${card.text} ${card.audioData ? '🎙️' : ''}`.trim();
 
-    const sub = document.createElement('div');
-    sub.className = 'manage-item__cat';
-    sub.textContent = catMap[card.category] || card.category;
-
-    txtWrap.append(title, sub);
-    info.append(handle, thumb, txtWrap);
+    txtWrap.append(title);
+    info.append(chk, handle, thumb, txtWrap);
 
     const actions = document.createElement('div');
     actions.className = 'manage-item__actions';
@@ -3636,17 +3783,17 @@ function renderManageCardsList() {
       upBtn.type = 'button';
       upBtn.className = 'btn btn--ghost btn--sm reorder-btn';
       upBtn.textContent = '↑';
-      upBtn.title = 'Subir posición';
-      upBtn.disabled = visibleIdx <= 0;
-      upBtn.addEventListener('click', () => moveCardOrder(card.id, -1));
+      upBtn.title = 'Subir en esta categoría';
+      upBtn.disabled = idxInCat <= 0;
+      upBtn.addEventListener('click', () => moveCardOrderInCategory(card.id, -1));
 
       const downBtn = document.createElement('button');
       downBtn.type = 'button';
       downBtn.className = 'btn btn--ghost btn--sm reorder-btn';
       downBtn.textContent = '↓';
-      downBtn.title = 'Bajar posición';
-      downBtn.disabled = visibleIdx >= visibleTotal - 1;
-      downBtn.addEventListener('click', () => moveCardOrder(card.id, 1));
+      downBtn.title = 'Bajar en esta categoría';
+      downBtn.disabled = idxInCat >= catTotal - 1;
+      downBtn.addEventListener('click', () => moveCardOrderInCategory(card.id, 1));
 
       actions.append(upBtn, downBtn);
     }
@@ -3669,6 +3816,8 @@ function renderManageCardsList() {
     delBtn.textContent = 'Borrar';
     delBtn.addEventListener('click', async () => {
       state.cards = state.cards.filter((c) => c.id !== card.id);
+      state.selectedVisibleIds.delete(card.id);
+      state.selectedHiddenIds.delete(card.id);
       renderAllViews();
       await removeCard(card.id);
     });
@@ -3678,26 +3827,93 @@ function renderManageCardsList() {
     return item;
   };
 
-  dom.manageVisibleList.innerHTML = '';
-  const filteredVisible = allVisible.filter(matchesQuery);
-  if (filteredVisible.length === 0) {
-    dom.manageVisibleList.innerHTML =
-      '<p class="muted-text" style="padding: 12px 6px;">Arrastrá tarjetas acá o tocá "👁️ Mostrar" para que aparezcan en el Comunicador.</p>';
-  } else {
-    filteredVisible.forEach((card) => {
-      const realIdx = allVisible.findIndex((c) => c.id === card.id);
-      dom.manageVisibleList.appendChild(buildCardRow(card, false, realIdx, allVisible.length));
-    });
-  }
+  const renderGroupedColumn = (container, list, isHidden, emptyMsg) => {
+    container.innerHTML = '';
+    const filtered = list.filter(matchesQuery);
+    if (filtered.length === 0) {
+      container.innerHTML = `<p class="muted-text" style="padding: 12px 6px;">${emptyMsg}</p>`;
+      return;
+    }
 
-  dom.manageHiddenList.innerHTML = '';
-  const filteredHidden = allHidden.filter(matchesQuery);
-  if (filteredHidden.length === 0) {
-    dom.manageHiddenList.innerHTML =
-      '<p class="muted-text" style="padding: 12px 6px;">Arrastrá acá las tarjetas que quieras ocultar sin borrarlas.</p>';
-  } else {
-    filteredHidden.forEach((card) => dom.manageHiddenList.appendChild(buildCardRow(card, true, 0, 0)));
-  }
+    const selSet = isHidden ? state.selectedHiddenIds : state.selectedVisibleIds;
+    // Mostrar solo categorías que tengan al menos 1 tarjeta en esta columna
+    orderedCats.forEach((cat, catIdx) => {
+      const groupCards = filtered.filter((c) => c.category === cat.id);
+      if (groupCards.length === 0) return;
+
+      const groupEl = document.createElement('div');
+      groupEl.className = 'cat-group';
+
+      const head = document.createElement('div');
+      head.className = 'cat-group__head';
+
+      const left = document.createElement('div');
+      left.className = 'cat-group__left';
+
+      const groupChk = document.createElement('input');
+      groupChk.type = 'checkbox';
+      groupChk.className = 'card-select-chk';
+      groupChk.checked = groupCards.every((c) => selSet.has(c.id));
+      groupChk.title = `Seleccionar toda la categoría ${cat.label}`;
+      groupChk.addEventListener('change', () => {
+        groupCards.forEach((c) => {
+          if (groupChk.checked) selSet.add(c.id);
+          else selSet.delete(c.id);
+        });
+        renderManageCardsList();
+      });
+
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = `${cat.label} (${groupCards.length})`;
+      left.append(groupChk, titleSpan);
+
+      const right = document.createElement('div');
+      right.className = 'cat-group__actions';
+
+      // En Visibles, permitir ordenar las categorías (subir/bajar prioridad en el Comunicador)
+      if (!isHidden) {
+        const catUp = document.createElement('button');
+        catUp.type = 'button';
+        catUp.className = 'btn btn--ghost btn--sm reorder-btn';
+        catUp.textContent = '↑';
+        catUp.title = `Subir categoría "${cat.label}"`;
+        catUp.disabled = catIdx <= 0;
+        catUp.addEventListener('click', () => moveCategoryOrder(cat.id, -1));
+
+        const catDown = document.createElement('button');
+        catDown.type = 'button';
+        catDown.className = 'btn btn--ghost btn--sm reorder-btn';
+        catDown.textContent = '↓';
+        catDown.title = `Bajar categoría "${cat.label}"`;
+        catDown.disabled = catIdx >= orderedCats.length - 1;
+        catDown.addEventListener('click', () => moveCategoryOrder(cat.id, 1));
+
+        right.append(catUp, catDown);
+      }
+
+      head.append(left, right);
+      groupEl.appendChild(head);
+
+      groupCards.forEach((card, idx) => {
+        groupEl.appendChild(buildCardRow(card, isHidden, idx, groupCards.length));
+      });
+
+      container.appendChild(groupEl);
+    });
+  };
+
+  renderGroupedColumn(
+    dom.manageVisibleList,
+    allVisible,
+    false,
+    'Arrastrá tarjetas acá o tocá "👁️ Mostrar" para que aparezcan en el Comunicador.'
+  );
+  renderGroupedColumn(
+    dom.manageHiddenList,
+    allHidden,
+    true,
+    'Arrastrá acá las tarjetas que quieras ocultar sin borrarlas.'
+  );
 }
 
 function renderManageQuestionsList() {

@@ -741,4 +741,59 @@
   font-weight: 800;
 }
 
+#family-shell .cards-col-bulkbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#family-shell .cat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#family-shell .cat-group__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid #26354d;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #7dd3fc;
+}
+
+#family-shell .cat-group__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#family-shell .cat-group__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#family-shell .card-select-chk {
+  width: 18px;
+  height: 18px;
+  accent-color: #38bdf8;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+#family-shell .manage-item--selected {
+  border-color: rgba(56, 189, 248, 0.7) !important;
+  background: rgba(14, 165, 233, 0.14) !important;
+}
+
+
 
