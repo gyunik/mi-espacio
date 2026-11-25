@@ -365,7 +365,15 @@ function cacheDom() {
   dom.btnTestVoice = document.getElementById('btn-test-voice');
   dom.btnCancelEdit = document.getElementById('btn-cancel-edit');
   dom.cardsCount = document.getElementById('cards-count');
-  dom.manageCardsList = document.getElementById('manage-cards-list');
+  dom.manageCardsSearch = document.getElementById('manage-cards-search');
+  dom.btnShowAllCards = document.getElementById('btn-show-all-cards');
+  dom.btnHideAllCards = document.getElementById('btn-hide-all-cards');
+  dom.dropzoneVisible = document.getElementById('dropzone-visible');
+  dom.dropzoneHidden = document.getElementById('dropzone-hidden');
+  dom.visibleCardsCount = document.getElementById('visible-cards-count');
+  dom.hiddenCardsCount = document.getElementById('hidden-cards-count');
+  dom.manageVisibleList = document.getElementById('manage-visible-list');
+  dom.manageHiddenList = document.getElementById('manage-hidden-list');
 
   // Preguntas del día
   dom.questionForm = document.getElementById('question-form');
@@ -1431,10 +1439,11 @@ function renderCategories() {
 }
 
 function renderCardsGrid() {
+  const visibleCards = state.cards.filter((c) => !c.hidden);
   const filtered =
     state.activeCategory === 'all'
-      ? state.cards
-      : state.cards.filter((c) => c.category === state.activeCategory);
+      ? visibleCards
+      : visibleCards.filter((c) => c.category === state.activeCategory);
 
   dom.cardsGrid.innerHTML = '';
 
@@ -2317,6 +2326,10 @@ function bindFamilyMode() {
     const text = dom.cardText.value.trim();
     if (!text) return;
 
+    const existingCard = state.form.editingId
+      ? state.cards.find((c) => c.id === state.form.editingId)
+      : null;
+
     await saveCard({
       id: state.form.editingId || undefined,
       text,
@@ -2324,11 +2337,60 @@ function bindFamilyMode() {
       icon: state.form.selectedIcon,
       imageData: state.form.imageData,
       audioData: state.form.audioData,
+      hidden: Boolean(existingCard?.hidden),
       authorRole: 'family'
     });
 
     resetCardForm();
     await refreshAllData();
+  });
+
+  // Organizar tarjetas: Drag & Drop + Filtro + Mostrar/Ocultar todas
+  dom.manageCardsSearch?.addEventListener('input', () => {
+    renderManageCardsList();
+  });
+
+  const bindCardDropzone = (zoneEl, targetHidden) => {
+    if (!zoneEl) return;
+    zoneEl.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      zoneEl.classList.add('is-drag-over');
+    });
+    zoneEl.addEventListener('dragleave', (e) => {
+      if (!zoneEl.contains(e.relatedTarget)) {
+        zoneEl.classList.remove('is-drag-over');
+      }
+    });
+    zoneEl.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      zoneEl.classList.remove('is-drag-over');
+      const cardId = e.dataTransfer.getData('text/plain');
+      if (cardId) {
+        await setCardHidden(cardId, targetHidden);
+      }
+    });
+  };
+
+  bindCardDropzone(dom.dropzoneVisible, false);
+  bindCardDropzone(dom.dropzoneHidden, true);
+
+  dom.btnShowAllCards?.addEventListener('click', async () => {
+    const toUpdate = state.cards.filter((c) => c.hidden);
+    if (toUpdate.length === 0) return;
+    toUpdate.forEach((c) => (c.hidden = false));
+    renderManageCardsList();
+    renderCardsGrid();
+    await Promise.all(toUpdate.map((c) => saveCard({ ...c, hidden: false })));
+  });
+
+  dom.btnHideAllCards?.addEventListener('click', async () => {
+    const toUpdate = state.cards.filter((c) => !c.hidden);
+    if (toUpdate.length === 0) return;
+    toUpdate.forEach((c) => (c.hidden = true));
+    renderManageCardsList();
+    renderCardsGrid();
+    await Promise.all(toUpdate.map((c) => saveCard({ ...c, hidden: true })));
   });
 
   // Preguntas rápidas del día
@@ -3008,17 +3070,64 @@ function renderIconPicker() {
   updateIconPreview(state.form.selectedIcon);
 }
 
+async function setCardHidden(cardId, isHidden) {
+  const card = state.cards.find((c) => c.id === cardId);
+  if (!card || Boolean(card.hidden) === Boolean(isHidden)) return;
+  card.hidden = Boolean(isHidden);
+  renderManageCardsList();
+  renderCardsGrid();
+  await saveCard({ ...card, hidden: Boolean(isHidden) });
+}
+
 function renderManageCardsList() {
   dom.cardsCount.textContent = String(state.cards.length);
-  dom.manageCardsList.innerHTML = '';
-  const catMap = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.label]));
+  if (!dom.manageVisibleList || !dom.manageHiddenList) return;
 
-  state.cards.forEach((card) => {
+  const q = (dom.manageCardsSearch?.value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+  const catMap = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.label]));
+  const matchesQuery = (card) => {
+    if (!q) return true;
+    const hay = `${card.text} ${catMap[card.category] || card.category}`
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    return hay.includes(q);
+  };
+
+  const allVisible = state.cards.filter((c) => !c.hidden);
+  const allHidden = state.cards.filter((c) => Boolean(c.hidden));
+  if (dom.visibleCardsCount) dom.visibleCardsCount.textContent = String(allVisible.length);
+  if (dom.hiddenCardsCount) dom.hiddenCardsCount.textContent = String(allHidden.length);
+
+  const buildCardRow = (card, isHidden) => {
     const item = document.createElement('div');
-    item.className = 'manage-item';
+    item.className = 'manage-item manage-item--draggable';
+    item.draggable = true;
+    item.dataset.cardId = card.id;
+
+    item.addEventListener('dragstart', (e) => {
+      item.classList.add('is-dragging');
+      e.dataTransfer.setData('text/plain', card.id);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('is-dragging');
+      dom.dropzoneVisible?.classList.remove('is-drag-over');
+      dom.dropzoneHidden?.classList.remove('is-drag-over');
+    });
 
     const info = document.createElement('div');
     info.className = 'manage-item__info';
+
+    const handle = document.createElement('span');
+    handle.className = 'drag-handle';
+    handle.textContent = '⋮⋮';
+    handle.title = 'Arrastrar a la otra columna';
 
     const thumb = document.createElement('div');
     thumb.className = 'manage-item__thumb';
@@ -3041,10 +3150,16 @@ function renderManageCardsList() {
     sub.textContent = catMap[card.category] || card.category;
 
     txtWrap.append(title, sub);
-    info.append(thumb, txtWrap);
+    info.append(handle, thumb, txtWrap);
 
     const actions = document.createElement('div');
     actions.className = 'manage-item__actions';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = isHidden ? 'btn btn--emerald btn--sm' : 'btn btn--ghost btn--sm';
+    toggleBtn.textContent = isHidden ? '👁️ Mostrar' : '🙈 Ocultar';
+    toggleBtn.addEventListener('click', () => setCardHidden(card.id, !isHidden));
 
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
@@ -3061,10 +3176,28 @@ function renderManageCardsList() {
       await refreshAllData();
     });
 
-    actions.append(editBtn, delBtn);
+    actions.append(toggleBtn, editBtn, delBtn);
     item.append(info, actions);
-    dom.manageCardsList.appendChild(item);
-  });
+    return item;
+  };
+
+  dom.manageVisibleList.innerHTML = '';
+  const filteredVisible = allVisible.filter(matchesQuery);
+  if (filteredVisible.length === 0) {
+    dom.manageVisibleList.innerHTML =
+      '<p class="muted-text" style="padding: 12px 6px;">Arrastrá tarjetas acá o tocá "👁️ Mostrar" para que aparezcan en el Comunicador.</p>';
+  } else {
+    filteredVisible.forEach((card) => dom.manageVisibleList.appendChild(buildCardRow(card, false)));
+  }
+
+  dom.manageHiddenList.innerHTML = '';
+  const filteredHidden = allHidden.filter(matchesQuery);
+  if (filteredHidden.length === 0) {
+    dom.manageHiddenList.innerHTML =
+      '<p class="muted-text" style="padding: 12px 6px;">Arrastrá acá las tarjetas que quieras ocultar sin borrarlas.</p>';
+  } else {
+    filteredHidden.forEach((card) => dom.manageHiddenList.appendChild(buildCardRow(card, true)));
+  }
 }
 
 function renderManageQuestionsList() {

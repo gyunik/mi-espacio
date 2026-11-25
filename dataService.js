@@ -422,6 +422,7 @@ export async function saveCard(card) {
     icon: card.icon || '💬',
     imageData: card.imageData || null,
     audioData: card.audioData || null,
+    hidden: Boolean(card.hidden),
     authorRole: card.authorRole || 'family',
     createdAt: card.createdAt || Date.now()
   };

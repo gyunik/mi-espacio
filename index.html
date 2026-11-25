@@ -665,8 +665,39 @@
         </form>
 
         <div class="panel">
-          <h2 class="panel__title">Tarjetas en el Tablero (<span id="cards-count">0</span>)</h2>
-          <div id="manage-cards-list" class="manage-list"></div>
+          <div class="cards-board-header">
+            <div>
+              <h2 class="panel__title" style="margin: 0;">Organizar Tarjetas (<span id="cards-count">0</span>)</h2>
+              <p class="muted-text" style="margin: 4px 0 0; font-size: 0.82rem;">
+                Arrastrá tarjetas entre columnas o tocá <strong>Ocultar / Mostrar</strong> sin borrarlas. Se sincroniza al instante en el Comunicador.
+              </p>
+            </div>
+            <div class="pin-row" style="flex-wrap: wrap;">
+              <input id="manage-cards-search" type="text" class="input" placeholder="Filtrar tarjetas..." style="min-width: 170px;" />
+              <button type="button" id="btn-show-all-cards" class="btn btn--ghost btn--sm">👁️ Mostrar todas</button>
+              <button type="button" id="btn-hide-all-cards" class="btn btn--ghost btn--sm">🙈 Ocultar todas</button>
+            </div>
+          </div>
+
+          <div class="cards-split-grid">
+            <!-- Columna 1: Visibles en el Comunicador -->
+            <div id="dropzone-visible" class="cards-dropzone cards-dropzone--visible" data-drop-target="visible">
+              <div class="cards-dropzone__head">
+                <span>👁️ Visibles en el Comunicador</span>
+                <span id="visible-cards-count" class="stitch-pill stitch-pill--green">0</span>
+              </div>
+              <div id="manage-visible-list" class="manage-list cards-dropzone__list"></div>
+            </div>
+
+            <!-- Columna 2: Ocultas / Guardadas -->
+            <div id="dropzone-hidden" class="cards-dropzone cards-dropzone--hidden" data-drop-target="hidden">
+              <div class="cards-dropzone__head">
+                <span>🙈 Ocultas / Guardadas</span>
+                <span id="hidden-cards-count" class="stitch-pill stitch-pill--sky">0</span>
+              </div>
+              <div id="manage-hidden-list" class="manage-list cards-dropzone__list"></div>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -631,3 +631,90 @@
   font-size: 1.02rem;
   padding: 10px 18px;
 }
+
+/* Tablero 2 columnas Drag & Drop (Visibles vs Ocultas) en Tarjetas y Voces */
+#family-shell .cards-board-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+#family-shell .cards-split-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 860px) {
+  #family-shell .cards-split-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+#family-shell .cards-dropzone {
+  background: #172033;
+  border: 2px dashed #1e293b;
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+#family-shell .cards-dropzone--visible {
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+#family-shell .cards-dropzone--hidden {
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+#family-shell .cards-dropzone.is-drag-over {
+  border-color: #38bdf8;
+  background: rgba(14, 165, 233, 0.1);
+}
+
+#family-shell .cards-dropzone__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #1e293b;
+}
+
+#family-shell .cards-dropzone__list {
+  max-height: 540px;
+  overflow-y: auto;
+  padding-right: 4px;
+  min-height: 120px;
+}
+
+#family-shell .manage-item--draggable {
+  cursor: grab;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+#family-shell .manage-item--draggable:active {
+  cursor: grabbing;
+}
+
+#family-shell .manage-item--draggable.is-dragging {
+  opacity: 0.45;
+}
+
+#family-shell .drag-handle {
+  color: #64748b;
+  font-size: 1rem;
+  user-select: none;
+  margin-right: 2px;
+}
+
