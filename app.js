@@ -487,7 +487,6 @@ function cacheDom() {
   dom.newsTvTitle = document.getElementById('news-tv-title');
   dom.newsTvIframe = document.getElementById('news-tv-iframe');
   dom.newsTvChannelsBar = document.getElementById('news-tv-channels-bar');
-  dom.newsTvExternalLink = document.getElementById('news-tv-external-link');
   dom.btnCloseNewsTv = document.getElementById('btn-close-news-tv');
 
   // Controles adicionales del rediseño Stitch
@@ -1681,9 +1680,6 @@ function bindPhraseBar() {
     if (dom.newsTvTitle) dom.newsTvTitle.textContent = ch.name;
     if (dom.newsTvIframe) {
       dom.newsTvIframe.src = `https://www.youtube.com/embed/live_stream?channel=${encodeURIComponent(ch.channelId)}&autoplay=1&rel=0&modestbranding=1&hl=es`;
-    }
-    if (dom.newsTvExternalLink) {
-      dom.newsTvExternalLink.href = `https://www.youtube.com/${ch.handle}/live`;
     }
     dom.newsTvChannelsBar?.querySelectorAll('.news-tv-ch-btn').forEach((btn) => {
       btn.classList.toggle('is-active', btn.dataset.channelId === ch.id);
