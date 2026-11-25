@@ -47,14 +47,24 @@
 }
 
 .landing-brand__icon {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
-  background-color: #222a3d;
+  background-color: #0d1526;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #48efef;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+}
+
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
 }
 
 .landing-brand__text {
@@ -190,15 +200,17 @@
 }
 
 .landing-hero__icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
-  background-color: #171f33;
+  width: 78px;
+  height: 78px;
+  border-radius: 20px;
+  background-color: #0d1526;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 20px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .landing-hero__title {

@@ -39,14 +39,16 @@
 #family-shell .fam-brand__icon {
   width: 48px;
   height: 48px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #0284c7, #2dd4bf);
+  border-radius: 14px;
+  background-color: #0d1526;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   font-size: 1.45rem;
-  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.25);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.22);
   flex-shrink: 0;
 }
 

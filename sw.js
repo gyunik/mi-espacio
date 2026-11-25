@@ -3,7 +3,7 @@
  * Cachea el App Shell para funcionamiento offline en Android / iOS / Desktop.
  */
 
-const CACHE_NAME = 'mi-espacio-v52';
+const CACHE_NAME = 'mi-espacio-v53';
 const APP_SHELL = [
   './',
   './index.html',
@@ -18,7 +18,8 @@ const APP_SHELL = [
   './seniorServices.js',
   './speech.js',
   './manifest.json',
-  './icons/icon.svg'
+  './icons/logo-192.png',
+  './icons/logo-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -78,8 +79,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      icon: './icons/icon.svg',
-      badge: './icons/icon.svg',
+      icon: './icons/logo-192.png',
+      badge: './icons/logo-192.png',
       tag: 'mi-espacio-push',
       renotify: true,
       requireInteraction: true,
