@@ -447,11 +447,21 @@
         </div>
 
         <div class="push-modal__hero">
+          <div id="teen-ready-badge" class="voice-ready-badge">⏳ Preparando micrófono...</div>
           <div class="push-modal__visual push-modal__visual--sm">
-            <img src="./assets/cards/audio-familia.svg" alt="Grabando mensaje de voz" />
+            <div id="teen-voice-orb" class="voice-orb" aria-hidden="true">
+              <div class="voice-orb__bars">
+                <span class="voice-orb__bar voice-orb__bar--sky"></span>
+                <span class="voice-orb__bar voice-orb__bar--emerald"></span>
+                <span class="voice-orb__bar voice-orb__bar--sky"></span>
+                <span class="voice-orb__bar voice-orb__bar--emerald"></span>
+                <span class="voice-orb__bar voice-orb__bar--sky"></span>
+              </div>
+            </div>
           </div>
-          <h2 id="teen-record-title" class="push-modal__title">Grabando tu mensaje...</h2>
-          <p id="teen-record-status" class="muted-text">Hablá tranquilo/a y tocá Enviar cuando termines.</p>
+          <h2 id="teen-record-title" class="push-modal__title">Preparando micrófono...</h2>
+          <p id="teen-record-status" class="muted-text">Esperá un segundo a que aparezca la señal verde.</p>
+          <div id="teen-live-transcript" class="teen-transcript-box" hidden></div>
         </div>
 
         <button type="button" id="btn-teen-send-voice" class="btn btn--emerald btn--lg reply-play-btn">
@@ -826,13 +836,19 @@
               </div>
             </label>
 
-            <label class="stitch-toggle-card" for="setting-teen-voice-msg">
-              <input id="setting-teen-voice-msg" type="checkbox" checked />
-              <div>
-                <span class="stitch-toggle-card__title">Mostrar tarjeta "🎙️ Hablar a Familia"</span>
-                <span class="stitch-toggle-card__desc">Tarjeta grande en la grilla para mandar un mensaje hablado corto a la familia con 1 toque.</span>
-              </div>
-            </label>
+            <div class="stitch-toggle-card" style="flex-direction: column; gap: 10px; cursor: default;">
+              <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; width: 100%;" for="setting-teen-voice-msg">
+                <input id="setting-teen-voice-msg" type="checkbox" checked />
+                <div>
+                  <span class="stitch-toggle-card__title">Mostrar tarjeta "🎙️ Hablar a Familia"</span>
+                  <span class="stitch-toggle-card__desc">Tarjeta grande en la grilla para mandar un mensaje hablado corto a la familia con 1 toque.</span>
+                </div>
+              </label>
+              <select id="setting-teen-voice-mode" class="select" aria-label="Modo de Hablar a Familia" style="width: 100%; font-size: 0.84rem;">
+                <option value="audio">🎙️ Nota de voz (audio real + barras animadas)</option>
+                <option value="transcript">🗣️ Voz a texto (transcripción en vivo en pantalla)</option>
+              </select>
+            </div>
           </div>
         </div>
 

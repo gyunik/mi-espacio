@@ -49,6 +49,7 @@ export const DEFAULT_SETTINGS = {
   showPhraseBar: true,
   notifyFamilyOnTap: true,
   allowTeenVoiceMessage: true,
+  teenVoiceMode: 'audio', // 'audio' | 'transcript'
   musicCategory: 'calma', // 'calma' | 'ritmo' | 'noche' | 'off'
   musicVolume: 0.65,
   enableRadioCard: false,

@@ -237,6 +237,7 @@ export async function startVoiceRecording() {
   recorder.start();
 
   return {
+    stream,
     stop: () =>
       new Promise((resolve, reject) => {
         recorder.onstop = () => {
@@ -255,6 +256,53 @@ export async function startVoiceRecording() {
           recorder.stop();
         }
       })
+  };
+}
+
+/**
+ * Conecta un analizador de volumen en tiempo real al stream del micrófono
+ * y entrega 5 niveles normalizados (0..1) para animar barras de voz.
+ */
+export function createVoiceLevelMeter(stream, onLevels) {
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx || !stream) return { stop: () => {} };
+
+  let rafId = null;
+  let stopped = false;
+  let ctx = null;
+
+  try {
+    ctx = new AudioCtx();
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 128;
+    analyser.smoothingTimeConstant = 0.72;
+    source.connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    // 5 bandas distribuidas en frecuencias de voz humana
+    const binIndices = [2, 5, 9, 14, 20];
+
+    const tick = () => {
+      if (stopped) return;
+      analyser.getByteFrequencyData(data);
+      const levels = binIndices.map((idx) => Math.min(1, (data[idx] || 0) / 170));
+      onLevels(levels);
+      rafId = requestAnimationFrame(tick);
+    };
+    tick();
+  } catch {
+    return { stop: () => {} };
+  }
+
+  return {
+    stop: () => {
+      stopped = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      if (ctx && ctx.state !== 'closed') {
+        ctx.close().catch(() => {});
+      }
+    }
   };
 }
 

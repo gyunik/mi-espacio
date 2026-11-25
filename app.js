@@ -13,6 +13,7 @@ import {
   stopAllAudio,
   isAudioRecordingSupported,
   startVoiceRecording,
+  createVoiceLevelMeter,
   startLiveTranscript
 } from './speech.js';
 
@@ -149,8 +150,12 @@ const state = {
   },
   teenVoice: {
     recorder: null,
+    meter: null,
+    transcriber: null,
+    transcriptText: '',
     isRecording: false,
-    autoStopTimer: null
+    autoStopTimer: null,
+    tickInterval: null
   },
   music: {
     audio: null,
@@ -397,6 +402,12 @@ function cacheDom() {
   dom.rateValue = document.getElementById('rate-value');
   dom.settingPhraseBar = document.getElementById('setting-phrase-bar');
   dom.settingTeenVoiceMsg = document.getElementById('setting-teen-voice-msg');
+  dom.settingTeenVoiceMode = document.getElementById('setting-teen-voice-mode');
+  dom.teenReadyBadge = document.getElementById('teen-ready-badge');
+  dom.teenVoiceOrb = document.getElementById('teen-voice-orb');
+  dom.teenVoiceBars = document.querySelectorAll('#teen-voice-orb .voice-orb__bar');
+  dom.teenRecordTimer = document.getElementById('teen-record-timer');
+  dom.teenLiveTranscript = document.getElementById('teen-live-transcript');
   dom.settingMusicCategory = document.getElementById('setting-music-category');
   dom.btnTestMusic = document.getElementById('btn-test-music');
   dom.musicPreviewStatus = document.getElementById('music-preview-status');
@@ -656,6 +667,9 @@ function startBoardSubscription() {
       const updates = {};
       if (typeof remoteSettings.allowTeenVoiceMessage === 'boolean') {
         updates.allowTeenVoiceMessage = remoteSettings.allowTeenVoiceMessage;
+      }
+      if (typeof remoteSettings.teenVoiceMode === 'string') {
+        updates.teenVoiceMode = remoteSettings.teenVoiceMode;
       }
       if (typeof remoteSettings.musicCategory === 'string') {
         updates.musicCategory = remoteSettings.musicCategory;
@@ -1107,12 +1121,59 @@ function bindPhraseBar() {
     }
   });
 
-  // Botón de mensaje hablado del adolescente (1 toque para grabar, 1 toque para enviar)
-  const closeTeenVoiceModal = async (shouldSend) => {
+  // Botón/tarjeta de mensaje hablado del adolescente (barras animadas + aviso "Ya podés hablar" + modo transcripción opcional)
+  const resetTeenVoiceVisuals = () => {
     clearTimeout(state.teenVoice.autoStopTimer);
+    clearInterval(state.teenVoice.tickInterval);
+    if (state.teenVoice.meter) {
+      state.teenVoice.meter.stop();
+      state.teenVoice.meter = null;
+    }
+    if (dom.teenVoiceOrb) {
+      dom.teenVoiceOrb.classList.remove('is-live', 'is-pulsing');
+    }
+    dom.teenVoiceBars?.forEach((bar) => {
+      bar.style.height = '16px';
+    });
+  };
+
+  const closeTeenVoiceModal = async (shouldSend) => {
+    resetTeenVoiceVisuals();
     const rec = state.teenVoice.recorder;
+    const tr = state.teenVoice.transcriber;
+    const spokenText = (state.teenVoice.transcriptText || '').trim();
     state.teenVoice.recorder = null;
+    state.teenVoice.transcriber = null;
+    state.teenVoice.transcriptText = '';
     state.teenVoice.isRecording = false;
+
+    if (tr) {
+      try { tr.stop(); } catch {}
+      if (shouldSend) {
+        if (!spokenText) {
+          dom.commSentStatus.textContent = 'No se detectó voz para enviar. Probá hablar un poco más cerca.';
+          dom.commSentStatus.hidden = false;
+        } else {
+          dom.teenRecordTitle.textContent = 'Enviando mensaje...';
+          dom.btnTeenSendVoice.disabled = true;
+          try {
+            await sendTeenRequest({
+              label: spokenText,
+              category: 'mensaje_hablado',
+              audioData: null
+            });
+            dom.commSentStatus.textContent = `Enviado a Familia: "${spokenText}" ✓`;
+            dom.commSentStatus.hidden = false;
+          } catch {
+            dom.commSentStatus.textContent = 'No se pudo enviar el mensaje.';
+            dom.commSentStatus.hidden = false;
+          }
+          dom.btnTeenSendVoice.disabled = false;
+        }
+      }
+      dom.teenRecordModal.hidden = true;
+      return;
+    }
 
     if (rec && shouldSend) {
       dom.teenRecordTitle.textContent = 'Enviando mensaje...';
@@ -1139,26 +1200,113 @@ function bindPhraseBar() {
   };
 
   const openTeenVoiceModal = async () => {
+    const mode = state.settings.teenVoiceMode === 'transcript' ? 'transcript' : 'audio';
+
+    stopAllAudio();
+    resetTeenVoiceVisuals();
+    state.teenVoice.transcriptText = '';
+
+    // Estado inicial mientras abre el micrófono
+    if (dom.teenReadyBadge) {
+      dom.teenReadyBadge.textContent = '⏳ Preparando micrófono...';
+      dom.teenReadyBadge.classList.remove('is-ready');
+    }
+    dom.teenRecordTitle.textContent = 'Preparando micrófono...';
+    dom.teenRecordStatus.textContent = 'Esperá un segundo a que aparezca la señal verde.';
+    if (dom.teenRecordTimer) dom.teenRecordTimer.textContent = '0:00 / 0:15';
+    if (dom.teenLiveTranscript) {
+      dom.teenLiveTranscript.hidden = mode !== 'transcript';
+      dom.teenLiveTranscript.textContent = 'Lo que digas va a aparecer escrito acá...';
+    }
+    dom.btnTeenSendVoice.disabled = true;
+    dom.teenRecordModal.hidden = false;
+
+    const markReadyToSpeak = () => {
+      if (dom.teenReadyBadge) {
+        dom.teenReadyBadge.textContent = '🟢 ¡Ya podés hablar!';
+        dom.teenReadyBadge.classList.add('is-ready');
+      }
+      dom.teenRecordTitle.textContent = 'Te estamos escuchando...';
+      dom.teenRecordStatus.textContent = 'Hablá tranquilo/a y tocá "Enviar" cuando termines.';
+      if (dom.teenVoiceOrb) dom.teenVoiceOrb.classList.add('is-live');
+      dom.btnTeenSendVoice.disabled = false;
+
+      let secs = 0;
+      state.teenVoice.tickInterval = setInterval(() => {
+        secs += 1;
+        if (dom.teenRecordTimer) {
+          dom.teenRecordTimer.textContent = `0:${String(secs).padStart(2, '0')} / 0:15`;
+        }
+      }, 1000);
+    };
+
+    if (mode === 'transcript') {
+      const transcriber = startLiveTranscript({
+        lang: 'es-AR',
+        onUpdate: (text) => {
+          state.teenVoice.transcriptText = text;
+          if (dom.teenLiveTranscript) {
+            dom.teenLiveTranscript.textContent = text || 'Escuchando...';
+          }
+        },
+        onError: () => {
+          dom.teenRecordStatus.textContent = 'No se pudo transcribir en este navegador. Probá el modo Nota de voz en Ajustes.';
+        },
+        onEnd: () => {
+          if (dom.teenVoiceOrb) dom.teenVoiceOrb.classList.remove('is-pulsing');
+        }
+      });
+
+      if (!transcriber) {
+        dom.teenRecordModal.hidden = true;
+        dom.commSentStatus.textContent = 'Este navegador no soporta transcripción en vivo. Cambiá a "Nota de voz" en Ajustes.';
+        dom.commSentStatus.hidden = false;
+        return;
+      }
+
+      state.teenVoice.transcriber = transcriber;
+      state.teenVoice.isRecording = true;
+      if (dom.teenVoiceOrb) dom.teenVoiceOrb.classList.add('is-pulsing');
+      markReadyToSpeak();
+
+      state.teenVoice.autoStopTimer = setTimeout(() => {
+        if (state.teenVoice.isRecording) closeTeenVoiceModal(true);
+      }, 15000);
+      return;
+    }
+
+    // Modo por defecto: Nota de voz real con barras animadas en vivo por volumen del micrófono
     if (!isAudioRecordingSupported()) {
+      dom.teenRecordModal.hidden = true;
       dom.commSentStatus.textContent = 'Tu navegador no permite grabar audio.';
       dom.commSentStatus.hidden = false;
       return;
     }
     try {
-      stopAllAudio();
-      dom.teenRecordTitle.textContent = 'Grabando tu mensaje...';
-      dom.teenRecordStatus.textContent = 'Hablá tranquilo/a y tocá Enviar cuando termines.';
-      dom.btnTeenSendVoice.disabled = false;
-      dom.teenRecordModal.hidden = false;
-
-      state.teenVoice.recorder = await startVoiceRecording();
+      const rec = await startVoiceRecording();
+      state.teenVoice.recorder = rec;
       state.teenVoice.isRecording = true;
+
+      if (rec.stream && dom.teenVoiceBars?.length) {
+        const baseHeights = [14, 18, 22, 18, 14];
+        state.teenVoice.meter = createVoiceLevelMeter(rec.stream, (levels) => {
+          dom.teenVoiceBars.forEach((bar, i) => {
+            const lvl = levels[i] || 0;
+            const h = Math.round(baseHeights[i] + lvl * 42);
+            bar.style.height = `${Math.min(60, h)}px`;
+          });
+        });
+      }
+
+      markReadyToSpeak();
+
       state.teenVoice.autoStopTimer = setTimeout(() => {
         if (state.teenVoice.isRecording) {
           closeTeenVoiceModal(true);
         }
       }, 15000);
     } catch {
+      resetTeenVoiceVisuals();
       dom.teenRecordModal.hidden = true;
       dom.commSentStatus.textContent = 'Necesitás permitir el micrófono para enviar mensajes hablados.';
       dom.commSentStatus.hidden = false;
@@ -2577,7 +2725,15 @@ function bindFamilyMode() {
     const enabled = dom.settingTeenVoiceMsg.checked;
     state.settings = saveSettings({ allowTeenVoiceMessage: enabled });
     applySettingsToUI();
+    renderCardsGrid();
     await saveBoardPreference({ allowTeenVoiceMessage: enabled });
+  });
+
+  dom.settingTeenVoiceMode?.addEventListener('change', async () => {
+    const mode = dom.settingTeenVoiceMode.value === 'transcript' ? 'transcript' : 'audio';
+    state.settings = saveSettings({ teenVoiceMode: mode });
+    applySettingsToUI();
+    await saveBoardPreference({ teenVoiceMode: mode });
   });
 
   const playMusicPreviewTrack = (index) => {
@@ -3798,6 +3954,10 @@ function applySettingsToUI() {
 
   const allowVoice = state.settings.allowTeenVoiceMessage !== false;
   if (dom.settingTeenVoiceMsg) dom.settingTeenVoiceMsg.checked = allowVoice;
+  if (dom.settingTeenVoiceMode) {
+    dom.settingTeenVoiceMode.value = state.settings.teenVoiceMode === 'transcript' ? 'transcript' : 'audio';
+    dom.settingTeenVoiceMode.disabled = !allowVoice;
+  }
   if (dom.btnTeenVoiceMsg) dom.btnTeenVoiceMsg.hidden = !allowVoice;
 
   const musicCat = state.settings.musicCategory || 'calma';
