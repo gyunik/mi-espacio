@@ -41,9 +41,65 @@ export const MUSIC_THEMATIC_GENRES = [
   { id: 'lofi', label: '🎧 Lo-Fi y Concentración', tag: 'lofi' }
 ];
 
+export const CURATED_MUSIC_STATIONS = {
+  chillout: [
+    { name: 'Classic FM Calm (Piano y Relajación)', url: 'https://media-ice.musicradio.com/ClassicFMCalmMP3', country: 'GB' },
+    { name: 'Smooth Chill', url: 'https://media-ssl.musicradio.com/ChillMP3', country: 'GB' },
+    { name: '0N Relax', url: 'https://0n-relax.radionetz.de/0n-relax.aac', country: 'DE' },
+    { name: '0N Chillout', url: 'https://0n-chillout.radionetz.de/0n-chillout.aac', country: 'DE' }
+  ],
+  classical: [
+    { name: 'Radio Classique', url: 'https://radioclassique.ice.infomaniak.ch/radioclassique-high.mp3', country: 'FR' },
+    { name: 'Classic FM', url: 'https://media-ice.musicradio.com/ClassicFMMP3', country: 'GB' },
+    { name: '0N Klassik', url: 'https://0n-klassik.radionetz.de/0n-klassik.aac', country: 'DE' },
+    { name: 'WALM 2 HD Classical', url: 'https://icecast.walmradio.com:8443/walm2', country: 'US' }
+  ],
+  tango: [
+    { name: 'Argentine Tango Radio', url: 'https://ais-edge94-nyc04.cdnstream.com/2202_128.mp3', country: 'AR' },
+    { name: 'Radio Tango Uno', url: 'https://radiotangouno-online.pl/radio/8000/radio.mp3', country: 'PL' },
+    { name: 'Tango Berlin', url: 'https://tango.stream.laut.fm/tango', country: 'DE' }
+  ],
+  folklore: [
+    { name: 'Radio Nacional Folklórica FM 98.7', url: 'https://sa.mp3.icecast.magma.edge-access.net/sc_rad38', country: 'AR' },
+    { name: 'El Club de la Pluma (Folklore)', url: 'https://streaming01.shockmedia.com.ar:10728/stream', country: 'AR' },
+    { name: 'Radio UTN Córdoba FM 94.3', url: 'https://01.solumedia.com.ar:8200/stream', country: 'AR' }
+  ],
+  rock_ar: [
+    { name: 'Cosquín Rock 95.5', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/cosquinrock.mp3', country: 'AR' },
+    { name: 'Pobre Johnny (Rock Nacional)', url: 'https://stream4.suenas.net/pobrejohnny', country: 'AR' },
+    { name: 'Rock & Metal', url: 'https://cesarradio.realserver.es/listen/rock_y_metal/radio.mp3', country: 'AR' }
+  ],
+  jazz: [
+    { name: 'Jazz Radio', url: 'https://jazzradio.ice.infomaniak.ch/jazzradio-high.mp3', country: 'FR' },
+    { name: 'Bossa Nova (Jazz Radio)', url: 'https://jazz-wr02.ice.infomaniak.ch/jazz-wr02-128.mp3', country: 'FR' },
+    { name: '0N Smooth Jazz', url: 'https://0n-smoothjazz.radionetz.de/0n-smoothjazz.aac', country: 'DE' },
+    { name: '0N Jazz', url: 'https://0n-jazz.radionetz.de/0n-jazz.aac', country: 'DE' }
+  ],
+  '80s': [
+    { name: 'Heart 80s', url: 'https://media-ssl.musicradio.com/Heart80sMP3', country: 'GB' },
+    { name: '80 Éxitos en Español', url: 'https://80sexitos.stream.laut.fm/80sexitos', country: 'ES' },
+    { name: 'RdMix Classic Rock 70s 80s 90s', url: 'https://cast1.torontocast.com:4610/stream', country: 'CA' }
+  ],
+  romantic: [
+    { name: 'Amor 95.3 (Baladas en Español)', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/XHSHFMAAC.aac', country: 'MX' },
+    { name: 'Romántica FM (Melódica)', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/ACIR10_S01AAC.aac', country: 'MX' },
+    { name: '0N Soft Pop', url: 'https://0n-softpop.radionetz.de/0n-softpop.aac', country: 'DE' }
+  ],
+  cumbia: [
+    { name: 'Cumbia Total', url: 'https://playerservices.streamtheworld.com/api/livestream-redirect/ACIR40_S01AAC.aac', country: 'MX' },
+    { name: 'Radio Cumbia Mix', url: 'https://mdstrm.com/audio/6598b6ab95a235085823b24f/icecast.audio', country: 'PE' },
+    { name: 'Radio Cumbia 90s', url: 'https://emiteradio.com/proxy/cumbia90s?mp=/stream', country: 'BO' }
+  ],
+  lofi: [
+    { name: '0N Lounge (Suave)', url: 'https://0n-lounge.radionetz.de/0n-lounge.aac', country: 'DE' },
+    { name: '4YOU.fm Lo-Fi', url: 'https://myradio24.org/2455', country: 'PL' },
+    { name: 'yojosuknam Lo-Fi Radio', url: 'https://stream.yojosuknam.com/live.mp3', country: 'KR' }
+  ]
+};
+
 /**
- * Carga estaciones musicales HTTPS (sin HLS) por género temático usando Radio Browser API.
- * No requiere pegar ninguna URL manualmente.
+ * Devuelve estaciones musicales HTTPS verificadas (HTTP 200 + audio real) por género temático.
+ * No requiere pegar ninguna URL manualmente y evita servidores que bloquean por Referer (403).
  */
 export async function loadMusicStationsByGenre(genreId) {
   const genre =
@@ -52,46 +108,9 @@ export async function loadMusicStationsByGenre(genreId) {
     return cachedGenreStations.get(genre.id);
   }
 
-  const encodedTag = encodeURIComponent(genre.tag);
-  const countryParam = genre.countrycode ? `&countrycode=${genre.countrycode}` : '';
-  const primaryUrls = RADIO_SERVERS.map(
-    (s) =>
-      `${s}/json/stations/search?tag=${encodedTag}${countryParam}&hidebroken=true&order=clickcount&reverse=true&limit=30`
-  );
-
-  let raw = [];
-  try {
-    raw = await fetchJsonWithFallback(primaryUrls);
-  } catch {
-    raw = [];
-  }
-
-  let filtered = filterHttpsStations(raw);
-
-  // Si se filtró por AR y hubo pocos resultados, ampliar búsqueda global del mismo género
-  if (genre.countrycode && filtered.length < 4) {
-    const fallbackUrls = RADIO_SERVERS.map(
-      (s) =>
-        `${s}/json/stations/search?tag=${encodedTag}&hidebroken=true&order=clickcount&reverse=true&limit=25`
-    );
-    try {
-      const extraRaw = await fetchJsonWithFallback(fallbackUrls);
-      const extra = filterHttpsStations(extraRaw);
-      const seen = new Set(filtered.map((st) => st.url));
-      extra.forEach((st) => {
-        if (!seen.has(st.url)) {
-          seen.add(st.url);
-          filtered.push(st);
-        }
-      });
-    } catch {}
-  }
-
-  const result = filtered.slice(0, 15);
-  if (result.length > 0) {
-    cachedGenreStations.set(genre.id, result);
-  }
-  return result;
+  const curated = CURATED_MUSIC_STATIONS[genre.id] || CURATED_MUSIC_STATIONS.chillout;
+  cachedGenreStations.set(genre.id, curated);
+  return curated;
 }
 
 function normalizeText(str) {
@@ -207,8 +226,8 @@ function filterHttpsStations(list) {
     const url = (st.url_resolved || st.url || '').trim();
     const name = (st.name || '').trim();
     if (!url.startsWith('https://') || !name) continue;
-    // Evitar playlists .pls/.m3u y streams HLS (.m3u8) que <audio> no reproduce directo en Chrome/Android
-    if (st.hls === 1 || /\.(pls|m3u|m3u8)(\?|$)/i.test(url)) continue;
+    // Evitar playlists .pls/.m3u, streams HLS (.m3u8) y hosts que bloquean por Referer (403)
+    if (st.hls === 1 || /\.(pls|m3u|m3u8)(\?|$)/i.test(url) || /somafm\.com/i.test(url)) continue;
     const key = `${name.toLowerCase()}|${url}`;
     if (seen.has(key)) continue;
     seen.add(key);
