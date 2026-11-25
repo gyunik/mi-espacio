@@ -2330,7 +2330,7 @@ function bindFamilyMode() {
       ? state.cards.find((c) => c.id === state.form.editingId)
       : null;
 
-    await saveCard({
+    const saved = await saveCard({
       id: state.form.editingId || undefined,
       text,
       category: dom.cardCategory.value,
@@ -2341,8 +2341,15 @@ function bindFamilyMode() {
       authorRole: 'family'
     });
 
+    const idx = state.cards.findIndex((c) => c.id === saved.id);
+    if (idx !== -1) {
+      state.cards[idx] = saved;
+    } else {
+      state.cards.push(saved);
+    }
+
     resetCardForm();
-    await refreshAllData();
+    renderAllViews();
   });
 
   // Organizar tarjetas: Drag & Drop + Filtro + Mostrar/Ocultar todas
@@ -3172,8 +3179,9 @@ function renderManageCardsList() {
     delBtn.className = 'btn btn--danger btn--sm';
     delBtn.textContent = 'Borrar';
     delBtn.addEventListener('click', async () => {
+      state.cards = state.cards.filter((c) => c.id !== card.id);
+      renderAllViews();
       await removeCard(card.id);
-      await refreshAllData();
     });
 
     actions.append(toggleBtn, editBtn, delBtn);
@@ -3534,8 +3542,10 @@ function renderAllViews() {
 }
 
 async function refreshAllData() {
-  state.cards = await getCards();
-  state.quickQuestions = await getQuickQuestions();
+  if (!state.firebaseReady) {
+    state.cards = await getCards();
+    state.quickQuestions = await getQuickQuestions();
+  }
   renderAllViews();
 }
 

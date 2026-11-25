@@ -701,6 +701,18 @@
 #family-shell .manage-item--draggable {
   cursor: grab;
   transition: opacity 0.15s ease, transform 0.15s ease;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#family-shell .cards-dropzone .manage-item__info {
+  min-width: 0;
+  flex: 1 1 160px;
+}
+
+#family-shell .cards-dropzone .manage-item__actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 #family-shell .manage-item--draggable:active {

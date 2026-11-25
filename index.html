@@ -598,7 +598,10 @@
       <!-- Sub-vista 1: Tarjetas y Notas de Voz -->
       <section id="fam-view-cards" class="tab-view" hidden>
         <form id="card-form" class="panel">
-          <h2 id="form-title" class="panel__title">Nueva Tarjeta</h2>
+          <div class="ask-setup__header" style="margin-bottom: 14px;">
+            <h2 id="form-title" class="panel__title" style="margin: 0;">Nueva Tarjeta</h2>
+            <button type="submit" class="btn btn--emerald btn--sm">💾 Guardar tarjeta</button>
+          </div>
           <input type="hidden" id="card-id" value="" />
 
           <div class="form-grid">
