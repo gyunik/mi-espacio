@@ -424,6 +424,19 @@ function cacheDom() {
   dom.weatherSearchStatus = document.getElementById('weather-search-status');
 
   dom.settingEnableDateTime = document.getElementById('setting-enable-datetime');
+
+  dom.settingEnableContactCall = document.getElementById('setting-enable-contact-call');
+  dom.contactCallName = document.getElementById('contact-call-name');
+  dom.contactCallPhone = document.getElementById('contact-call-phone');
+  dom.contactCallMode = document.getElementById('contact-call-mode');
+  dom.btnSaveContactCall = document.getElementById('btn-save-contact-call');
+  dom.contactCallStatus = document.getElementById('contact-call-status');
+
+  dom.settingEnableHealthCall = document.getElementById('setting-enable-health-call');
+  dom.healthCallName = document.getElementById('health-call-name');
+  dom.healthCallPhone = document.getElementById('health-call-phone');
+  dom.btnSaveHealthCall = document.getElementById('btn-save-health-call');
+  dom.healthCallStatus = document.getElementById('health-call-status');
 }
 
 function registerServiceWorker() {
@@ -645,6 +658,27 @@ function startBoardSubscription() {
       }
       if (typeof remoteSettings.enableDateTimeCard === 'boolean') {
         updates.enableDateTimeCard = remoteSettings.enableDateTimeCard;
+      }
+      if (typeof remoteSettings.enableContactCall === 'boolean') {
+        updates.enableContactCall = remoteSettings.enableContactCall;
+      }
+      if (typeof remoteSettings.contactCallName === 'string') {
+        updates.contactCallName = remoteSettings.contactCallName;
+      }
+      if (typeof remoteSettings.contactCallPhone === 'string') {
+        updates.contactCallPhone = remoteSettings.contactCallPhone;
+      }
+      if (typeof remoteSettings.contactCallMode === 'string') {
+        updates.contactCallMode = remoteSettings.contactCallMode;
+      }
+      if (typeof remoteSettings.enableHealthCall === 'boolean') {
+        updates.enableHealthCall = remoteSettings.enableHealthCall;
+      }
+      if (typeof remoteSettings.healthCallName === 'string') {
+        updates.healthCallName = remoteSettings.healthCallName;
+      }
+      if (typeof remoteSettings.healthCallPhone === 'string') {
+        updates.healthCallPhone = remoteSettings.healthCallPhone;
       }
       if (Object.keys(updates).length > 0) {
         state.settings = saveSettings(updates);
@@ -1274,6 +1308,23 @@ function bindPhraseBar() {
     });
   };
 
+  window.__triggerDirectCall = ({ name, phone, mode = 'tel' }) => {
+    const cleanTel = String(phone || '').replace(/[^\d+*#]/g, '');
+    if (!cleanTel) return;
+    const label = name || 'Contacto';
+
+    if (mode === 'whatsapp') {
+      let waDigits = cleanTel.replace(/\D/g, '');
+      // Si es número argentino local de 10 dígitos (ej. 1155554444), agregar prefijo 549
+      if (waDigits.length === 10) waDigits = `549${waDigits}`;
+      speak(`Abriendo WhatsApp de ${label}`, ttsOptions());
+      window.open(`https://wa.me/${waDigits}`, '_blank', 'noopener');
+    } else {
+      speak(`Llamando a ${label}`, ttsOptions());
+      window.location.href = `tel:${cleanTel}`;
+    }
+  };
+
   dom.btnCommEnablePush?.addEventListener('click', async () => {
     if (typeof Notification === 'undefined') return;
     const res = await Notification.requestPermission();
@@ -1508,7 +1559,88 @@ function renderCardsGrid() {
     dom.cardsGrid.appendChild(dtBtn);
   }
 
-  if (filtered.length === 0 && !showMusicCard && !showRadioCard && !showWeatherCard && !showDateTimeCard) {
+  // Tarjeta opcional de llamada directa a Persona de Contacto (ej: Alicia)
+  const contactCallEnabled = Boolean(state.settings.enableContactCall && state.settings.contactCallPhone);
+  const showContactCallCard =
+    contactCallEnabled && (state.activeCategory === 'all' || state.activeCategory === 'familia');
+
+  if (showContactCallCard) {
+    const contactName = (state.settings.contactCallName || 'Contacto').trim();
+    const isWa = state.settings.contactCallMode === 'whatsapp';
+    const callBtn = document.createElement('button');
+    callBtn.type = 'button';
+    callBtn.className = 'aac-card';
+    callBtn.setAttribute('aria-label', `${isWa ? 'WhatsApp a' : 'Llamar a'} ${contactName}`);
+
+    const visual = document.createElement('div');
+    visual.className = 'aac-card__visual';
+    const img = document.createElement('img');
+    img.src = './assets/cards/llamar-contacto.svg';
+    img.alt = `Llamar a ${contactName}`;
+    visual.appendChild(img);
+
+    const label = document.createElement('span');
+    label.className = 'aac-card__text';
+    label.textContent = isWa ? `💬 WhatsApp: ${contactName}` : `📞 Llamar a ${contactName}`;
+
+    callBtn.append(visual, label);
+    callBtn.addEventListener('click', () => {
+      if (typeof window.__triggerDirectCall === 'function') {
+        window.__triggerDirectCall({
+          name: contactName,
+          phone: state.settings.contactCallPhone,
+          mode: state.settings.contactCallMode || 'tel'
+        });
+      }
+    });
+    dom.cardsGrid.appendChild(callBtn);
+  }
+
+  // Tarjeta opcional de llamada directa a Obra Social / Salud (ej: PAMI)
+  const healthCallEnabled = Boolean(state.settings.enableHealthCall && state.settings.healthCallPhone);
+  const showHealthCallCard =
+    healthCallEnabled && (state.activeCategory === 'all' || state.activeCategory === 'necesidades');
+
+  if (showHealthCallCard) {
+    const healthName = (state.settings.healthCallName || 'Obra Social').trim();
+    const healthBtn = document.createElement('button');
+    healthBtn.type = 'button';
+    healthBtn.className = 'aac-card';
+    healthBtn.setAttribute('aria-label', `Llamar a ${healthName}`);
+
+    const visual = document.createElement('div');
+    visual.className = 'aac-card__visual';
+    const img = document.createElement('img');
+    img.src = './assets/cards/llamar-salud.svg';
+    img.alt = `Llamar a ${healthName}`;
+    visual.appendChild(img);
+
+    const label = document.createElement('span');
+    label.className = 'aac-card__text';
+    label.textContent = `🏥 Llamar a ${healthName}`;
+
+    healthBtn.append(visual, label);
+    healthBtn.addEventListener('click', () => {
+      if (typeof window.__triggerDirectCall === 'function') {
+        window.__triggerDirectCall({
+          name: healthName,
+          phone: state.settings.healthCallPhone,
+          mode: 'tel'
+        });
+      }
+    });
+    dom.cardsGrid.appendChild(healthBtn);
+  }
+
+  if (
+    filtered.length === 0 &&
+    !showMusicCard &&
+    !showRadioCard &&
+    !showWeatherCard &&
+    !showDateTimeCard &&
+    !showContactCallCard &&
+    !showHealthCallCard
+  ) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     empty.textContent = 'No hay tarjetas en esta categoría. Podés importar un pack en "Explorar".';
@@ -2630,6 +2762,79 @@ function bindFamilyMode() {
     await saveBoardPreference({ enableDateTimeCard: enabled });
   });
 
+  // Teléfono de Persona de Contacto (ej: Alicia)
+  dom.settingEnableContactCall?.addEventListener('change', async () => {
+    const enabled = dom.settingEnableContactCall.checked;
+    state.settings = saveSettings({ enableContactCall: enabled });
+    applySettingsToUI();
+    renderCardsGrid();
+    await saveBoardPreference({ enableContactCall: enabled });
+  });
+
+  dom.btnSaveContactCall?.addEventListener('click', async () => {
+    const name = (dom.contactCallName?.value || '').trim() || 'Contacto';
+    const phone = (dom.contactCallPhone?.value || '').trim();
+    const mode = dom.contactCallMode?.value || 'tel';
+    if (!phone) {
+      if (dom.contactCallStatus) {
+        dom.contactCallStatus.textContent = 'Ingresá un número de teléfono antes de guardar.';
+      }
+      return;
+    }
+    state.settings = saveSettings({
+      contactCallName: name,
+      contactCallPhone: phone,
+      contactCallMode: mode,
+      enableContactCall: true
+    });
+    applySettingsToUI();
+    renderCardsGrid();
+    if (dom.contactCallStatus) {
+      dom.contactCallStatus.textContent = `Guardado: ${mode === 'whatsapp' ? 'WhatsApp' : 'Llamada'} a ${name} (${phone}) ✓`;
+    }
+    await saveBoardPreference({
+      contactCallName: name,
+      contactCallPhone: phone,
+      contactCallMode: mode,
+      enableContactCall: true
+    });
+  });
+
+  // Teléfono de Obra Social / Salud (ej: PAMI)
+  dom.settingEnableHealthCall?.addEventListener('change', async () => {
+    const enabled = dom.settingEnableHealthCall.checked;
+    state.settings = saveSettings({ enableHealthCall: enabled });
+    applySettingsToUI();
+    renderCardsGrid();
+    await saveBoardPreference({ enableHealthCall: enabled });
+  });
+
+  dom.btnSaveHealthCall?.addEventListener('click', async () => {
+    const name = (dom.healthCallName?.value || '').trim() || 'Obra Social';
+    const phone = (dom.healthCallPhone?.value || '').trim();
+    if (!phone) {
+      if (dom.healthCallStatus) {
+        dom.healthCallStatus.textContent = 'Ingresá el número de la obra social antes de guardar.';
+      }
+      return;
+    }
+    state.settings = saveSettings({
+      healthCallName: name,
+      healthCallPhone: phone,
+      enableHealthCall: true
+    });
+    applySettingsToUI();
+    renderCardsGrid();
+    if (dom.healthCallStatus) {
+      dom.healthCallStatus.textContent = `Guardado: Llamar a ${name} (${phone}) ✓`;
+    }
+    await saveBoardPreference({
+      healthCallName: name,
+      healthCallPhone: phone,
+      enableHealthCall: true
+    });
+  });
+
   dom.btnJoinCode.addEventListener('click', () => {
     const code = dom.joinCodeInput.value.replace(/\D/g, '');
     if (code.length === 6) {
@@ -3094,6 +3299,33 @@ function applySettingsToUI() {
   }
 
   if (dom.settingEnableDateTime) dom.settingEnableDateTime.checked = Boolean(state.settings.enableDateTimeCard);
+
+  if (dom.settingEnableContactCall) {
+    dom.settingEnableContactCall.checked = Boolean(state.settings.enableContactCall);
+  }
+  if (dom.contactCallName && document.activeElement !== dom.contactCallName) {
+    dom.contactCallName.value = state.settings.contactCallName || '';
+  }
+  if (dom.contactCallPhone && document.activeElement !== dom.contactCallPhone) {
+    dom.contactCallPhone.value = state.settings.contactCallPhone || '';
+  }
+  if (dom.contactCallMode) {
+    dom.contactCallMode.value = state.settings.contactCallMode || 'tel';
+  }
+  if (dom.contactCallStatus && !dom.contactCallStatus.textContent && state.settings.contactCallPhone) {
+    const modeLabel = state.settings.contactCallMode === 'whatsapp' ? 'WhatsApp' : 'Llamada';
+    dom.contactCallStatus.textContent = `Activo: ${modeLabel} a ${state.settings.contactCallName || 'Contacto'} (${state.settings.contactCallPhone})`;
+  }
+
+  if (dom.settingEnableHealthCall) {
+    dom.settingEnableHealthCall.checked = Boolean(state.settings.enableHealthCall);
+  }
+  if (dom.healthCallName && document.activeElement !== dom.healthCallName) {
+    dom.healthCallName.value = state.settings.healthCallName || '';
+  }
+  if (dom.healthCallPhone && document.activeElement !== dom.healthCallPhone) {
+    dom.healthCallPhone.value = state.settings.healthCallPhone || '';
+  }
 
   renderPhraseBar();
 }

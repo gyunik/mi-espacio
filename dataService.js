@@ -59,6 +59,13 @@ export const DEFAULT_SETTINGS = {
   weatherLat: -34.6037,
   weatherLon: -58.3816,
   enableDateTimeCard: false,
+  enableContactCall: false,
+  contactCallName: '',
+  contactCallPhone: '',
+  contactCallMode: 'tel', // 'tel' | 'whatsapp'
+  enableHealthCall: false,
+  healthCallName: '',
+  healthCallPhone: '',
   seeded: false,
   starterVersion: 0
 };

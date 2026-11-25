@@ -866,6 +866,42 @@
                 Al tocarla muestra la hora y la fecha en grande y la lee en voz alta en español.
               </span>
             </div>
+
+            <!-- 4. Teléfono de Contacto (Familiar / Referente) -->
+            <div class="form-field">
+              <label class="toggle-label" for="setting-enable-contact-call">
+                <input id="setting-enable-contact-call" type="checkbox" />
+                <span>Mostrar tarjeta de llamada a Persona de Contacto</span>
+              </label>
+              <div class="pin-row" style="margin-top: 8px;">
+                <input id="contact-call-name" type="text" class="input" placeholder="Nombre (ej: Alicia, Mamá)" maxlength="30" style="flex: 1;" />
+                <input id="contact-call-phone" type="tel" class="input" placeholder="Teléfono (ej: 1155554444)" maxlength="24" style="flex: 1;" />
+              </div>
+              <div class="pin-row" style="margin-top: 8px;">
+                <select id="contact-call-mode" class="select" style="flex: 1;">
+                  <option value="tel">📞 Llamada telefónica (funciona sin internet)</option>
+                  <option value="whatsapp">💬 WhatsApp (ideal si usa solo Wi-Fi)</option>
+                </select>
+                <button type="button" id="btn-save-contact-call" class="btn btn--emerald btn--sm">Guardar</button>
+              </div>
+              <span id="contact-call-status" class="muted-text" style="font-size: 0.78rem;"></span>
+            </div>
+
+            <!-- 5. Teléfono de Obra Social / Salud -->
+            <div class="form-field">
+              <label class="toggle-label" for="setting-enable-health-call">
+                <input id="setting-enable-health-call" type="checkbox" />
+                <span>Mostrar tarjeta de Obra Social / Salud</span>
+              </label>
+              <div class="pin-row" style="margin-top: 8px;">
+                <input id="health-call-name" type="text" class="input" placeholder="Obra social (ej: PAMI, OSDE)" maxlength="30" style="flex: 1;" />
+                <input id="health-call-phone" type="tel" class="input" placeholder="Teléfono (ej: 138 o 0800...)" maxlength="24" style="flex: 1;" />
+                <button type="button" id="btn-save-health-call" class="btn btn--emerald btn--sm">Guardar</button>
+              </div>
+              <span id="health-call-status" class="muted-text" style="font-size: 0.78rem;">
+                Siempre usa llamada telefónica directa (funciona incluso sin datos/Wi-Fi).
+              </span>
+            </div>
           </div>
         </div>
       </section>
