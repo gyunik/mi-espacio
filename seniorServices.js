@@ -25,6 +25,69 @@ async function fetchJsonWithFallback(paths) {
   throw lastErr || new Error('Sin conexión');
 }
 
+let cachedArStations = null;
+
+function normalizeText(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function detectBand(name, tags) {
+  const txt = `${normalizeText(name)} ${normalizeText(tags)}`;
+  const isAm =
+    /\bam\b/.test(txt) ||
+    /\bam\s?\d{3,4}\b/.test(txt) ||
+    /\b(530|540|550|590|630|650|670|680|700|710|750|770|790|810|830|870|910|950|990|1030|1070|1110|1150|1190|1230|1270|1300|1350|1400|1420|1550)\b/.test(txt) ||
+    /\b(mitre|rivadavia|continental|la red|cadena 3|del plata|radio 10|radio nacional|splendid|colonia)\b/.test(txt);
+
+  const isFm =
+    /\bfm\b/.test(txt) ||
+    /\b(8[7-9]|9\d|10[0-8])[.,]\d\b/.test(txt);
+
+  if (isAm && !isFm) return 'AM';
+  if (isFm && !isAm) return 'FM';
+  // Si menciona explícitamente FM y frecuencia (ej. "Mitre Mendoza FM 100.3"), priorizar FM
+  if (/\bfm\b/.test(normalizeText(name)) || /\b(8[7-9]|9\d|10[0-8])[.,]\d\b/.test(normalizeText(name))) {
+    return 'FM';
+  }
+  if (isAm) return 'AM';
+  return 'other';
+}
+
+/**
+ * Carga y cachea las principales radios argentinas HTTPS para filtrado instantáneo al escribir.
+ */
+export async function loadArgentineStations() {
+  if (cachedArStations && cachedArStations.length > 0) {
+    return cachedArStations;
+  }
+  const urls = RADIO_SERVERS.map(
+    (s) =>
+      `${s}/json/stations/bycountrycodeexact/AR?hidebroken=true&order=clickcount&reverse=true&limit=300`
+  );
+  const raw = await fetchJsonWithFallback(urls);
+  cachedArStations = filterHttpsStations(raw);
+  return cachedArStations;
+}
+
+/**
+ * Filtra localmente estaciones por texto y banda ('all' | 'AM' | 'FM') en 0ms.
+ */
+export function filterStationsLocal(stations, { query = '', band = 'all' } = {}) {
+  const q = normalizeText(query).trim();
+  const terms = q ? q.split(/\s+/).filter(Boolean) : [];
+
+  return (stations || []).filter((st) => {
+    if (band === 'AM' && st.band !== 'AM') return false;
+    if (band === 'FM' && st.band !== 'FM') return false;
+    if (terms.length === 0) return true;
+    const hay = normalizeText(`${st.name} ${st.state || ''} ${st.country || ''}`);
+    return terms.every((t) => hay.includes(t));
+  });
+}
+
 /**
  * Busca estaciones de radio con stream HTTPS (priorizando Argentina).
  */
@@ -83,10 +146,11 @@ function filterHttpsStations(list) {
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({
-      name: name.slice(0, 48),
+      name: name.slice(0, 52),
       url,
       country: st.country || st.countrycode || '',
-      state: st.state || ''
+      state: st.state || '',
+      band: detectBand(name, st.tags || '')
     });
   }
   return out;

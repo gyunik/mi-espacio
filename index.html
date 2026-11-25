@@ -809,8 +809,14 @@
                 <span>Mostrar tarjeta "📻 Escuchar radio" en el Comunicador</span>
               </label>
 
+              <div class="mode-switch" role="group" aria-label="Filtrar por banda AM o FM" style="margin-top: 8px; width: fit-content;">
+                <button type="button" class="chip-btn is-active" data-radio-band="all">Todas</button>
+                <button type="button" class="chip-btn" data-radio-band="AM">AM</button>
+                <button type="button" class="chip-btn" data-radio-band="FM">FM</button>
+              </div>
+
               <div class="pin-row" style="margin-top: 8px;">
-                <input id="radio-search-input" type="text" class="input" placeholder="Buscar radio (ej: Mitre, Cadena 3, Aspen...)" style="flex: 1;" />
+                <input id="radio-search-input" type="text" class="input" placeholder="Escribí para filtrar (ej: Mitre, Aspen, 100, 790...)" style="flex: 1;" autocomplete="off" />
                 <button type="button" id="btn-search-radio" class="btn btn--accent btn--sm">Buscar</button>
               </div>
 

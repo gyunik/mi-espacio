@@ -18,6 +18,8 @@ import {
 
 import { MUSIC_CATEGORIES } from './musicCatalog.js';
 import {
+  loadArgentineStations,
+  filterStationsLocal,
   searchRadioStations,
   searchCities,
   fetchWeatherSummary,
@@ -161,6 +163,9 @@ const state = {
     isPlaying: false,
     previewAudio: null,
     previewPlaying: false,
+    directory: [],
+    band: 'all',
+    searchDebounce: null,
     searchResults: []
   },
   weather: {
@@ -398,6 +403,7 @@ function cacheDom() {
   dom.btnCommInfoClose = document.getElementById('btn-comm-info-close');
 
   dom.settingEnableRadio = document.getElementById('setting-enable-radio');
+  dom.radioBandBtns = document.querySelectorAll('[data-radio-band]');
   dom.radioSearchInput = document.getElementById('radio-search-input');
   dom.btnSearchRadio = document.getElementById('btn-search-radio');
   dom.radioResultsRow = document.getElementById('radio-results-row');
@@ -2085,6 +2091,8 @@ function bindFamilyMode() {
       if (target !== 'settings') {
         stopMusicPreview();
         stopRadioPreview();
+      } else if (typeof window.__ensureRadioDirectory === 'function') {
+        window.__ensureRadioDirectory();
       }
       if (target === 'history') {
         state.usageLogs = await getTodayUsageLogs();
@@ -2332,41 +2340,140 @@ function bindFamilyMode() {
     await saveBoardPreference({ enableRadioCard: enabled });
   });
 
-  const runRadioSearch = async () => {
-    const q = dom.radioSearchInput?.value.trim() || '';
-    if (!q) return;
-    if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = 'Buscando estaciones de radio...';
-    if (dom.btnSearchRadio) dom.btnSearchRadio.disabled = true;
-    try {
-      const results = await searchRadioStations(q);
-      state.radio.searchResults = results;
-      if (results.length === 0) {
-        if (dom.radioResultsRow) dom.radioResultsRow.hidden = true;
-        if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = 'No se encontraron radios HTTPS con ese nombre. Probá con otra palabra.';
-      } else {
-        if (dom.radioResultsSelect) {
-          dom.radioResultsSelect.innerHTML = '';
-          results.forEach((st, idx) => {
-            const opt = document.createElement('option');
-            opt.value = String(idx);
-            opt.textContent = st.country ? `${st.name} (${st.country})` : st.name;
-            dom.radioResultsSelect.appendChild(opt);
-          });
-        }
-        if (dom.radioResultsRow) dom.radioResultsRow.hidden = false;
-        if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = `Encontramos ${results.length} opciones. Elegí una y tocá "Usar esta".`;
+  const renderRadioOptions = (list, statusMsg) => {
+    state.radio.searchResults = list;
+    if (!dom.radioResultsSelect || !dom.radioResultsRow) return;
+
+    if (list.length === 0) {
+      dom.radioResultsRow.hidden = true;
+      if (dom.radioSearchStatus) {
+        dom.radioSearchStatus.textContent =
+          statusMsg || 'Sin coincidencias en esa banda. Probá otra palabra o cambiá a "Todas".';
       }
-    } catch {
-      if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = 'No se pudo consultar el directorio de radios. Revisá tu conexión.';
+      return;
     }
-    if (dom.btnSearchRadio) dom.btnSearchRadio.disabled = false;
+
+    dom.radioResultsSelect.innerHTML = '';
+    list.slice(0, 40).forEach((st, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      const bandTag = st.band === 'AM' || st.band === 'FM' ? `[${st.band}] ` : '';
+      opt.textContent = `${bandTag}${st.name}`;
+      dom.radioResultsSelect.appendChild(opt);
+    });
+    dom.radioResultsRow.hidden = false;
+    if (dom.radioSearchStatus) {
+      dom.radioSearchStatus.textContent =
+        statusMsg || `${list.length} radios disponibles. Elegí una y tocá "Usar esta".`;
+    }
   };
 
-  dom.btnSearchRadio?.addEventListener('click', runRadioSearch);
+  const applyLocalRadioFilter = () => {
+    const q = dom.radioSearchInput?.value.trim() || '';
+    const filtered = filterStationsLocal(state.radio.directory, {
+      query: q,
+      band: state.radio.band
+    });
+    const bandLabel = state.radio.band === 'all' ? 'AM/FM' : state.radio.band;
+    renderRadioOptions(
+      filtered,
+      filtered.length > 0
+        ? `${filtered.length} radios (${bandLabel}). Elegí una y tocá "Usar esta".`
+        : `Sin coincidencias en ${bandLabel} para "${q}".`
+    );
+    return filtered;
+  };
+
+  let radioDirLoading = false;
+  const ensureRadioDirectory = async () => {
+    if (state.radio.directory.length > 0 || radioDirLoading) return;
+    radioDirLoading = true;
+    if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = 'Cargando directorio de radios argentinas...';
+    try {
+      state.radio.directory = await loadArgentineStations();
+      applyLocalRadioFilter();
+    } catch {
+      if (dom.radioSearchStatus) dom.radioSearchStatus.textContent = 'No se pudo cargar el directorio. Probá tocar "Buscar".';
+    }
+    radioDirLoading = false;
+  };
+  window.__ensureRadioDirectory = ensureRadioDirectory;
+
+  const runRadioSearch = async (isAuto = false) => {
+    const q = dom.radioSearchInput?.value.trim() || '';
+    if (!q) {
+      await ensureRadioDirectory();
+      applyLocalRadioFilter();
+      return;
+    }
+    if (!isAuto && dom.radioSearchStatus) {
+      dom.radioSearchStatus.textContent = 'Buscando más estaciones...';
+    }
+    if (!isAuto && dom.btnSearchRadio) dom.btnSearchRadio.disabled = true;
+    try {
+      const results = await searchRadioStations(q);
+      // Fusionar en el directorio local para futuras búsquedas instantáneas
+      const seen = new Set(state.radio.directory.map((s) => s.url));
+      results.forEach((st) => {
+        if (!seen.has(st.url)) {
+          seen.add(st.url);
+          state.radio.directory.push(st);
+        }
+      });
+      const filtered = applyLocalRadioFilter();
+      if (filtered.length === 0 && results.length > 0 && state.radio.band !== 'all') {
+        renderRadioOptions(
+          results,
+          `Encontramos ${results.length} opciones (en otra banda). Elegí una y tocá "Usar esta".`
+        );
+      }
+    } catch {
+      if (!isAuto && dom.radioSearchStatus) {
+        dom.radioSearchStatus.textContent = 'No se pudo consultar el directorio de radios. Revisá tu conexión.';
+      }
+    }
+    if (!isAuto && dom.btnSearchRadio) dom.btnSearchRadio.disabled = false;
+  };
+
+  dom.radioBandBtns?.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      state.radio.band = btn.dataset.radioBand || 'all';
+      dom.radioBandBtns.forEach((b) =>
+        b.classList.toggle('is-active', b.dataset.radioBand === state.radio.band)
+      );
+      if (state.radio.directory.length === 0) {
+        await ensureRadioDirectory();
+      } else {
+        applyLocalRadioFilter();
+      }
+    });
+  });
+
+  dom.radioSearchInput?.addEventListener('focus', () => {
+    ensureRadioDirectory();
+  });
+
+  dom.radioSearchInput?.addEventListener('input', () => {
+    clearTimeout(state.radio.searchDebounce);
+    if (state.radio.directory.length === 0) {
+      ensureRadioDirectory();
+      return;
+    }
+    const localMatches = applyLocalRadioFilter();
+    const q = dom.radioSearchInput.value.trim();
+    // Si hay pocas coincidencias locales y escribió al menos 3 letras, ampliar en segundo plano
+    if (localMatches.length < 4 && q.length >= 3) {
+      state.radio.searchDebounce = setTimeout(() => {
+        runRadioSearch(true);
+      }, 350);
+    }
+  });
+
+  dom.btnSearchRadio?.addEventListener('click', () => runRadioSearch(false));
   dom.radioSearchInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      runRadioSearch();
+      runRadioSearch(false);
     }
   });
 
