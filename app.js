@@ -187,6 +187,7 @@ const state = {
   healthSuggestions: [],
   selectedVisibleIds: new Set(),
   selectedHiddenIds: new Set(),
+  manageFilterCats: new Set(), // Vacío = todas las categorías
   commInfoSpeech: '',
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
@@ -389,6 +390,13 @@ function cacheDom() {
   dom.manageCardsSearch = document.getElementById('manage-cards-search');
   dom.btnShowAllCards = document.getElementById('btn-show-all-cards');
   dom.btnHideAllCards = document.getElementById('btn-hide-all-cards');
+  dom.manageCatOrderBar = document.getElementById('manage-cat-order-bar');
+  dom.manageCatFilterBar = document.getElementById('manage-cat-filter-bar');
+  dom.appConfirmModal = document.getElementById('app-confirm-modal');
+  dom.appConfirmTitle = document.getElementById('app-confirm-title');
+  dom.appConfirmMessage = document.getElementById('app-confirm-message');
+  dom.btnAppConfirmCancel = document.getElementById('btn-app-confirm-cancel');
+  dom.btnAppConfirmOk = document.getElementById('btn-app-confirm-ok');
   dom.dropzoneVisible = document.getElementById('dropzone-visible');
   dom.dropzoneHidden = document.getElementById('dropzone-hidden');
   dom.visibleCardsCount = document.getElementById('visible-cards-count');
@@ -3272,7 +3280,10 @@ function bindFamilyMode() {
   bindCardDropzone(dom.dropzoneHidden, true);
 
   dom.btnSelectAllVisible?.addEventListener('click', () => {
-    const visibleIds = state.cards.filter((c) => !c.hidden).map((c) => c.id);
+    const filterActive = state.manageFilterCats.size > 0;
+    const visibleIds = state.cards
+      .filter((c) => !c.hidden && (!filterActive || state.manageFilterCats.has(c.category)))
+      .map((c) => c.id);
     const allSelected = visibleIds.length > 0 && visibleIds.every((id) => state.selectedVisibleIds.has(id));
     state.selectedVisibleIds.clear();
     if (!allSelected) {
@@ -3288,7 +3299,10 @@ function bindFamilyMode() {
   });
 
   dom.btnSelectAllHidden?.addEventListener('click', () => {
-    const hiddenIds = state.cards.filter((c) => Boolean(c.hidden)).map((c) => c.id);
+    const filterActive = state.manageFilterCats.size > 0;
+    const hiddenIds = state.cards
+      .filter((c) => Boolean(c.hidden) && (!filterActive || state.manageFilterCats.has(c.category)))
+      .map((c) => c.id);
     const allSelected = hiddenIds.length > 0 && hiddenIds.every((id) => state.selectedHiddenIds.has(id));
     state.selectedHiddenIds.clear();
     if (!allSelected) {
@@ -3304,14 +3318,36 @@ function bindFamilyMode() {
   });
 
   dom.btnShowAllCards?.addEventListener('click', async () => {
-    const ids = state.cards.filter((c) => c.hidden).map((c) => c.id);
+    const filterActive = state.manageFilterCats.size > 0;
+    const ids = state.cards
+      .filter((c) => c.hidden && (!filterActive || state.manageFilterCats.has(c.category)))
+      .map((c) => c.id);
     if (ids.length === 0) return;
+    const scopeTxt = filterActive ? 'de las categorías filtradas' : 'ocultas';
+    const ok = await askConfirm({
+      title: '¿Hacer visibles las tarjetas?',
+      message: `Se van a mostrar ${ids.length} tarjetas ${scopeTxt} en el Comunicador.`,
+      confirmText: 'Sí, hacer visibles',
+      danger: false
+    });
+    if (!ok) return;
     await setCardsHiddenBatch(ids, false);
   });
 
   dom.btnHideAllCards?.addEventListener('click', async () => {
-    const ids = state.cards.filter((c) => !c.hidden).map((c) => c.id);
+    const filterActive = state.manageFilterCats.size > 0;
+    const ids = state.cards
+      .filter((c) => !c.hidden && (!filterActive || state.manageFilterCats.has(c.category)))
+      .map((c) => c.id);
     if (ids.length === 0) return;
+    const scopeTxt = filterActive ? 'de las categorías filtradas' : 'visibles';
+    const ok = await askConfirm({
+      title: '¿Ocultar todas las tarjetas?',
+      message: `Se van a ocultar ${ids.length} tarjetas ${scopeTxt} del Comunicador. No se borran: quedan guardadas en la columna "Ocultas".`,
+      confirmText: 'Sí, ocultar',
+      danger: true
+    });
+    if (!ok) return;
     await setCardsHiddenBatch(ids, true);
   });
 
@@ -4461,9 +4497,115 @@ async function reorderCardBefore(draggedId, targetId) {
   await persistVisibleOrder(catCards);
 }
 
+function askConfirm({ title = '¿Estás seguro/a?', message = '', confirmText = 'Confirmar', danger = true } = {}) {
+  if (!dom.appConfirmModal) {
+    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  }
+  return new Promise((resolve) => {
+    if (dom.appConfirmTitle) dom.appConfirmTitle.textContent = title;
+    if (dom.appConfirmMessage) dom.appConfirmMessage.textContent = message;
+    if (dom.btnAppConfirmOk) {
+      dom.btnAppConfirmOk.textContent = confirmText;
+      dom.btnAppConfirmOk.classList.toggle('btn--danger', Boolean(danger));
+      dom.btnAppConfirmOk.classList.toggle('btn--emerald', !danger);
+    }
+    dom.appConfirmModal.hidden = false;
+
+    const cleanup = (result) => {
+      dom.appConfirmModal.hidden = true;
+      dom.btnAppConfirmOk?.removeEventListener('click', onOk);
+      dom.btnAppConfirmCancel?.removeEventListener('click', onCancel);
+      dom.appConfirmModal?.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onBackdrop = (e) => {
+      if (e.target === dom.appConfirmModal) cleanup(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+    };
+
+    dom.btnAppConfirmOk?.addEventListener('click', onOk);
+    dom.btnAppConfirmCancel?.addEventListener('click', onCancel);
+    dom.appConfirmModal?.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
 function renderManageCardsList() {
   dom.cardsCount.textContent = String(state.cards.length);
   if (!dom.manageVisibleList || !dom.manageHiddenList) return;
+
+  const orderedCats = getOrderedCategories();
+
+  // Renderizar barra superior de Orden de Categorías en el Comunicador
+  if (dom.manageCatOrderBar) {
+    dom.manageCatOrderBar.innerHTML = '';
+    orderedCats.forEach((cat, idx) => {
+      const pill = document.createElement('div');
+      pill.className = 'cat-order-pill';
+
+      const num = document.createElement('span');
+      num.className = 'cat-order-pill__num';
+      num.textContent = `${idx + 1}.`;
+
+      const lbl = document.createElement('span');
+      lbl.textContent = cat.label;
+
+      const leftBtn = document.createElement('button');
+      leftBtn.type = 'button';
+      leftBtn.className = 'cat-order-pill__btn';
+      leftBtn.textContent = '←';
+      leftBtn.title = `Mover "${cat.label}" antes`;
+      leftBtn.disabled = idx === 0;
+      leftBtn.addEventListener('click', () => moveCategoryOrder(cat.id, -1));
+
+      const rightBtn = document.createElement('button');
+      rightBtn.type = 'button';
+      rightBtn.className = 'cat-order-pill__btn';
+      rightBtn.textContent = '→';
+      rightBtn.title = `Mover "${cat.label}" después`;
+      rightBtn.disabled = idx === orderedCats.length - 1;
+      rightBtn.addEventListener('click', () => moveCategoryOrder(cat.id, 1));
+
+      pill.append(num, lbl, leftBtn, rightBtn);
+      dom.manageCatOrderBar.appendChild(pill);
+    });
+  }
+
+  // Renderizar chips de filtro multi-categoría (aplican a ambas columnas)
+  if (dom.manageCatFilterBar) {
+    dom.manageCatFilterBar.innerHTML = '';
+    const allChip = document.createElement('button');
+    allChip.type = 'button';
+    allChip.className = `chip-btn ${state.manageFilterCats.size === 0 ? 'is-active' : ''}`;
+    allChip.textContent = 'Todas';
+    allChip.addEventListener('click', () => {
+      state.manageFilterCats.clear();
+      renderManageCardsList();
+    });
+    dom.manageCatFilterBar.appendChild(allChip);
+
+    orderedCats.forEach((cat) => {
+      const isSelected = state.manageFilterCats.has(cat.id);
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = `chip-btn ${isSelected ? 'is-active' : ''}`;
+      chip.textContent = isSelected ? `✓ ${cat.label}` : cat.label;
+      chip.addEventListener('click', () => {
+        if (state.manageFilterCats.has(cat.id)) {
+          state.manageFilterCats.delete(cat.id);
+        } else {
+          state.manageFilterCats.add(cat.id);
+        }
+        renderManageCardsList();
+      });
+      dom.manageCatFilterBar.appendChild(chip);
+    });
+  }
 
   // Limpiar selecciones de IDs que ya no existan o hayan cambiado de columna
   const validVisible = new Set(state.cards.filter((c) => !c.hidden).map((c) => c.id));
@@ -4501,9 +4643,10 @@ function renderManageCardsList() {
     .toLowerCase()
     .trim();
 
-  const orderedCats = getOrderedCategories();
   const catMap = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.label]));
+  const filterActive = state.manageFilterCats.size > 0;
   const matchesQuery = (card) => {
+    if (filterActive && !state.manageFilterCats.has(card.category)) return false;
     if (!q) return true;
     const hay = `${card.text} ${catMap[card.category] || card.category}`
       .normalize('NFD')
@@ -4643,6 +4786,13 @@ function renderManageCardsList() {
     delBtn.className = 'btn btn--danger btn--sm';
     delBtn.textContent = 'Borrar';
     delBtn.addEventListener('click', async () => {
+      const ok = await askConfirm({
+        title: '¿Eliminar tarjeta?',
+        message: `¿Seguro que querés eliminar definitivamente «${card.text}»? Esta acción no se puede deshacer (si solo querés sacarla del Comunicador, usá "Ocultar").`,
+        confirmText: 'Sí, eliminar',
+        danger: true
+      });
+      if (!ok) return;
       state.cards = state.cards.filter((c) => c.id !== card.id);
       state.selectedVisibleIds.delete(card.id);
       state.selectedHiddenIds.delete(card.id);

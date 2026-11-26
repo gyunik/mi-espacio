@@ -734,10 +734,30 @@
                 Arrastrá tarjetas entre columnas o tocá <strong>Ocultar / Mostrar</strong> sin borrarlas. Se sincroniza al instante en el Comunicador.
               </p>
             </div>
+          </div>
+
+          <div class="cards-toolbar-grid">
+            <div class="cards-toolbar-search">
+              <label for="manage-cards-search" class="field-label" style="margin-bottom: 4px; display: block;">🔍 Buscar tarjeta:</label>
+              <input id="manage-cards-search" type="text" class="input" placeholder="Escribí una palabra para filtrar..." autocomplete="off" />
+            </div>
+
+            <div class="cards-toolbar-order">
+              <span class="field-label" style="margin-bottom: 4px; display: block;">↕ Orden de categorías en el Comunicador:</span>
+              <div id="manage-cat-order-bar" class="cat-order-bar" aria-label="Orden de categorías en el Comunicador"></div>
+            </div>
+          </div>
+
+          <div class="cards-filter-row">
+            <span class="field-label" style="margin: 0;">Filtrar por categoría (selección múltiple):</span>
+            <div id="manage-cat-filter-bar" class="cat-filter-chips" role="group" aria-label="Filtrar tarjetas por una o más categorías"></div>
+          </div>
+
+          <div class="cards-bulk-global-row">
+            <span class="muted-text" style="font-size: 0.78rem; font-weight: 700;">Acciones masivas (piden confirmación):</span>
             <div class="pin-row" style="flex-wrap: wrap;">
-              <input id="manage-cards-search" type="text" class="input" placeholder="Filtrar tarjetas..." style="min-width: 170px;" />
-              <button type="button" id="btn-show-all-cards" class="btn btn--ghost btn--sm">👁️ Mostrar todas</button>
-              <button type="button" id="btn-hide-all-cards" class="btn btn--ghost btn--sm">🙈 Ocultar todas</button>
+              <button type="button" id="btn-show-all-cards" class="btn btn--ghost btn--sm">👁️ Hacer visibles todas</button>
+              <button type="button" id="btn-hide-all-cards" class="btn btn--danger btn--sm">🙈 Ocultar todas las tarjetas</button>
             </div>
           </div>
 
@@ -1411,6 +1431,21 @@
       <div class="form-actions" style="margin-top: 0;">
         <button type="button" id="btn-comm-pin-cancel" class="btn btn--ghost">Cancelar</button>
         <button type="button" id="btn-comm-pin-confirm" class="btn btn--emerald">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMACIÓN REUTILIZABLE (Acciones masivas / Borrar tarjeta) -->
+  <div id="app-confirm-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="app-confirm-title" hidden>
+    <div class="push-modal__card" style="max-width: 420px;">
+      <div class="push-modal__top">
+        <span class="push-modal__eyebrow push-modal__eyebrow--amber">⚠️ Confirmar acción</span>
+      </div>
+      <h2 id="app-confirm-title" class="push-modal__title" style="font-size: 1.25rem;">¿Estás seguro/a?</h2>
+      <p id="app-confirm-message" class="muted-text" style="margin: 0; font-size: 0.94rem; line-height: 1.45;"></p>
+      <div class="form-actions" style="margin-top: 4px;">
+        <button type="button" id="btn-app-confirm-cancel" class="btn btn--ghost">Cancelar</button>
+        <button type="button" id="btn-app-confirm-ok" class="btn btn--danger">Confirmar</button>
       </div>
     </div>
   </div>
