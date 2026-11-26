@@ -2495,6 +2495,32 @@ img[src*="static.arasaac.org"] {
   font-weight: 800;
 }
 
+.cat-drag-badge__arrow {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.cat-drag-badge__arrow:hover:not(:disabled) {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.cat-drag-badge__arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 .cat-collapse-btn {
   min-width: 34px;
   height: 32px;
