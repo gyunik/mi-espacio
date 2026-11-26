@@ -27,6 +27,42 @@ async function fetchJsonWithFallback(paths) {
 
 let cachedArStations = null;
 const cachedGenreStations = new Map();
+const arasaacSearchCache = new Map();
+
+/**
+ * Busca pictogramas oficiales de ARASAAC en español (+13.000 pictogramas gratuitos).
+ * Devuelve URLs directas HTTPS livianas (_300.png) listas para usar en tarjetas.
+ */
+export async function searchArasaacPictograms(query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (q.length < 2) return [];
+  if (arasaacSearchCache.has(q)) {
+    return arasaacSearchCache.get(q);
+  }
+  const url = `https://api.arasaac.org/v1/pictograms/es/search/${encodeURIComponent(q)}`;
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (res.status === 404) {
+    arasaacSearchCache.set(q, []);
+    return [];
+  }
+  if (!res.ok) {
+    throw new Error(`ARASAAC HTTP ${res.status}`);
+  }
+  const raw = await res.json();
+  const list = Array.isArray(raw)
+    ? raw.slice(0, 18).map((item) => {
+        const id = item._id;
+        const kw = item.keywords?.[0]?.keyword || q;
+        return {
+          id,
+          label: kw,
+          url: `https://static.arasaac.org/pictograms/${id}/${id}_300.png`
+        };
+      })
+    : [];
+  arasaacSearchCache.set(q, list);
+  return list;
+}
 
 export const MUSIC_THEMATIC_GENRES = [
   { id: 'chillout', label: '🧘 Calma, Piano y Relax', tag: 'chillout' },

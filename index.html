@@ -655,6 +655,25 @@
             </div>
           </div>
 
+          <div class="form-field arasaac-box" style="margin-top: 12px;">
+            <label for="arasaac-search-input" class="field-label">
+              🧩 Buscar pictograma oficial ARASAAC (+13.000 pictogramas en español)
+            </label>
+            <div class="pin-row">
+              <input
+                id="arasaac-search-input"
+                type="text"
+                class="input"
+                placeholder="Ej: agua, parque, baño, dormir, feliz, escuela..."
+                autocomplete="off"
+                style="flex: 1;"
+              />
+              <button type="button" id="btn-arasaac-search" class="btn btn--accent btn--sm">Buscar</button>
+            </div>
+            <span id="arasaac-status" class="muted-text" style="font-size: 0.78rem;"></span>
+            <div id="arasaac-results" class="arasaac-grid" hidden></div>
+          </div>
+
           <div class="form-field" style="margin-top: 12px;">
             <span class="field-label">O elegir ícono (pasá el mouse para ver qué significa o hacé clic para verlo grande)</span>
             <div id="icon-preview-box" class="icon-preview-box">

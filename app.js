@@ -22,6 +22,7 @@ import {
   NEWS_TV_CHANNELS,
   loadArgentineStations,
   loadMusicStationsByGenre,
+  searchArasaacPictograms,
   filterStationsLocal,
   searchRadioStations,
   filterCitiesLocal,
@@ -370,6 +371,10 @@ function cacheDom() {
   dom.btnClearPhoto = document.getElementById('btn-clear-photo');
   dom.photoPreviewWrap = document.getElementById('photo-preview-wrap');
   dom.photoPreview = document.getElementById('photo-preview');
+  dom.arasaacSearchInput = document.getElementById('arasaac-search-input');
+  dom.btnArasaacSearch = document.getElementById('btn-arasaac-search');
+  dom.arasaacStatus = document.getElementById('arasaac-status');
+  dom.arasaacResults = document.getElementById('arasaac-results');
   dom.btnRecordVoice = document.getElementById('btn-record-voice');
   dom.btnPlayRecorded = document.getElementById('btn-play-recorded');
   dom.btnClearRecorded = document.getElementById('btn-clear-recorded');
@@ -2852,6 +2857,114 @@ function bindFamilyMode() {
   });
   dom.btnClearPhoto.addEventListener('click', clearFormPhoto);
 
+  // Buscador de pictogramas oficiales ARASAAC en español
+  let arasaacDebounce = null;
+  let arasaacReqId = 0;
+
+  const runArasaacSearch = async (rawQuery) => {
+    const q = (rawQuery ?? dom.arasaacSearchInput?.value ?? '').trim();
+    if (q.length < 2) {
+      if (dom.arasaacResults) {
+        dom.arasaacResults.innerHTML = '';
+        dom.arasaacResults.hidden = true;
+      }
+      if (dom.arasaacStatus) {
+        dom.arasaacStatus.textContent = q.length === 1 ? 'Escribí al menos 2 letras...' : '';
+      }
+      return;
+    }
+
+    const reqId = ++arasaacReqId;
+    if (dom.arasaacStatus) {
+      dom.arasaacStatus.textContent = `Buscando pictogramas de "${q}" en ARASAAC...`;
+    }
+
+    try {
+      const results = await searchArasaacPictograms(q);
+      if (reqId !== arasaacReqId) return;
+
+      if (!dom.arasaacResults) return;
+      dom.arasaacResults.innerHTML = '';
+
+      if (results.length === 0) {
+        dom.arasaacResults.hidden = true;
+        if (dom.arasaacStatus) {
+          dom.arasaacStatus.textContent = `No se encontraron pictogramas para "${q}". Probá con una sola palabra (ej: "agua", "jugar", "parque").`;
+        }
+        return;
+      }
+
+      results.forEach((pic) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `arasaac-item ${state.form.imageData === pic.url ? 'is-selected' : ''}`;
+        btn.title = pic.label;
+        btn.setAttribute('aria-label', `Elegir pictograma ${pic.label}`);
+
+        const img = document.createElement('img');
+        img.src = pic.url;
+        img.alt = pic.label;
+        img.loading = 'lazy';
+
+        const lbl = document.createElement('span');
+        lbl.className = 'arasaac-item__label';
+        lbl.textContent = pic.label;
+
+        btn.append(img, lbl);
+        btn.addEventListener('click', () => {
+          state.form.imageData = pic.url;
+          dom.cardPhoto.value = '';
+          dom.photoPreview.src = pic.url;
+          dom.photoPreviewWrap.hidden = false;
+          dom.btnClearPhoto.hidden = false;
+          // Si el campo texto está vacío, sugerir la palabra del pictograma capitalizada
+          if (dom.cardText && !dom.cardText.value.trim() && pic.label) {
+            dom.cardText.value = pic.label.charAt(0).toUpperCase() + pic.label.slice(1);
+          }
+          dom.arasaacResults.querySelectorAll('.arasaac-item').forEach((el) => {
+            el.classList.toggle('is-selected', el === btn);
+          });
+          if (dom.arasaacStatus) {
+            dom.arasaacStatus.textContent = `Pictograma ARASAAC seleccionado: "${pic.label}" ✓`;
+          }
+        });
+        dom.arasaacResults.appendChild(btn);
+      });
+
+      dom.arasaacResults.hidden = false;
+      if (dom.arasaacStatus) {
+        dom.arasaacStatus.textContent = `${results.length} pictogramas encontrados. Tocá uno para usarlo en la tarjeta.`;
+      }
+    } catch {
+      if (reqId !== arasaacReqId) return;
+      if (dom.arasaacStatus) {
+        dom.arasaacStatus.textContent = 'No se pudo conectar con ARASAAC ahora. Revisá tu conexión a internet.';
+      }
+    }
+  };
+
+  dom.btnArasaacSearch?.addEventListener('click', () => {
+    const q = (dom.arasaacSearchInput?.value || '').trim() || (dom.cardText?.value || '').trim();
+    if (dom.arasaacSearchInput && !dom.arasaacSearchInput.value.trim() && q) {
+      dom.arasaacSearchInput.value = q;
+    }
+    runArasaacSearch(q);
+  });
+
+  dom.arasaacSearchInput?.addEventListener('input', () => {
+    clearTimeout(arasaacDebounce);
+    const val = dom.arasaacSearchInput.value;
+    arasaacDebounce = setTimeout(() => runArasaacSearch(val), 380);
+  });
+
+  dom.arasaacSearchInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      clearTimeout(arasaacDebounce);
+      runArasaacSearch(dom.arasaacSearchInput.value);
+    }
+  });
+
   // Grabación de nota de voz (MediaRecorder)
   if (!isAudioRecordingSupported()) {
     dom.btnRecordVoice.disabled = true;
@@ -3878,6 +3991,9 @@ function clearFormPhoto() {
   dom.cardPhoto.value = '';
   dom.photoPreview.src = '';
   dom.photoPreviewWrap.hidden = true;
+  dom.arasaacResults?.querySelectorAll('.arasaac-item.is-selected').forEach((el) => {
+    el.classList.remove('is-selected');
+  });
   dom.btnClearPhoto.hidden = true;
 }
 
