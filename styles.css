@@ -2463,6 +2463,7 @@ img[src*="static.arasaac.org"] {
   color: var(--text-primary);
   cursor: grab;
   user-select: none;
+  touch-action: none;
   transition: border-color 0.15s ease, transform 0.12s ease, background-color 0.15s ease;
 }
 
@@ -2493,32 +2494,6 @@ img[src*="static.arasaac.org"] {
 .cat-drag-badge__num {
   color: var(--cyan);
   font-weight: 800;
-}
-
-.cat-drag-badge__arrow {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  border: 1px solid var(--border-strong);
-  background-color: var(--bg-elevated);
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  font-weight: 800;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.cat-drag-badge__arrow:hover:not(:disabled) {
-  border-color: var(--cyan);
-  color: var(--cyan);
-}
-
-.cat-drag-badge__arrow:disabled {
-  opacity: 0.3;
-  cursor: default;
 }
 
 .cat-collapse-btn {

@@ -4775,15 +4775,18 @@ function renderManageCardsList() {
 
   const orderedCats = getOrderedCategories();
 
-  // Renderizar badges horizontales arrastrables (+ flechas ←/→) para ordenar las categorías en el Comunicador
+  // Renderizar badges horizontales arrastrables (mouse + táctil) para ordenar las categorías en el Comunicador
   if (dom.manageCatOrderBar) {
     dom.manageCatOrderBar.innerHTML = '';
+    let touchDragFromId = null;
+    let touchOverCatId = null;
+
     orderedCats.forEach((cat, idx) => {
       const badge = document.createElement('div');
       badge.className = 'cat-drag-badge';
       badge.draggable = true;
       badge.dataset.catId = cat.id;
-      badge.title = 'Arrastrá horizontalmente o usá ← / → para ordenar las categorías en el Comunicador';
+      badge.title = 'Arrastrá horizontalmente para ordenar las categorías en el Comunicador';
 
       const grip = document.createElement('span');
       grip.className = 'cat-drag-badge__grip';
@@ -4797,32 +4800,9 @@ function renderManageCardsList() {
       const lbl = document.createElement('span');
       lbl.textContent = cat.label;
 
-      const leftBtn = document.createElement('button');
-      leftBtn.type = 'button';
-      leftBtn.className = 'cat-drag-badge__arrow';
-      leftBtn.draggable = false;
-      leftBtn.textContent = '←';
-      leftBtn.title = `Mover "${cat.label}" antes`;
-      leftBtn.disabled = idx === 0;
-      leftBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        moveCategoryOrder(cat.id, -1);
-      });
+      badge.append(grip, num, lbl);
 
-      const rightBtn = document.createElement('button');
-      rightBtn.type = 'button';
-      rightBtn.className = 'cat-drag-badge__arrow';
-      rightBtn.draggable = false;
-      rightBtn.textContent = '→';
-      rightBtn.title = `Mover "${cat.label}" después`;
-      rightBtn.disabled = idx === orderedCats.length - 1;
-      rightBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        moveCategoryOrder(cat.id, 1);
-      });
-
-      badge.append(grip, num, lbl, leftBtn, rightBtn);
-
+      // Arrastre horizontal con mouse (PC)
       badge.addEventListener('dragstart', (e) => {
         draggedCatId = cat.id;
         badge.classList.add('is-dragging');
@@ -4851,6 +4831,42 @@ function renderManageCardsList() {
         draggedCatId = null;
         await reorderCategoriesByDrag(fromId, cat.id);
       });
+
+      // Arrastre horizontal táctil (celular / tablet)
+      badge.addEventListener('touchstart', () => {
+        touchDragFromId = cat.id;
+        touchOverCatId = null;
+        badge.classList.add('is-dragging');
+      }, { passive: true });
+
+      badge.addEventListener('touchmove', (e) => {
+        if (!touchDragFromId || !e.touches?.[0]) return;
+        e.preventDefault();
+        const t = e.touches[0];
+        const targetEl = document.elementFromPoint(t.clientX, t.clientY)?.closest('.cat-drag-badge');
+        const targetId = targetEl?.dataset?.catId || null;
+        touchOverCatId = targetId && targetId !== touchDragFromId ? targetId : null;
+        dom.manageCatOrderBar.querySelectorAll('.cat-drag-badge').forEach((el) => {
+          el.classList.toggle('is-drag-over', el.dataset.catId === touchOverCatId);
+        });
+      }, { passive: false });
+
+      const finishTouchDrag = async () => {
+        if (!touchDragFromId) return;
+        const fromId = touchDragFromId;
+        const toId = touchOverCatId;
+        touchDragFromId = null;
+        touchOverCatId = null;
+        dom.manageCatOrderBar.querySelectorAll('.cat-drag-badge').forEach((el) => {
+          el.classList.remove('is-dragging', 'is-drag-over');
+        });
+        if (fromId && toId && fromId !== toId) {
+          await reorderCategoriesByDrag(fromId, toId);
+        }
+      };
+
+      badge.addEventListener('touchend', finishTouchDrag);
+      badge.addEventListener('touchcancel', finishTouchDrag);
 
       dom.manageCatOrderBar.appendChild(badge);
     });
