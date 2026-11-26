@@ -1009,23 +1009,33 @@ function handleIncomingLiveEvents(events) {
   }
 }
 
-async function showBrowserNotification(title, body) {
-  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+async function showBrowserNotification(title, body, { tag = null } = {}) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+  const notifTag = tag || `mi-espacio-aviso-${Date.now()}`;
+  const options = {
+    body,
+    icon: './icons/logo-192.png',
+    badge: './icons/logo-192.png',
+    tag: notifTag,
+    renotify: true,
+    requireInteraction: true,
+    silent: false,
+    vibrate: [200, 100, 200],
+    data: { url: './' }
+  };
   try {
     const reg = await navigator.serviceWorker?.getRegistration();
     if (reg && reg.showNotification) {
-      await reg.showNotification(title, {
-        body,
-        icon: './icons/icon.svg',
-        badge: './icons/icon.svg',
-        tag: 'mi-espacio-aviso'
-      });
-      return;
+      await reg.showNotification(title, options);
+      return true;
     }
   } catch {}
   try {
-    new Notification(title, { body, icon: './icons/icon.svg' });
-  } catch {}
+    new Notification(title, options);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function dispatchTeenRequest(label, category) {
@@ -2750,12 +2760,18 @@ function bindFamilyMode() {
       dom.btnEnableNotifications.textContent = 'No soportado';
       return;
     }
-    const res = await Notification.requestPermission();
+    const res = Notification.permission === 'granted'
+      ? 'granted'
+      : await Notification.requestPermission();
     if (res === 'granted') {
-      await registerPushToken('family');
-      dom.btnEnableNotifications.textContent = isPushConfigured()
-        ? '🔔 Push activo'
-        : '🔔 Alertas activas';
+      const token = await registerPushToken('family');
+      dom.btnEnableNotifications.textContent = token
+        ? '🔔 Push activo (Probar)'
+        : (isPushConfigured() ? '🔔 Alertas locales (Probar)' : '🔔 Alertas activas (Probar)');
+      await showBrowserNotification(
+        'Mi Espacio — Prueba de aviso',
+        'Si ves este cartel, las notificaciones en tu computadora ya funcionan ✓'
+      );
     } else {
       dom.btnEnableNotifications.textContent = '🔕 Permiso denegado';
     }
@@ -3068,6 +3084,8 @@ function bindFamilyMode() {
   dom.btnNewCode.addEventListener('click', () => {
     const code = generatePairingCode();
     state.settings = saveSettings({ pairingCode: code });
+    startBoardSubscription();
+    registerPushToken('family');
     applySettingsToUI();
   });
 
@@ -4493,6 +4511,7 @@ function bindFamilyMode() {
       state.settings = saveSettings({ pairingCode: code });
       dom.joinCodeInput.value = '';
       startBoardSubscription();
+      registerPushToken(state.settings.role || 'family');
       applySettingsToUI();
     }
   });
@@ -5524,8 +5543,8 @@ function applySettingsToUI() {
 
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
     dom.btnEnableNotifications.textContent = isPushConfigured()
-      ? '🔔 Push activo'
-      : '🔔 Alertas activas';
+      ? '🔔 Push activo (Probar)'
+      : '🔔 Alertas activas (Probar)';
     if (dom.btnCommEnablePush) dom.btnCommEnablePush.hidden = true;
   } else if (dom.btnCommEnablePush && typeof Notification !== 'undefined') {
     dom.btnCommEnablePush.hidden = false;

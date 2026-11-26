@@ -3,7 +3,7 @@
  * Cachea el App Shell para funcionamiento offline en Android / iOS / Desktop.
  */
 
-const CACHE_NAME = 'mi-espacio-v63';
+const CACHE_NAME = 'mi-espacio-v64';
 const APP_SHELL = [
   './',
   './index.html',
