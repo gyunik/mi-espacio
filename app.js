@@ -194,6 +194,7 @@ const state = {
   },
   commInfoSpeech: '',
   lastNotifiedEventId: null,
+  pushTokenRegistered: false,
   unsubscribeBoard: null,
   firebaseReady: false,
   commTab: 'voice',
@@ -723,7 +724,9 @@ async function applyRoleScreen(role) {
     state.liveEvents = await getLiveEvents();
     renderUsageLogs();
     renderLiveEvents();
-    registerPushToken('family');
+    registerPushToken('family').then((tok) => {
+      if (tok) state.pushTokenRegistered = true;
+    });
   } else if (role === 'communicator') {
     registerPushToken('communicator');
   }
@@ -1001,12 +1004,44 @@ function handleIncomingLiveEvents(events) {
     newestAlert.id !== state.lastNotifiedEventId
   ) {
     state.lastNotifiedEventId = newestAlert.id;
-    const body =
-      newestAlert.type === 'teen_request'
-        ? `Pedido: "${newestAlert.label}"`
-        : `Respondió: "${newestAlert.answerText}"`;
-    showBrowserNotification('Mi Espacio — Nuevo aviso', body);
+    const isFresh = !newestAlert.createdAt || (Date.now() - newestAlert.createdAt) < 60000;
+    if (isFresh) {
+      playFamilyAlertChime();
+    }
+    // Si FCM Push ya está registrado en este dispositivo, el Service Worker (sw.js)
+    // ya muestra la notificación nativa con "Abrir y responder" — evitamos duplicarla.
+    if (!state.pushTokenRegistered) {
+      const body =
+        newestAlert.type === 'teen_request'
+          ? `Pedido: "${newestAlert.label}"`
+          : `Respondió: "${newestAlert.answerText}"`;
+      showBrowserNotification('Mi Espacio — Nuevo aviso', body, { tag: 'mi-espacio-push' });
+    }
   }
+}
+
+function playFamilyAlertChime() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    const notes = [587.33, 880]; // Re5 -> La5 (suave y claro)
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.14);
+      gain.gain.setValueAtTime(0.0001, now + idx * 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + idx * 0.14 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.14 + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.14);
+      osc.stop(now + idx * 0.14 + 0.38);
+    });
+    setTimeout(() => ctx.close().catch(() => {}), 900);
+  } catch {}
 }
 
 async function showBrowserNotification(title, body, { tag = null } = {}) {
@@ -2765,12 +2800,14 @@ function bindFamilyMode() {
       : await Notification.requestPermission();
     if (res === 'granted') {
       const token = await registerPushToken('family');
+      if (token) state.pushTokenRegistered = true;
       dom.btnEnableNotifications.textContent = token
         ? '🔔 Push activo (Probar)'
         : (isPushConfigured() ? '🔔 Alertas locales (Probar)' : '🔔 Alertas activas (Probar)');
+      playFamilyAlertChime();
       await showBrowserNotification(
         'Mi Espacio — Prueba de aviso',
-        'Si ves este cartel, las notificaciones en tu computadora ya funcionan ✓'
+        'Si ves este cartel y escuchaste el timbre, las notificaciones ya funcionan ✓'
       );
     } else {
       dom.btnEnableNotifications.textContent = '🔕 Permiso denegado';
