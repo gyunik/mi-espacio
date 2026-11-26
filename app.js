@@ -188,6 +188,10 @@ const state = {
   selectedVisibleIds: new Set(),
   selectedHiddenIds: new Set(),
   collapsedCatGroups: new Set(), // Solo colapsa grupos visualmente en Organizar Tarjetas
+  qqForm: {
+    imageDataA: null,
+    imageDataB: null
+  },
   commInfoSpeech: '',
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
@@ -409,11 +413,22 @@ function cacheDom() {
 
   // Preguntas del día
   dom.questionForm = document.getElementById('question-form');
+  dom.qqFormHeading = document.getElementById('qq-form-heading');
+  dom.btnQqCancelEdit = document.getElementById('btn-qq-cancel-edit');
+  dom.qqId = document.getElementById('qq-id');
   dom.qqTitle = document.getElementById('qq-title');
+  dom.qqIcon = document.getElementById('qq-icon');
+  dom.qqIconPicker = document.getElementById('qq-icon-picker');
+  dom.qqSelectA = document.getElementById('qq-select-a');
   dom.qqOptA = document.getElementById('qq-opt-a');
   dom.qqIconA = document.getElementById('qq-icon-a');
+  dom.qqIconAPicker = document.getElementById('qq-icon-a-picker');
+  dom.qqSelectB = document.getElementById('qq-select-b');
   dom.qqOptB = document.getElementById('qq-opt-b');
   dom.qqIconB = document.getElementById('qq-icon-b');
+  dom.qqIconBPicker = document.getElementById('qq-icon-b-picker');
+  dom.qqFormStatus = document.getElementById('qq-form-status');
+  dom.btnQqSubmit = document.getElementById('btn-qq-submit');
   dom.manageQuestionsList = document.getElementById('manage-questions-list');
 
   // Historial y Ajustes
@@ -2613,13 +2628,21 @@ function toQuestionForm(text) {
 }
 
 function populateAskCardSelectors() {
-  if (!dom.liveSelectA) return;
-  dom.liveSelectA.innerHTML = '<option value="">Elegir pregunta...</option>';
-  state.cards.forEach((c) => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = `${c.icon || ''} ${toQuestionForm(c.text)}`.trim();
-    dom.liveSelectA.appendChild(opt);
+  const selectors = [dom.liveSelectA, dom.qqSelectA, dom.qqSelectB].filter(Boolean);
+  if (selectors.length === 0) return;
+
+  selectors.forEach((sel) => {
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Elegir pregunta...</option>';
+    state.cards.forEach((c) => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${c.icon || ''} ${toQuestionForm(c.text)}`.trim();
+      sel.appendChild(opt);
+    });
+    if (prev && state.cards.some((c) => c.id === prev)) {
+      sel.value = prev;
+    }
   });
 }
 
@@ -3336,17 +3359,194 @@ function bindFamilyMode() {
     await setCardsHiddenBatch(ids, true);
   });
 
-  // Preguntas rápidas del día
+  // Preguntas rápidas del día (con selector de preguntas existentes, barras de íconos, editar/duplicar y anti-duplicados)
+  const QQ_TITLE_ICONS = ['❓', '🍽️', '🥐', '🗣️', '🏠', '🎵', '📺', '🏞️', '🛁', '🛏️', '😊', '⏱️', '🎮', '❤️'];
+  const QQ_OPTION_ICONS = [
+    '🥪', '🥐', '🍎', '🍌', '🍪', '🥛', '🧃', '🍵', '🍝', '🍕', '🍦',
+    '👩', '👨', '🚪', '📺', '🎵', '🎮', '🏞️', '🚿', '🛏️', '🎧', '⏸️'
+  ];
+
+  const syncQqIconStrip = (container, inputEl) => {
+    if (!container || !inputEl) return;
+    const val = (inputEl.value || '').trim();
+    container.querySelectorAll('.qq-icon-chip').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.emoji === val);
+    });
+  };
+
+  const buildQqIconStrip = (container, inputEl, emojis, onPick) => {
+    if (!container || !inputEl) return;
+    container.innerHTML = '';
+    emojis.forEach((emoji) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'qq-icon-chip';
+      btn.dataset.emoji = emoji;
+      btn.textContent = emoji;
+      btn.setAttribute('aria-label', `Elegir ícono ${emoji}`);
+      btn.addEventListener('click', () => {
+        inputEl.value = emoji;
+        syncQqIconStrip(container, inputEl);
+        onPick?.(emoji);
+      });
+      container.appendChild(btn);
+    });
+    inputEl.addEventListener('input', () => syncQqIconStrip(container, inputEl));
+    syncQqIconStrip(container, inputEl);
+  };
+
+  buildQqIconStrip(dom.qqIconPicker, dom.qqIcon, QQ_TITLE_ICONS);
+  buildQqIconStrip(dom.qqIconAPicker, dom.qqIconA, QQ_OPTION_ICONS, () => {
+    state.qqForm.imageDataA = null;
+  });
+  buildQqIconStrip(dom.qqIconBPicker, dom.qqIconB, QQ_OPTION_ICONS, () => {
+    state.qqForm.imageDataB = null;
+  });
+
+  const resetQuestionForm = () => {
+    dom.questionForm?.reset();
+    if (dom.qqId) dom.qqId.value = '';
+    if (dom.qqIcon) dom.qqIcon.value = '❓';
+    if (dom.qqIconA) dom.qqIconA.value = '🥪';
+    if (dom.qqIconB) dom.qqIconB.value = '🍎';
+    if (dom.qqSelectA) dom.qqSelectA.value = '';
+    if (dom.qqSelectB) dom.qqSelectB.value = '';
+    state.qqForm.imageDataA = null;
+    state.qqForm.imageDataB = null;
+    if (dom.qqFormHeading) dom.qqFormHeading.textContent = 'Crear Pregunta Rápida para Hoy';
+    if (dom.btnQqSubmit) dom.btnQqSubmit.textContent = '💾 Guardar pregunta';
+    if (dom.btnQqCancelEdit) dom.btnQqCancelEdit.hidden = true;
+    syncQqIconStrip(dom.qqIconPicker, dom.qqIcon);
+    syncQqIconStrip(dom.qqIconAPicker, dom.qqIconA);
+    syncQqIconStrip(dom.qqIconBPicker, dom.qqIconB);
+  };
+
+  window.__loadQuickQuestionIntoForm = (qq, { duplicate = false } = {}) => {
+    if (!qq) return;
+    if (dom.qqId) dom.qqId.value = duplicate ? '' : qq.id;
+    if (dom.qqTitle) dom.qqTitle.value = qq.title || '';
+    if (dom.qqIcon) dom.qqIcon.value = qq.icon || '❓';
+    if (dom.qqOptA) dom.qqOptA.value = qq.optionA?.text || '';
+    if (dom.qqIconA) dom.qqIconA.value = qq.optionA?.icon || '🥪';
+    if (dom.qqOptB) dom.qqOptB.value = qq.optionB?.text || '';
+    if (dom.qqIconB) dom.qqIconB.value = qq.optionB?.icon || '🍎';
+    if (dom.qqSelectA) dom.qqSelectA.value = '';
+    if (dom.qqSelectB) dom.qqSelectB.value = '';
+    state.qqForm.imageDataA = qq.optionA?.imageData || null;
+    state.qqForm.imageDataB = qq.optionB?.imageData || null;
+    if (dom.qqFormHeading) {
+      dom.qqFormHeading.textContent = duplicate
+        ? 'Duplicando Pregunta (cambiá el título o una opción)'
+        : 'Editando Pregunta Guardada';
+    }
+    if (dom.btnQqSubmit) {
+      dom.btnQqSubmit.textContent = duplicate ? '💾 Guardar copia nueva' : '💾 Guardar cambios';
+    }
+    if (dom.btnQqCancelEdit) dom.btnQqCancelEdit.hidden = false;
+    if (dom.qqFormStatus) {
+      dom.qqFormStatus.textContent = duplicate
+        ? 'Modificá el título o alguna de las opciones para guardar la nueva versión.'
+        : 'Editando pregunta existente. Guardá los cambios al terminar.';
+      dom.qqFormStatus.style.color = 'var(--text-secondary)';
+    }
+    syncQqIconStrip(dom.qqIconPicker, dom.qqIcon);
+    syncQqIconStrip(dom.qqIconAPicker, dom.qqIconA);
+    syncQqIconStrip(dom.qqIconBPicker, dom.qqIconB);
+    dom.questionForm?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    dom.qqTitle?.focus();
+  };
+
+  dom.btnQqCancelEdit?.addEventListener('click', () => {
+    resetQuestionForm();
+    if (dom.qqFormStatus) dom.qqFormStatus.textContent = '';
+  });
+
+  dom.qqSelectA?.addEventListener('change', () => {
+    const card = state.cards.find((c) => c.id === dom.qqSelectA.value);
+    if (!card) return;
+    dom.qqOptA.value = toQuestionForm(card.text);
+    if (card.icon) dom.qqIconA.value = card.icon;
+    state.qqForm.imageDataA = card.imageData || null;
+    syncQqIconStrip(dom.qqIconAPicker, dom.qqIconA);
+  });
+
+  dom.qqSelectB?.addEventListener('change', () => {
+    const card = state.cards.find((c) => c.id === dom.qqSelectB.value);
+    if (!card) return;
+    dom.qqOptB.value = toQuestionForm(card.text);
+    if (card.icon) dom.qqIconB.value = card.icon;
+    state.qqForm.imageDataB = card.imageData || null;
+    syncQqIconStrip(dom.qqIconBPicker, dom.qqIconB);
+  });
+
+  const normQqText = (s) =>
+    String(s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+
   dom.questionForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    await saveQuickQuestion({
-      title: dom.qqTitle.value,
-      optionA: { text: dom.qqOptA.value, icon: dom.qqIconA.value || '🅰️', imageData: null },
-      optionB: { text: dom.qqOptB.value, icon: dom.qqIconB.value || '🅱️', imageData: null }
+    const editingId = (dom.qqId?.value || '').trim();
+    const title = (dom.qqTitle?.value || '').trim();
+    const icon = (dom.qqIcon?.value || '').trim() || '❓';
+    const optAText = (dom.qqOptA?.value || '').trim();
+    const optBText = (dom.qqOptB?.value || '').trim();
+
+    if (!title || !optAText || !optBText) {
+      if (dom.qqFormStatus) {
+        dom.qqFormStatus.textContent = 'Completá el título, la Opción A y la Opción B.';
+        dom.qqFormStatus.style.color = 'var(--rose)';
+      }
+      return;
+    }
+
+    // Validación anti-duplicados: no permitir guardar si título + Opción A + Opción B coinciden con otra existente
+    const duplicate = state.quickQuestions.find((q) => {
+      if (editingId && q.id === editingId) return false;
+      return (
+        normQqText(q.title) === normQqText(title) &&
+        normQqText(q.optionA?.text) === normQqText(optAText) &&
+        normQqText(q.optionB?.text) === normQqText(optBText)
+      );
     });
-    dom.questionForm.reset();
-    dom.qqIconA.value = '🥪';
-    dom.qqIconB.value = '🍎';
+
+    if (duplicate) {
+      if (dom.qqFormStatus) {
+        dom.qqFormStatus.textContent =
+          '⚠️ Ya existe una pregunta guardada con el mismo título y opciones. Cambiá el título o alguna opción.';
+        dom.qqFormStatus.style.color = 'var(--rose)';
+      }
+      return;
+    }
+
+    const existing = editingId ? state.quickQuestions.find((q) => q.id === editingId) : null;
+    await saveQuickQuestion({
+      id: editingId || undefined,
+      createdAt: existing?.createdAt || undefined,
+      title,
+      icon,
+      optionA: {
+        text: optAText,
+        icon: (dom.qqIconA?.value || '').trim() || '🅰️',
+        imageData: state.qqForm.imageDataA || null
+      },
+      optionB: {
+        text: optBText,
+        icon: (dom.qqIconB?.value || '').trim() || '🅱️',
+        imageData: state.qqForm.imageDataB || null
+      }
+    });
+
+    resetQuestionForm();
+    if (dom.qqFormStatus) {
+      dom.qqFormStatus.textContent = editingId
+        ? '✓ Pregunta actualizada en la base de datos.'
+        : '✓ Pregunta guardada y lista para enviar.';
+      dom.qqFormStatus.style.color = 'var(--emerald)';
+    }
     await refreshAllData();
   });
 
@@ -4894,14 +5094,15 @@ function renderManageQuestionsList() {
 
     const isChoiceQQ = Boolean(qq.optionA?.text && qq.optionB?.text);
     const qText = qq.title || qq.optionA?.text || 'Pregunta';
+    const qIcon = qq.icon || '❓';
     const info = document.createElement('div');
     info.innerHTML = isChoiceQQ
       ? `
-        <div class="manage-item__text">${escapeHtml(qText)}</div>
-        <div class="manage-item__cat">${escapeHtml(qq.optionA.text)} vs ${escapeHtml(qq.optionB.text)}</div>
+        <div class="manage-item__text">${escapeHtml(qIcon)} ${escapeHtml(qText)}</div>
+        <div class="manage-item__cat">${escapeHtml(qq.optionA.icon || '')} ${escapeHtml(qq.optionA.text)}  vs  ${escapeHtml(qq.optionB.icon || '')} ${escapeHtml(qq.optionB.text)}</div>
       `
       : `
-        <div class="manage-item__text">${escapeHtml(qq.icon || '❓')} ${escapeHtml(qText)}</div>
+        <div class="manage-item__text">${escapeHtml(qIcon)} ${escapeHtml(qText)}</div>
         <div class="manage-item__cat">Respuesta rápida: SÍ / NO</div>
       `;
 
@@ -4924,7 +5125,7 @@ function renderManageQuestionsList() {
         await sendParentQuestion({
           kind: 'yesno',
           questionText: qText,
-          icon: qq.icon || '❓',
+          icon: qIcon,
           imageData: qq.imageData || null
         });
       }
@@ -4934,16 +5135,45 @@ function renderManageQuestionsList() {
       setTimeout(() => (sendBtn.textContent = '📤 Enviar'), 1800);
     });
 
+    if (isChoiceQQ) {
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn btn--ghost btn--sm';
+      editBtn.textContent = '✏️ Editar';
+      editBtn.addEventListener('click', () => {
+        window.__loadQuickQuestionIntoForm?.(qq, { duplicate: false });
+      });
+
+      const dupBtn = document.createElement('button');
+      dupBtn.type = 'button';
+      dupBtn.className = 'btn btn--ghost btn--sm';
+      dupBtn.textContent = '📋 Duplicar';
+      dupBtn.addEventListener('click', () => {
+        window.__loadQuickQuestionIntoForm?.(qq, { duplicate: true });
+      });
+
+      actions.append(sendBtn, editBtn, dupBtn);
+    } else {
+      actions.append(sendBtn);
+    }
+
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'btn btn--danger btn--sm';
     delBtn.textContent = 'Borrar';
     delBtn.addEventListener('click', async () => {
+      const ok = await askConfirm({
+        title: '¿Eliminar pregunta guardada?',
+        message: `¿Seguro que querés eliminar «${qText}»? Esta acción no se puede deshacer.`,
+        confirmText: 'Sí, eliminar',
+        danger: true
+      });
+      if (!ok) return;
       await removeQuickQuestion(qq.id);
       await refreshAllData();
     });
 
-    actions.append(sendBtn, delBtn);
+    actions.append(delBtn);
     item.append(info, actions);
     dom.manageQuestionsList.appendChild(item);
   });

@@ -243,9 +243,14 @@
 
 /* Contenido principal de Modo Familia */
 #family-shell .main-content--family {
+  width: 100%;
   max-width: 1120px;
   margin: 0 auto;
   padding: 20px 18px 40px;
+}
+
+#family-shell .tab-view {
+  width: 100%;
 }
 
 /* Secciones numeradas (1, 2, 3) en Ajustes */

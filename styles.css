@@ -2524,6 +2524,101 @@ img[src*="static.arasaac.org"] {
   color: var(--cyan);
 }
 
+/* ==========================================================================
+   PREGUNTAS RÁPIDAS DEL DÍA (2 OPCIONES + SELECTOR DE ÍCONOS + DUPLICAR/EDITAR)
+   ========================================================================== */
+.qq-form-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.qq-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+
+.qq-options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.qq-option-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-app);
+  border: 1.5px solid rgba(56, 189, 248, 0.3);
+}
+
+.qq-option-card__badge {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: rgba(56, 189, 248, 0.16);
+  color: var(--cyan);
+}
+
+.qq-option-card__badge--b {
+  background-color: rgba(16, 185, 129, 0.16);
+  color: var(--emerald);
+}
+
+.qq-icon-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.qq-icon-chip {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1.5px solid var(--border-strong);
+  background-color: var(--bg-elevated);
+  font-size: 1.08rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: border-color 0.12s ease, transform 0.12s ease, background-color 0.12s ease;
+}
+
+.qq-icon-chip:hover {
+  border-color: var(--cyan);
+  transform: translateY(-1px);
+}
+
+.qq-icon-chip.is-active {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+@media (max-width: 780px) {
+  .qq-options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

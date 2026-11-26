@@ -15,10 +15,10 @@
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/logo-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="./icons/logo-512.png" />
-  <link rel="stylesheet" href="./styles.css?v=58" />
+  <link rel="stylesheet" href="./styles.css?v=59" />
   <link rel="stylesheet" href="./landing.css" />
   <link rel="stylesheet" href="./communicator.css" />
-  <link rel="stylesheet" href="./family.css" />
+  <link rel="stylesheet" href="./family.css?v=59" />
 </head>
 <body>
 
@@ -781,39 +781,71 @@
       <!-- Sub-vista 2: Preguntas Rápidas del Día -->
       <section id="fam-view-questions" class="tab-view" hidden>
         <form id="question-form" class="panel">
-          <h2 class="panel__title">Crear Pregunta Rápida para Hoy</h2>
-          <p class="muted-text" style="margin-bottom: 12px;">
-            Aparecerá lista en la pestaña "Te Pregunto" del Modo Comunicador.
-          </p>
+          <div class="qq-form-head">
+            <div>
+              <h2 id="qq-form-heading" class="panel__title" style="margin: 0;">Crear Pregunta Rápida para Hoy</h2>
+              <p class="muted-text" style="margin: 4px 0 0;">
+                Queda guardada en tu base de datos y lista para enviar con 1 toque desde "En Vivo" o desde acá.
+              </p>
+            </div>
+            <button type="button" id="btn-qq-cancel-edit" class="btn btn--ghost btn--sm" hidden>
+              Cancelar edición
+            </button>
+          </div>
 
-          <div class="form-grid">
-            <div class="form-field">
-              <label for="qq-title" class="field-label">Título corto</label>
-              <input id="qq-title" type="text" class="input" placeholder="Ej: Merienda de hoy" maxlength="35" required />
-            </div>
-            <div class="form-field"></div>
+          <input type="hidden" id="qq-id" value="" />
 
-            <div class="form-field">
-              <label for="qq-opt-a" class="field-label">Opción A</label>
-              <input id="qq-opt-a" type="text" class="input" placeholder="Ej: ¿Querés tostadas?" maxlength="55" required />
+          <div class="qq-title-block">
+            <div class="form-grid" style="align-items: end;">
+              <div class="form-field">
+                <label for="qq-title" class="field-label">Título corto de la pregunta</label>
+                <input id="qq-title" type="text" class="input" placeholder="Ej: Merienda de hoy / ¿Con quién querés hablar?" maxlength="45" required />
+              </div>
+              <div class="form-field">
+                <label for="qq-icon" class="field-label">Ícono de la pregunta</label>
+                <input id="qq-icon" type="text" class="input" value="❓" maxlength="4" style="max-width: 90px; text-align: center; font-size: 1.2rem;" />
+              </div>
             </div>
-            <div class="form-field">
-              <label for="qq-icon-a" class="field-label">Ícono A</label>
-              <input id="qq-icon-a" type="text" class="input" value="🥪" maxlength="4" />
+            <div id="qq-icon-picker" class="qq-icon-strip" aria-label="Elegir ícono de la pregunta"></div>
+          </div>
+
+          <div class="qq-options-grid">
+            <!-- Opción A -->
+            <div class="qq-option-card">
+              <span class="qq-option-card__badge">Opción A</span>
+              <div class="form-field">
+                <label for="qq-select-a" class="field-label">Elegir pregunta existente (opcional)</label>
+                <select id="qq-select-a" class="select">
+                  <option value="">Elegir pregunta...</option>
+                </select>
+              </div>
+              <div class="pin-row">
+                <input id="qq-opt-a" type="text" class="input" placeholder="Ej: ¿Querés tostadas?" maxlength="60" required style="flex: 1;" />
+                <input id="qq-icon-a" type="text" class="input" value="🥪" maxlength="4" aria-label="Ícono Opción A" style="width: 64px; text-align: center; font-size: 1.2rem;" />
+              </div>
+              <div id="qq-icon-a-picker" class="qq-icon-strip" aria-label="Elegir ícono para Opción A"></div>
             </div>
 
-            <div class="form-field">
-              <label for="qq-opt-b" class="field-label">Opción B</label>
-              <input id="qq-opt-b" type="text" class="input" placeholder="Ej: ¿Querés fruta?" maxlength="55" required />
-            </div>
-            <div class="form-field">
-              <label for="qq-icon-b" class="field-label">Ícono B</label>
-              <input id="qq-icon-b" type="text" class="input" value="🍎" maxlength="4" />
+            <!-- Opción B -->
+            <div class="qq-option-card">
+              <span class="qq-option-card__badge qq-option-card__badge--b">Opción B</span>
+              <div class="form-field">
+                <label for="qq-select-b" class="field-label">Elegir pregunta existente (opcional)</label>
+                <select id="qq-select-b" class="select">
+                  <option value="">Elegir pregunta...</option>
+                </select>
+              </div>
+              <div class="pin-row">
+                <input id="qq-opt-b" type="text" class="input" placeholder="Ej: ¿Querés fruta?" maxlength="60" required style="flex: 1;" />
+                <input id="qq-icon-b" type="text" class="input" value="🍎" maxlength="4" aria-label="Ícono Opción B" style="width: 64px; text-align: center; font-size: 1.2rem;" />
+              </div>
+              <div id="qq-icon-b-picker" class="qq-icon-strip" aria-label="Elegir ícono para Opción B"></div>
             </div>
           </div>
 
-          <div class="form-actions">
-            <button type="submit" class="btn btn--emerald">Guardar pregunta</button>
+          <div class="form-actions" style="justify-content: space-between; align-items: center;">
+            <span id="qq-form-status" class="muted-text" style="font-size: 0.85rem;"></span>
+            <button type="submit" id="btn-qq-submit" class="btn btn--emerald">💾 Guardar pregunta</button>
           </div>
         </form>
 
@@ -1437,6 +1469,6 @@
     </div>
   </div>
 
-  <script type="module" src="./app.js?v=58"></script>
+  <script type="module" src="./app.js?v=59"></script>
 </body>
 </html>
