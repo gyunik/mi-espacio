@@ -494,6 +494,17 @@ function cacheDom() {
   dom.newsTvChannelsBar = document.getElementById('news-tv-channels-bar');
   dom.btnCloseNewsTv = document.getElementById('btn-close-news-tv');
 
+  dom.settingExitPin = document.getElementById('setting-exit-pin');
+  dom.btnSaveExitPin = document.getElementById('btn-save-exit-pin');
+  dom.btnClearExitPin = document.getElementById('btn-clear-exit-pin');
+  dom.exitPinStatus = document.getElementById('exit-pin-status');
+  dom.settingTapCooldown = document.getElementById('setting-tap-cooldown');
+  dom.commPinModal = document.getElementById('comm-pin-modal');
+  dom.commPinInput = document.getElementById('comm-pin-input');
+  dom.commPinError = document.getElementById('comm-pin-error');
+  dom.btnCommPinCancel = document.getElementById('btn-comm-pin-cancel');
+  dom.btnCommPinConfirm = document.getElementById('btn-comm-pin-confirm');
+
   // Controles adicionales del rediseño Stitch
   dom.btnShareWhatsapp = document.getElementById('btn-share-whatsapp');
   dom.speedPresetBtns = document.querySelectorAll('[data-speed-preset]');
@@ -554,7 +565,59 @@ function bindRoleGate() {
     applyRoleScreen('family');
   });
 
-  // Salida discreta del Modo Comunicador mediante toque largo de 2 segundos
+  const performExitToRoleGate = () => {
+    stopAllAudio();
+    state.settings = saveSettings({ role: null });
+    applyRoleScreen(null);
+  };
+
+  const openCommPinModal = () => {
+    if (!dom.commPinModal) {
+      performExitToRoleGate();
+      return;
+    }
+    if (dom.commPinInput) dom.commPinInput.value = '';
+    if (dom.commPinError) dom.commPinError.textContent = '';
+    dom.commPinModal.hidden = false;
+    setTimeout(() => dom.commPinInput?.focus(), 60);
+  };
+
+  const closeCommPinModal = () => {
+    if (dom.commPinModal) dom.commPinModal.hidden = true;
+    if (dom.commPinInput) dom.commPinInput.value = '';
+    if (dom.commPinError) dom.commPinError.textContent = '';
+  };
+
+  const confirmCommPin = () => {
+    const entered = (dom.commPinInput?.value || '').replace(/\D/g, '');
+    const expected = String(state.settings.exitPin || '').replace(/\D/g, '');
+    if (entered === expected) {
+      closeCommPinModal();
+      performExitToRoleGate();
+    } else if (dom.commPinError) {
+      dom.commPinError.textContent = 'PIN incorrecto. Probá de nuevo.';
+      if (dom.commPinInput) {
+        dom.commPinInput.value = '';
+        dom.commPinInput.focus();
+      }
+    }
+  };
+
+  dom.btnCommPinCancel?.addEventListener('click', closeCommPinModal);
+  dom.btnCommPinConfirm?.addEventListener('click', confirmCommPin);
+  dom.commPinInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmCommPin();
+    } else if (e.key === 'Escape') {
+      closeCommPinModal();
+    }
+  });
+  dom.commPinModal?.addEventListener('click', (e) => {
+    if (e.target === dom.commPinModal) closeCommPinModal();
+  });
+
+  // Salida discreta del Modo Comunicador mediante toque largo de 2 segundos (+ PIN opcional)
   let exitTimer = null;
   let exitStart = 0;
   const HOLD_MS = 2000;
@@ -567,9 +630,12 @@ function bindRoleGate() {
       dom.exitHoldRing.style.height = `${pct}%`;
       if (pct >= 100) {
         cancelHold();
-        stopAllAudio();
-        state.settings = saveSettings({ role: null });
-        applyRoleScreen(null);
+        const pin = String(state.settings.exitPin || '').replace(/\D/g, '');
+        if (pin.length === 4) {
+          openCommPinModal();
+        } else {
+          performExitToRoleGate();
+        }
       }
     }, 40);
   };
@@ -761,6 +827,12 @@ function startBoardSubscription() {
       if (typeof remoteSettings.newsTvChannelId === 'string') {
         updates.newsTvChannelId = remoteSettings.newsTvChannelId;
       }
+      if (typeof remoteSettings.exitPin === 'string') {
+        updates.exitPin = remoteSettings.exitPin;
+      }
+      if (typeof remoteSettings.tapCooldownMs === 'number' && !Number.isNaN(remoteSettings.tapCooldownMs)) {
+        updates.tapCooldownMs = Math.max(0, Math.min(3000, remoteSettings.tapCooldownMs));
+      }
       if (typeof remoteSettings.largeTextMode === 'boolean') {
         updates.largeTextMode = remoteSettings.largeTextMode;
       }
@@ -905,9 +977,23 @@ async function dispatchTeenRequest(label, category) {
 /* ==========================================================================
    MODO COMUNICADOR: Barra Superior, Navegación y Mi Voz
    ========================================================================== */
+let lastCommunicatorTapTs = 0;
+
+function isTapBlockedByCooldown() {
+  const cooldown = Number(state.settings.tapCooldownMs) || 0;
+  if (cooldown <= 0) return false;
+  const now = performance.now();
+  if (now - lastCommunicatorTapTs < cooldown) {
+    return true;
+  }
+  lastCommunicatorTapTs = now;
+  return false;
+}
+
 function bindQuickBar() {
   dom.quickButtons.forEach((btn) => {
     btn.addEventListener('click', async () => {
+      if (isTapBlockedByCooldown()) return;
       const phrase = btn.dataset.quickPhrase;
       dom.quickButtons.forEach((b) => b.classList.remove('is-speaking'));
       btn.classList.add('is-speaking');
@@ -2206,6 +2292,7 @@ function renderCardsGrid() {
     btn.append(visual, label);
 
     btn.addEventListener('click', async () => {
+      if (isTapBlockedByCooldown()) return;
       document.querySelectorAll('.aac-card.is-speaking').forEach((el) => el.classList.remove('is-speaking'));
       btn.classList.add('is-speaking');
 
@@ -3944,6 +4031,41 @@ function bindFamilyMode() {
     }
   });
 
+  // Protección del Comunicador: PIN de salida (4 dígitos) + Anti-rebote táctil
+  dom.btnSaveExitPin?.addEventListener('click', async () => {
+    const pin = (dom.settingExitPin?.value || '').replace(/\D/g, '');
+    if (pin.length !== 4) {
+      if (dom.exitPinStatus) {
+        dom.exitPinStatus.textContent = 'Ingresá exactamente 4 números para activar el PIN.';
+      }
+      return;
+    }
+    state.settings = saveSettings({ exitPin: pin });
+    if (dom.settingExitPin) dom.settingExitPin.value = '';
+    applySettingsToUI();
+    if (dom.exitPinStatus) {
+      dom.exitPinStatus.textContent = 'PIN de 4 dígitos activado ✓ (se pedirá al mantener ⇄ 2 seg).';
+    }
+    await saveBoardPreference({ exitPin: pin });
+  });
+
+  dom.btnClearExitPin?.addEventListener('click', async () => {
+    state.settings = saveSettings({ exitPin: '' });
+    if (dom.settingExitPin) dom.settingExitPin.value = '';
+    applySettingsToUI();
+    if (dom.exitPinStatus) {
+      dom.exitPinStatus.textContent = 'PIN desactivado (salida libre manteniendo ⇄ 2 seg).';
+    }
+    await saveBoardPreference({ exitPin: '' });
+  });
+
+  dom.settingTapCooldown?.addEventListener('change', async () => {
+    const ms = Number(dom.settingTapCooldown.value) || 0;
+    state.settings = saveSettings({ tapCooldownMs: ms });
+    applySettingsToUI();
+    await saveBoardPreference({ tapCooldownMs: ms });
+  });
+
   dom.btnJoinCode.addEventListener('click', () => {
     const code = dom.joinCodeInput.value.replace(/\D/g, '');
     if (code.length === 6) {
@@ -4801,6 +4923,17 @@ function applySettingsToUI() {
     dom.newsTvStatus.textContent = state.settings.enableNewsTvCard
       ? `Canal inicial activo: ${activeCh.name} ✓`
       : 'Activá la casilla para mostrar la tarjeta de Noticias en el Comunicador.';
+  }
+
+  const hasExitPin = String(state.settings.exitPin || '').replace(/\D/g, '').length === 4;
+  if (dom.btnClearExitPin) dom.btnClearExitPin.hidden = !hasExitPin;
+  if (dom.exitPinStatus && !dom.exitPinStatus.textContent) {
+    dom.exitPinStatus.textContent = hasExitPin
+      ? 'PIN activo ✓ (se pide al mantener ⇄ 2 seg en el Comunicador).'
+      : 'Sin PIN activo (se sale manteniendo ⇄ 2 seg).';
+  }
+  if (dom.settingTapCooldown) {
+    dom.settingTapCooldown.value = String(Number(state.settings.tapCooldownMs) || 0);
   }
 
   const largeText = Boolean(state.settings.largeTextMode);

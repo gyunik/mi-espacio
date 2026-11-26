@@ -72,6 +72,8 @@ export const DEFAULT_SETTINGS = {
   healthCallPhone: '',
   enableNewsTvCard: false,
   newsTvChannelId: 'tn',
+  exitPin: '', // PIN opcional de 4 dígitos para salir del Modo Comunicador
+  tapCooldownMs: 0, // Anti-rebote táctil en ms (0, 700, 1200, 2000)
   largeTextMode: false,
   categoryOrder: ['limites', 'necesidades', 'familia', 'ocio'],
   seeded: false,

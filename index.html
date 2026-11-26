@@ -1156,6 +1156,39 @@
                 <span id="news-tv-status" class="muted-text" style="font-size: 0.76rem;"></span>
               </div>
             </div>
+            <!-- 3.8 Protección del Comunicador: PIN de salida + Anti-rebote táctil -->
+            <div class="stitch-feature-card">
+              <div class="stitch-feature-card__top">
+                <div class="stitch-feature-card__meta">
+                  <div class="stitch-icon-box stitch-icon-box--indigo">🔒</div>
+                  <div>
+                    <h3 class="stitch-feature-card__title">
+                      <span>Bloqueo con PIN y Anti-rebote</span>
+                      <span class="stitch-pill stitch-pill--indigo">Ideal TEA</span>
+                    </h3>
+                    <p class="stitch-feature-card__desc">Evita salidas accidentales del Comunicador (PIN de 4 dígitos) y toques repetidos involuntarios.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="stitch-inner-box">
+                <label for="setting-exit-pin" class="field-label">PIN de 4 dígitos para salir del Comunicador (opcional):</label>
+                <div class="pin-row">
+                  <input id="setting-exit-pin" type="password" inputmode="numeric" maxlength="4" class="input input--code" placeholder="Ej: 1234" autocomplete="off" />
+                  <button type="button" id="btn-save-exit-pin" class="btn btn--emerald btn--sm">Guardar</button>
+                  <button type="button" id="btn-clear-exit-pin" class="btn btn--ghost btn--sm" hidden>Quitar</button>
+                </div>
+                <span id="exit-pin-status" class="muted-text" style="font-size: 0.76rem;"></span>
+
+                <label for="setting-tap-cooldown" class="field-label" style="margin-top: 6px;">Espera entre toques (anti-rebote táctil):</label>
+                <select id="setting-tap-cooldown" class="select">
+                  <option value="0">Desactivado (respuesta inmediata)</option>
+                  <option value="700">0.7 segundos (recomendado para evitar dobles toques)</option>
+                  <option value="1200">1.2 segundos (pausa moderada)</option>
+                  <option value="2000">2.0 segundos (pausa larga)</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1272,6 +1305,34 @@
 
       <div class="news-tv-modal__foot">
         <span class="muted-text">Tocá otro canal arriba para cambiar en vivo.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE PIN PARA SALIR DEL MODO COMUNICADOR -->
+  <div id="comm-pin-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="comm-pin-title" hidden>
+    <div class="push-modal__card" style="max-width: 380px;">
+      <div class="push-modal__top">
+        <span class="push-modal__eyebrow">🔒 Acceso protegido</span>
+      </div>
+      <h2 id="comm-pin-title" class="push-modal__title" style="font-size: 1.3rem;">Ingresá el PIN familiar</h2>
+      <p class="muted-text" style="margin: 0; font-size: 0.9rem;">
+        Ingresá los 4 dígitos para salir del Modo Comunicador.
+      </p>
+      <input
+        id="comm-pin-input"
+        type="password"
+        inputmode="numeric"
+        maxlength="4"
+        class="input input--code"
+        style="max-width: 100%; font-size: 1.5rem; min-height: 54px;"
+        placeholder="• • • •"
+        autocomplete="off"
+      />
+      <span id="comm-pin-error" class="muted-text" style="color: var(--rose); min-height: 18px;"></span>
+      <div class="form-actions" style="margin-top: 0;">
+        <button type="button" id="btn-comm-pin-cancel" class="btn btn--ghost">Cancelar</button>
+        <button type="button" id="btn-comm-pin-confirm" class="btn btn--emerald">Confirmar</button>
       </div>
     </div>
   </div>
