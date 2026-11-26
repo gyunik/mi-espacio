@@ -15,10 +15,10 @@
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/logo-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="./icons/logo-512.png" />
-  <link rel="stylesheet" href="./styles.css?v=59" />
+  <link rel="stylesheet" href="./styles.css?v=60" />
   <link rel="stylesheet" href="./landing.css" />
   <link rel="stylesheet" href="./communicator.css" />
-  <link rel="stylesheet" href="./family.css?v=59" />
+  <link rel="stylesheet" href="./family.css?v=60" />
 </head>
 <body>
 
@@ -1469,6 +1469,39 @@
     </div>
   </div>
 
-  <script type="module" src="./app.js?v=59"></script>
+  <!-- MODAL DE VISTA PREVIA DE PREGUNTA GUARDADA (Modo Familia -> igual al Comunicador) -->
+  <div id="fam-qq-preview-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="qq-preview-title" hidden>
+    <div class="push-modal__card">
+      <div class="push-modal__top">
+        <span class="push-modal__eyebrow">👁️ Vista previa · Así la verá el Comunicador</span>
+        <button type="button" id="btn-qq-preview-speak" class="btn btn--ghost btn--sm">
+          🔊 Escuchar
+        </button>
+      </div>
+
+      <div class="push-modal__hero">
+        <div id="qq-preview-visual" class="push-modal__visual">❓</div>
+        <h2 id="qq-preview-title" class="push-modal__title">Merienda de hoy</h2>
+      </div>
+
+      <div class="push-modal__answers">
+        <div id="qq-preview-card-a" class="push-answer-btn" style="cursor: default;">
+          <span id="qq-preview-a-visual" class="push-answer-btn__visual">🥪</span>
+          <span id="qq-preview-a-text" class="push-answer-btn__text">¿Querés tostadas?</span>
+        </div>
+        <div id="qq-preview-card-b" class="push-answer-btn" style="cursor: default;">
+          <span id="qq-preview-b-visual" class="push-answer-btn__visual">🍎</span>
+          <span id="qq-preview-b-text" class="push-answer-btn__text">¿Querés fruta?</span>
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top: 0;">
+        <button type="button" id="btn-qq-preview-close" class="btn btn--ghost">Cerrar</button>
+        <button type="button" id="btn-qq-preview-send" class="btn btn--emerald">📤 Enviar ahora</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js?v=60"></script>
 </body>
 </html>

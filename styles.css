@@ -2619,6 +2619,20 @@ img[src*="static.arasaac.org"] {
   }
 }
 
+.manage-item__info--clickable {
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: 10px;
+  transition: background-color 0.15s ease;
+}
+
+.manage-item__info--clickable:hover {
+  background-color: rgba(56, 189, 248, 0.1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

@@ -430,6 +430,18 @@ function cacheDom() {
   dom.qqFormStatus = document.getElementById('qq-form-status');
   dom.btnQqSubmit = document.getElementById('btn-qq-submit');
   dom.manageQuestionsList = document.getElementById('manage-questions-list');
+  dom.famQqPreviewModal = document.getElementById('fam-qq-preview-modal');
+  dom.btnQqPreviewSpeak = document.getElementById('btn-qq-preview-speak');
+  dom.qqPreviewVisual = document.getElementById('qq-preview-visual');
+  dom.qqPreviewTitle = document.getElementById('qq-preview-title');
+  dom.qqPreviewCardA = document.getElementById('qq-preview-card-a');
+  dom.qqPreviewAVisual = document.getElementById('qq-preview-a-visual');
+  dom.qqPreviewAText = document.getElementById('qq-preview-a-text');
+  dom.qqPreviewCardB = document.getElementById('qq-preview-card-b');
+  dom.qqPreviewBVisual = document.getElementById('qq-preview-b-visual');
+  dom.qqPreviewBText = document.getElementById('qq-preview-b-text');
+  dom.btnQqPreviewClose = document.getElementById('btn-qq-preview-close');
+  dom.btnQqPreviewSend = document.getElementById('btn-qq-preview-send');
 
   // Historial y Ajustes
   dom.usageLogsList = document.getElementById('usage-logs-list');
@@ -1084,6 +1096,15 @@ function bindCommunicatorNav() {
   });
 }
 
+function buildQuestionSpeechText(q) {
+  const title = (q?.questionText || q?.title || '').trim();
+  const isChoice = Boolean(q?.optionA?.text && q?.optionB?.text);
+  if (!isChoice) return title;
+  return title
+    ? `${title}. ${q.optionA.text}, o ${q.optionB.text}`
+    : `${q.optionA.text}, o ${q.optionB.text}`;
+}
+
 function openPushQuestionModal(question) {
   state.activeIncomingQuestionId = question.id;
   const isChoice = question.kind === 'choice' && question.optionA && question.optionB;
@@ -1091,10 +1112,10 @@ function openPushQuestionModal(question) {
   dom.btnPushA.classList.remove('is-chosen', 'is-dimmed');
   dom.btnPushB.classList.remove('is-chosen', 'is-dimmed');
 
-  // Auto-buscar imagen de tarjeta si la pregunta coincide con alguna tarjeta conocida
+  // Auto-buscar imagen de tarjeta solo si no es una pregunta de 2 opciones con ícono elegido
   let visualImg = question.imageData || null;
   let visualIcon = question.icon || '❓';
-  if (!visualImg && question.questionText) {
+  if (!isChoice && !visualImg && question.questionText) {
     const qLower = question.questionText.toLowerCase();
     const match = state.cards.find((c) => {
       const words = c.text.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
@@ -1115,7 +1136,7 @@ function openPushQuestionModal(question) {
     img.alt = question.questionText || '';
     dom.pushVisual.appendChild(img);
   } else {
-    dom.pushVisual.textContent = isChoice ? '🔀' : visualIcon;
+    dom.pushVisual.textContent = visualIcon;
   }
 
   if (isChoice) {
@@ -1907,11 +1928,7 @@ function bindPhraseBar() {
   dom.btnPushSpeak.addEventListener('click', () => {
     const pending = state.liveEvents.find((e) => e.id === state.activeIncomingQuestionId);
     if (!pending) return;
-    const isChoice = pending.kind === 'choice' && pending.optionA && pending.optionB;
-    const text = isChoice
-      ? `${pending.optionA.text}, o ${pending.optionB.text}`
-      : (pending.questionText || '');
-    speak(text, ttsOptions());
+    speak(buildQuestionSpeechText(pending), ttsOptions());
   });
 
   dom.btnPushA.addEventListener('click', () => answerFromPushModal('A'));
@@ -2578,12 +2595,18 @@ function renderAskDailyChips() {
     const liveChip = document.createElement('button');
     liveChip.type = 'button';
     liveChip.className = 'chip-btn';
-    liveChip.textContent = isChoiceQQ ? qText : `${qIcon} ${qText}`;
+    liveChip.textContent = qText.startsWith(qIcon) ? qText : `${qIcon} ${qText}`;
     liveChip.addEventListener('click', () => {
       if (isChoiceQQ) {
         dom.btnModeChoice.click();
         dom.liveChoiceA.value = qq.optionA.text;
         dom.liveChoiceB.value = qq.optionB.text;
+        dom.liveChoiceA.dataset.title = qText;
+        dom.liveChoiceA.dataset.icon = qIcon;
+        dom.liveChoiceA.dataset.iconA = qq.optionA.icon || '🅰️';
+        dom.liveChoiceA.dataset.imgA = qq.optionA.imageData || '';
+        dom.liveChoiceB.dataset.iconB = qq.optionB.icon || '🅱️';
+        dom.liveChoiceB.dataset.imgB = qq.optionB.imageData || '';
       } else {
         dom.btnModeYesNo.click();
         dom.liveQuestionInput.value = qText;
@@ -2771,9 +2794,18 @@ function bindFamilyMode() {
       if (!a || !b) return;
       await sendParentQuestion({
         kind: 'choice',
-        questionText: '¿Cuál preferís?',
-        optionA: { text: a, icon: '🅰️', imageData: null },
-        optionB: { text: b, icon: '🅱️', imageData: null }
+        questionText: dom.liveChoiceA.dataset.title || '¿Cuál preferís?',
+        icon: dom.liveChoiceA.dataset.icon || '❓',
+        optionA: {
+          text: a,
+          icon: dom.liveChoiceA.dataset.iconA || '🅰️',
+          imageData: dom.liveChoiceA.dataset.imgA || null
+        },
+        optionB: {
+          text: b,
+          icon: dom.liveChoiceB.dataset.iconB || '🅱️',
+          imageData: dom.liveChoiceB.dataset.imgB || null
+        }
       });
     } else {
       const qText = dom.liveQuestionInput.value.trim();
@@ -5081,7 +5113,95 @@ function renderManageCardsList() {
   );
 }
 
+let activePreviewQuickQuestion = null;
+
+function openQuickQuestionPreviewModal(qq) {
+  if (!dom.famQqPreviewModal || !qq) return;
+  activePreviewQuickQuestion = qq;
+  const isChoiceQQ = Boolean(qq.optionA?.text && qq.optionB?.text);
+  const qText = qq.title || qq.optionA?.text || 'Pregunta';
+  const qIcon = qq.icon || '❓';
+
+  if (dom.qqPreviewVisual) {
+    dom.qqPreviewVisual.innerHTML = '';
+    if (!isChoiceQQ && qq.imageData) {
+      const img = document.createElement('img');
+      img.src = qq.imageData;
+      img.alt = qText;
+      dom.qqPreviewVisual.appendChild(img);
+    } else {
+      dom.qqPreviewVisual.textContent = qIcon;
+    }
+  }
+  if (dom.qqPreviewTitle) dom.qqPreviewTitle.textContent = qText;
+
+  if (isChoiceQQ) {
+    dom.qqPreviewCardA?.classList.remove('push-answer-btn--yes');
+    dom.qqPreviewCardB?.classList.remove('push-answer-btn--no');
+    if (dom.qqPreviewAVisual) renderAskVisual(dom.qqPreviewAVisual, qq.optionA);
+    if (dom.qqPreviewBVisual) renderAskVisual(dom.qqPreviewBVisual, qq.optionB);
+    if (dom.qqPreviewAText) dom.qqPreviewAText.textContent = qq.optionA.text;
+    if (dom.qqPreviewBText) dom.qqPreviewBText.textContent = qq.optionB.text;
+  } else {
+    dom.qqPreviewCardA?.classList.add('push-answer-btn--yes');
+    dom.qqPreviewCardB?.classList.add('push-answer-btn--no');
+    if (dom.qqPreviewAVisual) dom.qqPreviewAVisual.textContent = '✓';
+    if (dom.qqPreviewBVisual) dom.qqPreviewBVisual.textContent = '✕';
+    if (dom.qqPreviewAText) dom.qqPreviewAText.textContent = 'SÍ';
+    if (dom.qqPreviewBText) dom.qqPreviewBText.textContent = 'NO';
+  }
+
+  dom.famQqPreviewModal.hidden = false;
+}
+
+function closeQuickQuestionPreviewModal() {
+  stopAllAudio();
+  activePreviewQuickQuestion = null;
+  if (dom.famQqPreviewModal) dom.famQqPreviewModal.hidden = true;
+}
+
+function bindQuickQuestionPreviewModal() {
+  if (!dom.famQqPreviewModal || dom.famQqPreviewModal.dataset.bound) return;
+  dom.famQqPreviewModal.dataset.bound = '1';
+
+  dom.btnQqPreviewClose?.addEventListener('click', closeQuickQuestionPreviewModal);
+  dom.famQqPreviewModal.addEventListener('click', (e) => {
+    if (e.target === dom.famQqPreviewModal) closeQuickQuestionPreviewModal();
+  });
+  dom.btnQqPreviewSpeak?.addEventListener('click', () => {
+    if (!activePreviewQuickQuestion) return;
+    speak(buildQuestionSpeechText(activePreviewQuickQuestion), ttsOptions());
+  });
+  dom.btnQqPreviewSend?.addEventListener('click', async () => {
+    const qq = activePreviewQuickQuestion;
+    if (!qq) return;
+    const isChoiceQQ = Boolean(qq.optionA?.text && qq.optionB?.text);
+    const qText = qq.title || qq.optionA?.text || 'Pregunta';
+    const qIcon = qq.icon || '❓';
+    if (isChoiceQQ) {
+      await sendParentQuestion({
+        kind: 'choice',
+        questionText: qText,
+        icon: qIcon,
+        optionA: qq.optionA,
+        optionB: qq.optionB
+      });
+    } else {
+      await sendParentQuestion({
+        kind: 'yesno',
+        questionText: qText,
+        icon: qIcon,
+        imageData: qq.imageData || null
+      });
+    }
+    state.liveEvents = await getLiveEvents();
+    renderLiveEvents();
+    closeQuickQuestionPreviewModal();
+  });
+}
+
 function renderManageQuestionsList() {
+  bindQuickQuestionPreviewModal();
   dom.manageQuestionsList.innerHTML = '';
   if (state.quickQuestions.length === 0) {
     dom.manageQuestionsList.innerHTML = '<p class="muted-text">No hay preguntas guardadas todavía.</p>';
@@ -5095,16 +5215,21 @@ function renderManageQuestionsList() {
     const isChoiceQQ = Boolean(qq.optionA?.text && qq.optionB?.text);
     const qText = qq.title || qq.optionA?.text || 'Pregunta';
     const qIcon = qq.icon || '❓';
+    const displayTitle = qText.startsWith(qIcon) ? qText : `${qIcon} ${qText}`;
+
     const info = document.createElement('div');
+    info.className = 'manage-item__info--clickable';
+    info.title = 'Tocá para ver cómo la verá el Comunicador';
     info.innerHTML = isChoiceQQ
       ? `
-        <div class="manage-item__text">${escapeHtml(qIcon)} ${escapeHtml(qText)}</div>
+        <div class="manage-item__text">${escapeHtml(displayTitle)}</div>
         <div class="manage-item__cat">${escapeHtml(qq.optionA.icon || '')} ${escapeHtml(qq.optionA.text)}  vs  ${escapeHtml(qq.optionB.icon || '')} ${escapeHtml(qq.optionB.text)}</div>
       `
       : `
-        <div class="manage-item__text">${escapeHtml(qIcon)} ${escapeHtml(qText)}</div>
+        <div class="manage-item__text">${escapeHtml(displayTitle)}</div>
         <div class="manage-item__cat">Respuesta rápida: SÍ / NO</div>
       `;
+    info.addEventListener('click', () => openQuickQuestionPreviewModal(qq));
 
     const actions = document.createElement('div');
     actions.className = 'manage-item__actions';
@@ -5118,6 +5243,7 @@ function renderManageQuestionsList() {
         await sendParentQuestion({
           kind: 'choice',
           questionText: qText,
+          icon: qIcon,
           optionA: qq.optionA,
           optionB: qq.optionB
         });
