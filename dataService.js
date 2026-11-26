@@ -74,6 +74,11 @@ export const DEFAULT_SETTINGS = {
   newsTvChannelId: 'tn',
   exitPin: '', // PIN opcional de 4 dígitos para salir del Modo Comunicador
   tapCooldownMs: 0, // Anti-rebote táctil en ms (0, 700, 1200, 2000)
+  firstThenActive: false,
+  firstThenFirst: '',
+  firstThenThen: '',
+  firstThenMinutes: 0,
+  firstThenStartedAt: 0,
   largeTextMode: false,
   categoryOrder: ['limites', 'necesidades', 'familia', 'ocio'],
   seeded: false,

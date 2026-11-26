@@ -505,6 +505,24 @@ function cacheDom() {
   dom.btnCommPinCancel = document.getElementById('btn-comm-pin-cancel');
   dom.btnCommPinConfirm = document.getElementById('btn-comm-pin-confirm');
 
+  // Primero -> Después + Temporizador visual
+  dom.commFirstThenBanner = document.getElementById('comm-first-then-banner');
+  dom.ftFirstText = document.getElementById('ft-first-text');
+  dom.ftThenText = document.getElementById('ft-then-text');
+  dom.ftTimerWrap = document.getElementById('ft-timer-wrap');
+  dom.ftTimerLabel = document.getElementById('ft-timer-label');
+  dom.ftTimerClock = document.getElementById('ft-timer-clock');
+  dom.ftTimerBar = document.getElementById('ft-timer-bar');
+  dom.btnFtSpeak = document.getElementById('btn-ft-speak');
+  dom.btnFtDone = document.getElementById('btn-ft-done');
+  dom.ftInputFirst = document.getElementById('ft-input-first');
+  dom.ftInputThen = document.getElementById('ft-input-then');
+  dom.ftInputMinutes = document.getElementById('ft-input-minutes');
+  dom.btnStartFirstThen = document.getElementById('btn-start-first-then');
+  dom.btnStopFirstThen = document.getElementById('btn-stop-first-then');
+  dom.ftFamilyStatus = document.getElementById('ft-family-status');
+  dom.ftPresetBtns = document.querySelectorAll('[data-ft-first]');
+
   // Controles adicionales del rediseño Stitch
   dom.btnShareWhatsapp = document.getElementById('btn-share-whatsapp');
   dom.speedPresetBtns = document.querySelectorAll('[data-speed-preset]');
@@ -832,6 +850,21 @@ function startBoardSubscription() {
       }
       if (typeof remoteSettings.tapCooldownMs === 'number' && !Number.isNaN(remoteSettings.tapCooldownMs)) {
         updates.tapCooldownMs = Math.max(0, Math.min(3000, remoteSettings.tapCooldownMs));
+      }
+      if (typeof remoteSettings.firstThenActive === 'boolean') {
+        updates.firstThenActive = remoteSettings.firstThenActive;
+      }
+      if (typeof remoteSettings.firstThenFirst === 'string') {
+        updates.firstThenFirst = remoteSettings.firstThenFirst;
+      }
+      if (typeof remoteSettings.firstThenThen === 'string') {
+        updates.firstThenThen = remoteSettings.firstThenThen;
+      }
+      if (typeof remoteSettings.firstThenMinutes === 'number' && !Number.isNaN(remoteSettings.firstThenMinutes)) {
+        updates.firstThenMinutes = Math.max(0, Math.min(60, remoteSettings.firstThenMinutes));
+      }
+      if (typeof remoteSettings.firstThenStartedAt === 'number' && !Number.isNaN(remoteSettings.firstThenStartedAt)) {
+        updates.firstThenStartedAt = remoteSettings.firstThenStartedAt;
       }
       if (typeof remoteSettings.largeTextMode === 'boolean') {
         updates.largeTextMode = remoteSettings.largeTextMode;
@@ -2310,6 +2343,83 @@ function renderCardsGrid() {
 
     dom.cardsGrid.appendChild(btn);
   });
+}
+
+let firstThenInterval = null;
+let lastAnnouncedFirstThenStart = 0;
+
+function renderFirstThenBanner() {
+  if (firstThenInterval) {
+    clearInterval(firstThenInterval);
+    firstThenInterval = null;
+  }
+  if (!dom.commFirstThenBanner) return;
+
+  const active = Boolean(
+    state.settings.firstThenActive &&
+    state.settings.firstThenFirst &&
+    state.settings.firstThenThen
+  );
+
+  dom.commFirstThenBanner.hidden = !active;
+  if (!active) {
+    dom.commFirstThenBanner.classList.remove('is-finished');
+    return;
+  }
+
+  if (dom.ftFirstText) dom.ftFirstText.textContent = state.settings.firstThenFirst;
+  if (dom.ftThenText) dom.ftThenText.textContent = state.settings.firstThenThen;
+
+  const mins = Number(state.settings.firstThenMinutes) || 0;
+  const startedAt = Number(state.settings.firstThenStartedAt) || Date.now();
+  const totalMs = mins * 60 * 1000;
+
+  if (!dom.ftTimerWrap) return;
+  if (totalMs <= 0) {
+    dom.ftTimerWrap.hidden = true;
+    dom.commFirstThenBanner.classList.remove('is-finished');
+    return;
+  }
+
+  dom.ftTimerWrap.hidden = false;
+
+  const updateTick = () => {
+    const elapsed = Math.max(0, Date.now() - startedAt);
+    const remainingMs = Math.max(0, totalMs - elapsed);
+    const pct = Math.max(0, Math.min(100, (remainingMs / totalMs) * 100));
+    const totalSecs = Math.ceil(remainingMs / 1000);
+    const mm = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+    const ss = String(totalSecs % 60).padStart(2, '0');
+
+    if (dom.ftTimerClock) dom.ftTimerClock.textContent = `${mm}:${ss}`;
+    if (dom.ftTimerBar) {
+      dom.ftTimerBar.style.width = `${remainingMs === 0 ? 100 : pct}%`;
+      dom.ftTimerBar.classList.toggle('is-warning', remainingMs > 0 && pct <= 25);
+      dom.ftTimerBar.classList.toggle('is-done', remainingMs === 0);
+    }
+
+    if (remainingMs === 0) {
+      dom.commFirstThenBanner.classList.add('is-finished');
+      if (dom.ftTimerLabel) {
+        dom.ftTimerLabel.textContent = `🎉 ¡Tiempo cumplido! Ahora: ${state.settings.firstThenThen}`;
+      }
+      if (firstThenInterval) {
+        clearInterval(firstThenInterval);
+        firstThenInterval = null;
+      }
+      if (state.settings.role === 'communicator' && lastAnnouncedFirstThenStart !== startedAt) {
+        lastAnnouncedFirstThenStart = startedAt;
+        const cleanThen = (state.settings.firstThenThen || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+        speak(cleanThen ? `¡Tiempo cumplido! Ahora toca ${cleanThen}.` : '¡Tiempo cumplido!', ttsOptions());
+      }
+    } else {
+      dom.commFirstThenBanner.classList.remove('is-finished');
+      if (dom.ftTimerLabel) dom.ftTimerLabel.textContent = 'Tiempo restante';
+    }
+  };
+
+  updateTick();
+  firstThenInterval = setInterval(updateTick, 500);
 }
 
 /* ==========================================================================
@@ -4066,6 +4176,64 @@ function bindFamilyMode() {
     await saveBoardPreference({ tapCooldownMs: ms });
   });
 
+  // Tablero Primero -> Después + Temporizador visual
+  dom.ftPresetBtns?.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (dom.ftInputFirst) dom.ftInputFirst.value = btn.dataset.ftFirst || '';
+      if (dom.ftInputThen) dom.ftInputThen.value = btn.dataset.ftThen || '';
+    });
+  });
+
+  dom.btnStartFirstThen?.addEventListener('click', async () => {
+    const first = (dom.ftInputFirst?.value || '').trim();
+    const thenTxt = (dom.ftInputThen?.value || '').trim();
+    const mins = Number(dom.ftInputMinutes?.value) || 0;
+    if (!first || !thenTxt) {
+      if (dom.ftFamilyStatus) {
+        dom.ftFamilyStatus.textContent = 'Completá "Primero" y "Después" (o elegí uno de los atajos arriba).';
+      }
+      return;
+    }
+    const patch = {
+      firstThenActive: true,
+      firstThenFirst: first,
+      firstThenThen: thenTxt,
+      firstThenMinutes: mins,
+      firstThenStartedAt: Date.now()
+    };
+    state.settings = saveSettings(patch);
+    applySettingsToUI();
+    await saveBoardPreference(patch);
+  });
+
+  dom.btnStopFirstThen?.addEventListener('click', async () => {
+    const patch = { firstThenActive: false, firstThenStartedAt: 0 };
+    state.settings = saveSettings(patch);
+    applySettingsToUI();
+    await saveBoardPreference(patch);
+  });
+
+  dom.btnFtSpeak?.addEventListener('click', () => {
+    const f = (state.settings.firstThenFirst || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+    const t = (state.settings.firstThenThen || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+    if (!f && !t) return;
+    speak(`Primero ${f}. Después ${t}.`, ttsOptions());
+  });
+
+  dom.btnFtDone?.addEventListener('click', async () => {
+    const t = (state.settings.firstThenThen || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+    const patch = { firstThenActive: false, firstThenStartedAt: 0 };
+    state.settings = saveSettings(patch);
+    applySettingsToUI();
+    await saveBoardPreference(patch);
+    if (t) {
+      speak(`¡Muy bien! Ahora toca ${t}.`, ttsOptions());
+      dispatchTeenRequest(`¡Listo! Ahora: ${t}`, 'primero_despues');
+    } else {
+      speak('¡Muy bien! Listo.', ttsOptions());
+    }
+  });
+
   dom.btnJoinCode.addEventListener('click', () => {
     const code = dom.joinCodeInput.value.replace(/\D/g, '');
     if (code.length === 6) {
@@ -4935,6 +5103,34 @@ function applySettingsToUI() {
   if (dom.settingTapCooldown) {
     dom.settingTapCooldown.value = String(Number(state.settings.tapCooldownMs) || 0);
   }
+
+  // Sincronizar UI de Primero -> Después + Temporizador visual
+  const ftActive = Boolean(
+    state.settings.firstThenActive &&
+    state.settings.firstThenFirst &&
+    state.settings.firstThenThen
+  );
+  if (dom.ftInputFirst && document.activeElement !== dom.ftInputFirst && state.settings.firstThenFirst) {
+    dom.ftInputFirst.value = state.settings.firstThenFirst;
+  }
+  if (dom.ftInputThen && document.activeElement !== dom.ftInputThen && state.settings.firstThenThen) {
+    dom.ftInputThen.value = state.settings.firstThenThen;
+  }
+  if (dom.ftInputMinutes && document.activeElement !== dom.ftInputMinutes && state.settings.firstThenActive) {
+    dom.ftInputMinutes.value = String(Number(state.settings.firstThenMinutes) || 0);
+  }
+  if (dom.btnStopFirstThen) dom.btnStopFirstThen.hidden = !ftActive;
+  if (dom.ftFamilyStatus) {
+    if (ftActive) {
+      const m = Number(state.settings.firstThenMinutes) || 0;
+      dom.ftFamilyStatus.textContent = m > 0
+        ? `Activo en Comunicador: ${state.settings.firstThenFirst} → ${state.settings.firstThenThen} (${m} min) ✓`
+        : `Activo en Comunicador: ${state.settings.firstThenFirst} → ${state.settings.firstThenThen} ✓`;
+    } else {
+      dom.ftFamilyStatus.textContent = 'No hay ningún tablero Primero → Después activo en este momento.';
+    }
+  }
+  renderFirstThenBanner();
 
   const largeText = Boolean(state.settings.largeTextMode);
   if (dom.settingLargeText) dom.settingLargeText.checked = largeText;

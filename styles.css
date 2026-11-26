@@ -2276,6 +2276,157 @@ img[src*="static.arasaac.org"] {
   box-sizing: border-box;
 }
 
+/* ==========================================================================
+   TABLERO VISUAL PRIMERO -> DESPUÉS + TEMPORIZADOR (TEA)
+   ========================================================================== */
+.first-then-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-card);
+  border: 2px solid rgba(56, 189, 248, 0.5);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+.first-then-banner.is-finished {
+  border-color: rgba(16, 185, 129, 0.85);
+  background-color: rgba(16, 185, 129, 0.12);
+}
+
+.first-then-banner__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.first-then-banner__eyebrow {
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cyan);
+}
+
+.first-then-banner__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.first-then-steps {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.first-then-step {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background-color: var(--bg-app);
+  border: 1.5px solid var(--border-strong);
+  min-width: 0;
+}
+
+.first-then-step--first {
+  border-color: rgba(56, 189, 248, 0.55);
+}
+
+.first-then-step--then {
+  border-color: rgba(16, 185, 129, 0.55);
+}
+
+.first-then-step__tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.first-then-step--first .first-then-step__tag {
+  color: var(--cyan);
+}
+
+.first-then-step--then .first-then-step__tag {
+  color: var(--emerald);
+}
+
+.first-then-step__text {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.first-then-arrow {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.first-then-timer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.first-then-timer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.first-then-timer__head strong {
+  font-size: 1.05rem;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.first-then-timer__track {
+  width: 100%;
+  height: 12px;
+  border-radius: 999px;
+  background-color: #0b1220;
+  border: 1px solid var(--border-strong);
+  overflow: hidden;
+}
+
+.first-then-timer__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #10b981, #38bdf8);
+  transition: width 0.5s linear, background 0.3s ease;
+}
+
+.first-then-timer__fill.is-warning {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.first-then-timer__fill.is-done {
+  background: #10b981;
+}
+
+@media (max-width: 520px) {
+  .first-then-steps {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .first-then-arrow {
+    text-align: center;
+    transform: rotate(90deg);
+    line-height: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

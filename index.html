@@ -344,6 +344,39 @@
           </div>
         </div>
 
+        <!-- Tablero visual Primero -> Después + Temporizador (sincronizado desde Modo Familia) -->
+        <div id="comm-first-then-banner" class="first-then-banner" aria-live="polite" hidden>
+          <div class="first-then-banner__top">
+            <span class="first-then-banner__eyebrow">⏱️ Primero → Después</span>
+            <div class="first-then-banner__actions">
+              <button type="button" id="btn-ft-speak" class="btn btn--ghost btn--sm">🔊 Escuchar</button>
+              <button type="button" id="btn-ft-done" class="btn btn--emerald btn--sm">✓ ¡Listo!</button>
+            </div>
+          </div>
+
+          <div class="first-then-steps">
+            <div class="first-then-step first-then-step--first">
+              <span class="first-then-step__tag">1. PRIMERO</span>
+              <strong id="ft-first-text" class="first-then-step__text">Ordenar juguetes</strong>
+            </div>
+            <span class="first-then-arrow" aria-hidden="true">→</span>
+            <div class="first-then-step first-then-step--then">
+              <span class="first-then-step__tag">2. DESPUÉS</span>
+              <strong id="ft-then-text" class="first-then-step__text">Jugar</strong>
+            </div>
+          </div>
+
+          <div id="ft-timer-wrap" class="first-then-timer" hidden>
+            <div class="first-then-timer__head">
+              <span id="ft-timer-label">Tiempo restante</span>
+              <strong id="ft-timer-clock">05:00</strong>
+            </div>
+            <div class="first-then-timer__track">
+              <div id="ft-timer-bar" class="first-then-timer__fill" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+
         <div id="category-filters" class="category-bar" role="tablist" aria-label="Categorías"></div>
         <div id="cards-grid" class="cards-grid" aria-live="polite"></div>
       </section>
@@ -1187,6 +1220,51 @@
                   <option value="1200">1.2 segundos (pausa moderada)</option>
                   <option value="2000">2.0 segundos (pausa larga)</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- 3.9 Tablero Primero -> Después + Temporizador visual -->
+            <div class="stitch-feature-card stitch-span-2">
+              <div class="stitch-feature-card__top">
+                <div class="stitch-feature-card__meta">
+                  <div class="stitch-icon-box stitch-icon-box--teal">⏱️</div>
+                  <div>
+                    <h3 class="stitch-feature-card__title">
+                      <span>Primero → Después + Temporizador visual</span>
+                      <span class="stitch-pill stitch-pill--teal">Transiciones TEA</span>
+                    </h3>
+                    <p class="stitch-feature-card__desc">Anticipa una actividad y muestra visualmente cuánto falta en el Comunicador para reducir la ansiedad.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="stitch-inner-box">
+                <div class="ask-presets">
+                  <button type="button" class="btn btn--ghost btn--sm" data-ft-first="🪥 Cepillarse los dientes" data-ft-then="📺 Ver tele">🪥 Dientes → 📺 Tele</button>
+                  <button type="button" class="btn btn--ghost btn--sm" data-ft-first="🧹 Guardar juguetes" data-ft-then="🎮 Jugar">🧹 Ordenar → 🎮 Jugar</button>
+                  <button type="button" class="btn btn--ghost btn--sm" data-ft-first="🍽️ Terminar de comer" data-ft-then="🍦 Postre">🍽️ Comer → 🍦 Postre</button>
+                  <button type="button" class="btn btn--ghost btn--sm" data-ft-first="⏳ Esperar un ratito" data-ft-then="🏞️ Ir al parque">⏳ Esperar → 🏞️ Parque</button>
+                </div>
+
+                <div class="form-grid" style="gap: 8px;">
+                  <input id="ft-input-first" type="text" class="input" placeholder="1. Primero (ej: Guardar juguetes)" maxlength="48" />
+                  <input id="ft-input-then" type="text" class="input" placeholder="2. Después (ej: Jugar o ver tele)" maxlength="48" />
+                </div>
+
+                <div class="pin-row" style="flex-wrap: wrap;">
+                  <select id="ft-input-minutes" class="select" style="flex: 1; min-width: 160px;">
+                    <option value="0">Sin temporizador (solo visual)</option>
+                    <option value="1">⏱️ 1 minuto</option>
+                    <option value="2">⏱️ 2 minutos</option>
+                    <option value="3">⏱️ 3 minutos</option>
+                    <option value="5" selected>⏱️ 5 minutos</option>
+                    <option value="10">⏱️ 10 minutos</option>
+                    <option value="15">⏱️ 15 minutos</option>
+                  </select>
+                  <button type="button" id="btn-start-first-then" class="btn btn--emerald btn--sm">🚀 Mostrar en Comunicador</button>
+                  <button type="button" id="btn-stop-first-then" class="btn btn--danger btn--sm" hidden>✕ Quitar</button>
+                </div>
+                <span id="ft-family-status" class="muted-text" style="font-size: 0.78rem;"></span>
               </div>
             </div>
           </div>
