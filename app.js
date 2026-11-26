@@ -4763,7 +4763,7 @@ async function reorderCategoriesByDrag(fromCatId, toCatId) {
   const [moved] = ordered.splice(fromIdx, 1);
   ordered.splice(toIdx, 0, moved);
   state.settings = saveSettings({ categoryOrder: ordered });
-  renderCategoryFilters();
+  renderCategories();
   renderCardsGrid();
   renderManageCardsList();
   await saveBoardPreference({ categoryOrder: ordered });
