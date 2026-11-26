@@ -187,7 +187,7 @@ const state = {
   healthSuggestions: [],
   selectedVisibleIds: new Set(),
   selectedHiddenIds: new Set(),
-  manageFilterCats: new Set(), // Vacío = todas las categorías
+  collapsedCatGroups: new Set(), // Solo colapsa grupos visualmente en Organizar Tarjetas
   commInfoSpeech: '',
   lastNotifiedEventId: null,
   unsubscribeBoard: null,
@@ -391,7 +391,6 @@ function cacheDom() {
   dom.btnShowAllCards = document.getElementById('btn-show-all-cards');
   dom.btnHideAllCards = document.getElementById('btn-hide-all-cards');
   dom.manageCatOrderBar = document.getElementById('manage-cat-order-bar');
-  dom.manageCatFilterBar = document.getElementById('manage-cat-filter-bar');
   dom.appConfirmModal = document.getElementById('app-confirm-modal');
   dom.appConfirmTitle = document.getElementById('app-confirm-title');
   dom.appConfirmMessage = document.getElementById('app-confirm-message');
@@ -3280,10 +3279,7 @@ function bindFamilyMode() {
   bindCardDropzone(dom.dropzoneHidden, true);
 
   dom.btnSelectAllVisible?.addEventListener('click', () => {
-    const filterActive = state.manageFilterCats.size > 0;
-    const visibleIds = state.cards
-      .filter((c) => !c.hidden && (!filterActive || state.manageFilterCats.has(c.category)))
-      .map((c) => c.id);
+    const visibleIds = state.cards.filter((c) => !c.hidden).map((c) => c.id);
     const allSelected = visibleIds.length > 0 && visibleIds.every((id) => state.selectedVisibleIds.has(id));
     state.selectedVisibleIds.clear();
     if (!allSelected) {
@@ -3299,10 +3295,7 @@ function bindFamilyMode() {
   });
 
   dom.btnSelectAllHidden?.addEventListener('click', () => {
-    const filterActive = state.manageFilterCats.size > 0;
-    const hiddenIds = state.cards
-      .filter((c) => Boolean(c.hidden) && (!filterActive || state.manageFilterCats.has(c.category)))
-      .map((c) => c.id);
+    const hiddenIds = state.cards.filter((c) => Boolean(c.hidden)).map((c) => c.id);
     const allSelected = hiddenIds.length > 0 && hiddenIds.every((id) => state.selectedHiddenIds.has(id));
     state.selectedHiddenIds.clear();
     if (!allSelected) {
@@ -3318,15 +3311,11 @@ function bindFamilyMode() {
   });
 
   dom.btnShowAllCards?.addEventListener('click', async () => {
-    const filterActive = state.manageFilterCats.size > 0;
-    const ids = state.cards
-      .filter((c) => c.hidden && (!filterActive || state.manageFilterCats.has(c.category)))
-      .map((c) => c.id);
+    const ids = state.cards.filter((c) => c.hidden).map((c) => c.id);
     if (ids.length === 0) return;
-    const scopeTxt = filterActive ? 'de las categorías filtradas' : 'ocultas';
     const ok = await askConfirm({
-      title: '¿Hacer visibles las tarjetas?',
-      message: `Se van a mostrar ${ids.length} tarjetas ${scopeTxt} en el Comunicador.`,
+      title: '¿Hacer visibles todas las tarjetas?',
+      message: `Se van a mostrar las ${ids.length} tarjetas ocultas en el Comunicador.`,
       confirmText: 'Sí, hacer visibles',
       danger: false
     });
@@ -3335,16 +3324,12 @@ function bindFamilyMode() {
   });
 
   dom.btnHideAllCards?.addEventListener('click', async () => {
-    const filterActive = state.manageFilterCats.size > 0;
-    const ids = state.cards
-      .filter((c) => !c.hidden && (!filterActive || state.manageFilterCats.has(c.category)))
-      .map((c) => c.id);
+    const ids = state.cards.filter((c) => !c.hidden).map((c) => c.id);
     if (ids.length === 0) return;
-    const scopeTxt = filterActive ? 'de las categorías filtradas' : 'visibles';
     const ok = await askConfirm({
       title: '¿Ocultar todas las tarjetas?',
-      message: `Se van a ocultar ${ids.length} tarjetas ${scopeTxt} del Comunicador. No se borran: quedan guardadas en la columna "Ocultas".`,
-      confirmText: 'Sí, ocultar',
+      message: `Se van a ocultar las ${ids.length} tarjetas visibles del Comunicador. No se borran: quedan guardadas en la columna "Ocultas".`,
+      confirmText: 'Sí, ocultar todas',
       danger: true
     });
     if (!ok) return;
@@ -4535,75 +4520,77 @@ function askConfirm({ title = '¿Estás seguro/a?', message = '', confirmText = 
   });
 }
 
+async function reorderCategoriesByDrag(fromCatId, toCatId) {
+  if (!fromCatId || !toCatId || fromCatId === toCatId) return;
+  const ordered = getOrderedCategories().map((c) => c.id);
+  const fromIdx = ordered.indexOf(fromCatId);
+  const toIdx = ordered.indexOf(toCatId);
+  if (fromIdx === -1 || toIdx === -1) return;
+  const [moved] = ordered.splice(fromIdx, 1);
+  ordered.splice(toIdx, 0, moved);
+  state.settings = saveSettings({ categoryOrder: ordered });
+  renderCategoryFilters();
+  renderCardsGrid();
+  renderManageCardsList();
+  await saveBoardPreference({ categoryOrder: ordered });
+}
+
 function renderManageCardsList() {
   dom.cardsCount.textContent = String(state.cards.length);
   if (!dom.manageVisibleList || !dom.manageHiddenList) return;
 
   const orderedCats = getOrderedCategories();
 
-  // Renderizar barra superior de Orden de Categorías en el Comunicador
+  // Renderizar badges horizontales arrastrables para ordenar las categorías en el Comunicador
   if (dom.manageCatOrderBar) {
     dom.manageCatOrderBar.innerHTML = '';
     orderedCats.forEach((cat, idx) => {
-      const pill = document.createElement('div');
-      pill.className = 'cat-order-pill';
+      const badge = document.createElement('div');
+      badge.className = 'cat-drag-badge';
+      badge.draggable = true;
+      badge.dataset.catId = cat.id;
+      badge.title = 'Arrastrá horizontalmente para cambiar el orden en el Comunicador';
+
+      const grip = document.createElement('span');
+      grip.className = 'cat-drag-badge__grip';
+      grip.textContent = '⋮⋮';
+      grip.setAttribute('aria-hidden', 'true');
 
       const num = document.createElement('span');
-      num.className = 'cat-order-pill__num';
+      num.className = 'cat-drag-badge__num';
       num.textContent = `${idx + 1}.`;
 
       const lbl = document.createElement('span');
       lbl.textContent = cat.label;
 
-      const leftBtn = document.createElement('button');
-      leftBtn.type = 'button';
-      leftBtn.className = 'cat-order-pill__btn';
-      leftBtn.textContent = '←';
-      leftBtn.title = `Mover "${cat.label}" antes`;
-      leftBtn.disabled = idx === 0;
-      leftBtn.addEventListener('click', () => moveCategoryOrder(cat.id, -1));
+      badge.append(grip, num, lbl);
 
-      const rightBtn = document.createElement('button');
-      rightBtn.type = 'button';
-      rightBtn.className = 'cat-order-pill__btn';
-      rightBtn.textContent = '→';
-      rightBtn.title = `Mover "${cat.label}" después`;
-      rightBtn.disabled = idx === orderedCats.length - 1;
-      rightBtn.addEventListener('click', () => moveCategoryOrder(cat.id, 1));
-
-      pill.append(num, lbl, leftBtn, rightBtn);
-      dom.manageCatOrderBar.appendChild(pill);
-    });
-  }
-
-  // Renderizar chips de filtro multi-categoría (aplican a ambas columnas)
-  if (dom.manageCatFilterBar) {
-    dom.manageCatFilterBar.innerHTML = '';
-    const allChip = document.createElement('button');
-    allChip.type = 'button';
-    allChip.className = `chip-btn ${state.manageFilterCats.size === 0 ? 'is-active' : ''}`;
-    allChip.textContent = 'Todas';
-    allChip.addEventListener('click', () => {
-      state.manageFilterCats.clear();
-      renderManageCardsList();
-    });
-    dom.manageCatFilterBar.appendChild(allChip);
-
-    orderedCats.forEach((cat) => {
-      const isSelected = state.manageFilterCats.has(cat.id);
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = `chip-btn ${isSelected ? 'is-active' : ''}`;
-      chip.textContent = isSelected ? `✓ ${cat.label}` : cat.label;
-      chip.addEventListener('click', () => {
-        if (state.manageFilterCats.has(cat.id)) {
-          state.manageFilterCats.delete(cat.id);
-        } else {
-          state.manageFilterCats.add(cat.id);
-        }
-        renderManageCardsList();
+      badge.addEventListener('dragstart', (e) => {
+        badge.classList.add('is-dragging');
+        e.dataTransfer.setData('text/cat-id', cat.id);
+        e.dataTransfer.effectAllowed = 'move';
       });
-      dom.manageCatFilterBar.appendChild(chip);
+      badge.addEventListener('dragend', () => {
+        badge.classList.remove('is-dragging');
+        dom.manageCatOrderBar.querySelectorAll('.is-drag-over').forEach((el) => el.classList.remove('is-drag-over'));
+      });
+      badge.addEventListener('dragover', (e) => {
+        if (!e.dataTransfer.types.includes('text/cat-id')) return;
+        e.preventDefault();
+        badge.classList.add('is-drag-over');
+      });
+      badge.addEventListener('dragleave', () => {
+        badge.classList.remove('is-drag-over');
+      });
+      badge.addEventListener('drop', async (e) => {
+        const fromId = e.dataTransfer.getData('text/cat-id');
+        if (!fromId) return;
+        e.preventDefault();
+        badge.classList.remove('is-drag-over');
+        await reorderCategoriesByDrag(fromId, cat.id);
+      });
+
+      dom.manageCatOrderBar.appendChild(badge);
     });
   }
 
@@ -4644,9 +4631,7 @@ function renderManageCardsList() {
     .trim();
 
   const catMap = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.label]));
-  const filterActive = state.manageFilterCats.size > 0;
   const matchesQuery = (card) => {
-    if (filterActive && !state.manageFilterCats.has(card.category)) return false;
     if (!q) return true;
     const hay = `${card.text} ${catMap[card.category] || card.category}`
       .normalize('NFD')
@@ -4848,33 +4833,35 @@ function renderManageCardsList() {
       const right = document.createElement('div');
       right.className = 'cat-group__actions';
 
-      // En Visibles, permitir ordenar las categorías (subir/bajar prioridad en el Comunicador)
-      if (!isHidden) {
-        const catUp = document.createElement('button');
-        catUp.type = 'button';
-        catUp.className = 'btn btn--ghost btn--sm reorder-btn';
-        catUp.textContent = '↑';
-        catUp.title = `Subir categoría "${cat.label}"`;
-        catUp.disabled = catIdx <= 0;
-        catUp.addEventListener('click', () => moveCategoryOrder(cat.id, -1));
-
-        const catDown = document.createElement('button');
-        catDown.type = 'button';
-        catDown.className = 'btn btn--ghost btn--sm reorder-btn';
-        catDown.textContent = '↓';
-        catDown.title = `Bajar categoría "${cat.label}"`;
-        catDown.disabled = catIdx >= orderedCats.length - 1;
-        catDown.addEventListener('click', () => moveCategoryOrder(cat.id, 1));
-
-        right.append(catUp, catDown);
-      }
+      // Botón +/- para plegar/desplegar temporalmente las tarjetas de esta categoría solo en esta pantalla
+      const groupKey = `${isHidden ? 'h' : 'v'}:${cat.id}`;
+      const isCollapsed = state.collapsedCatGroups.has(groupKey);
+      const toggleCollapseBtn = document.createElement('button');
+      toggleCollapseBtn.type = 'button';
+      toggleCollapseBtn.className = `cat-collapse-btn ${isCollapsed ? 'is-collapsed' : ''}`;
+      toggleCollapseBtn.textContent = isCollapsed ? '+' : '−';
+      toggleCollapseBtn.title = isCollapsed
+        ? `Desplegar tarjetas de "${cat.label}"`
+        : `Plegar tarjetas de "${cat.label}" (solo en esta pantalla)`;
+      toggleCollapseBtn.setAttribute('aria-expanded', String(!isCollapsed));
+      toggleCollapseBtn.addEventListener('click', () => {
+        if (state.collapsedCatGroups.has(groupKey)) {
+          state.collapsedCatGroups.delete(groupKey);
+        } else {
+          state.collapsedCatGroups.add(groupKey);
+        }
+        renderManageCardsList();
+      });
+      right.appendChild(toggleCollapseBtn);
 
       head.append(left, right);
       groupEl.appendChild(head);
 
-      groupCards.forEach((card, idx) => {
-        groupEl.appendChild(buildCardRow(card, isHidden, idx, groupCards.length));
-      });
+      if (!isCollapsed) {
+        groupCards.forEach((card, idx) => {
+          groupEl.appendChild(buildCardRow(card, isHidden, idx, groupCards.length));
+        });
+      }
 
       container.appendChild(groupEl);
     });

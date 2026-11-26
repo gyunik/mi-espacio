@@ -15,7 +15,7 @@
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/logo-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="./icons/logo-512.png" />
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=58" />
   <link rel="stylesheet" href="./landing.css" />
   <link rel="stylesheet" href="./communicator.css" />
   <link rel="stylesheet" href="./family.css" />
@@ -736,29 +736,16 @@
             </div>
           </div>
 
-          <div class="cards-toolbar-grid">
-            <div class="cards-toolbar-search">
-              <label for="manage-cards-search" class="field-label" style="margin-bottom: 4px; display: block;">🔍 Buscar tarjeta:</label>
-              <input id="manage-cards-search" type="text" class="input" placeholder="Escribí una palabra para filtrar..." autocomplete="off" />
-            </div>
-
-            <div class="cards-toolbar-order">
-              <span class="field-label" style="margin-bottom: 4px; display: block;">↕ Orden de categorías en el Comunicador:</span>
-              <div id="manage-cat-order-bar" class="cat-order-bar" aria-label="Orden de categorías en el Comunicador"></div>
-            </div>
+          <div class="cards-search-row">
+            <input id="manage-cards-search" type="text" class="input" placeholder="🔍 Buscar tarjeta..." autocomplete="off" />
           </div>
 
-          <div class="cards-filter-row">
-            <span class="field-label" style="margin: 0;">Filtrar por categoría (selección múltiple):</span>
-            <div id="manage-cat-filter-bar" class="cat-filter-chips" role="group" aria-label="Filtrar tarjetas por una o más categorías"></div>
-          </div>
-
-          <div class="cards-bulk-global-row">
-            <span class="muted-text" style="font-size: 0.78rem; font-weight: 700;">Acciones masivas (piden confirmación):</span>
+          <div class="cards-action-order-row">
             <div class="pin-row" style="flex-wrap: wrap;">
               <button type="button" id="btn-show-all-cards" class="btn btn--ghost btn--sm">👁️ Hacer visibles todas</button>
               <button type="button" id="btn-hide-all-cards" class="btn btn--danger btn--sm">🙈 Ocultar todas las tarjetas</button>
             </div>
+            <div id="manage-cat-order-bar" class="cat-order-bar" aria-label="Arrastrá las categorías para elegir su orden en el Comunicador" title="Arrastrá horizontalmente para ordenar las categorías en el Comunicador"></div>
           </div>
 
           <div class="cards-split-grid">
@@ -1450,6 +1437,6 @@
     </div>
   </div>
 
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=58"></script>
 </body>
 </html>
