@@ -47,6 +47,7 @@ import {
   saveCard,
   removeCard,
   importTemplatePack,
+  syncCardsForUserProfile,
   getQuickQuestions,
   saveQuickQuestion,
   removeQuickQuestion,
@@ -2249,6 +2250,7 @@ function bindPhraseBar() {
             enableWeatherCard: true,
             enableDateTimeCard: true,
             enableRadioCard: true,
+            enableHealthCall: Boolean(state.settings.healthCallPhone),
             radioName: state.settings.radioUrl
               ? state.settings.radioName
               : 'Radio Nacional Folklórica FM 98.7',
@@ -2264,7 +2266,8 @@ function bindPhraseBar() {
             enableNewsTvCard: false,
             enableWeatherCard: false,
             enableDateTimeCard: false,
-            enableRadioCard: false
+            enableRadioCard: false,
+            enableHealthCall: false
           };
 
     state.settings = saveSettings(patch);
@@ -2278,6 +2281,9 @@ function bindPhraseBar() {
     renderPhraseBar();
     renderCardsGrid();
     await saveBoardPreference(patch);
+    state.cards = await syncCardsForUserProfile(target);
+    renderCardsGrid();
+    renderFamilyCardsList();
   };
 
   dom.landingProfileBtns?.forEach((btn) => {
