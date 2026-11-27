@@ -341,6 +341,13 @@ function cacheDom() {
   dom.btnCommSearchClear = document.getElementById('btn-comm-search-clear');
   dom.landingProfileBtns = document.querySelectorAll('[data-profile-choice]');
   dom.landingProfileStatus = document.getElementById('landing-profile-status');
+  dom.landingTeaserEyebrow = document.getElementById('landing-teaser-eyebrow');
+  dom.landingTeaserTitle = document.getElementById('landing-teaser-title');
+  dom.landingTeaserDesc = document.getElementById('landing-teaser-desc');
+  dom.landingTeaserTags = document.getElementById('landing-teaser-tags');
+  dom.landingTeaserImg = document.getElementById('landing-teaser-img');
+  dom.landingTeaserCaption = document.getElementById('landing-teaser-caption');
+  dom.landingPillarPrivacyDesc = document.getElementById('landing-pillar-privacy-desc');
   dom.categoryFilters = document.getElementById('category-filters');
   dom.cardsGrid = document.getElementById('cards-grid');
 
@@ -6060,6 +6067,53 @@ function applySettingsToUI() {
       activeProfile === 'senior'
         ? 'Perfil activo: 💛 Persona Mayor'
         : 'Perfil activo: 🧩 Adolescente / TEA';
+  }
+
+  // Adaptar bloque destacado e imagen de la portada según el perfil activo
+  const isSeniorProfile = activeProfile === 'senior';
+  if (dom.landingTeaserEyebrow) {
+    dom.landingTeaserEyebrow.textContent = isSeniorProfile
+      ? 'AUTONOMÍA Y COMPAÑÍA DIARIA'
+      : 'COMUNICACIÓN BIDIRECCIONAL EN TIEMPO REAL';
+  }
+  if (dom.landingTeaserTitle) {
+    dom.landingTeaserTitle.textContent = isSeniorProfile
+      ? 'Autonomía y compañía todos los días'
+      : 'Acompañamiento sin invadir';
+  }
+  if (dom.landingTeaserDesc) {
+    dom.landingTeaserDesc.textContent = isSeniorProfile
+      ? 'Tarjetas grandes y claras para escuchar las noticias del día, radio, clima, ver TV en vivo o avisar a la familia con un solo toque, sin menús complicados.'
+      : 'Las preguntas enviadas por la familia aparecen con apoyo visual claro. El comunicador permite responder con voz sintetizada, avisos de calma o escuchar mensajes de voz grabados por mamá y papá.';
+  }
+  if (dom.landingTeaserTags) {
+    dom.landingTeaserTags.innerHTML = isSeniorProfile
+      ? `<span class="landing-tag"><span class="material-symbols-outlined" style="color: #fbbf24; font-size: 16px;">newspaper</span>Noticias y radio en 1 toque</span>
+         <span class="landing-tag"><span class="material-symbols-outlined" style="color: #4edea3; font-size: 16px;">call</span>Contacto directo con familia</span>`
+      : `<span class="landing-tag"><span class="material-symbols-outlined" style="color: #4edea3; font-size: 16px;">mic</span>Notas de voz reales</span>
+         <span class="landing-tag"><span class="material-symbols-outlined" style="color: #38BDF8; font-size: 16px;">notifications_paused</span>Sin sobreestimulación</span>`;
+  }
+  if (dom.landingTeaserImg) {
+    const teenImgUrl =
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuAXmxPQrbUy9V8LiLTd-bQrhpkgNqTcSek8aLYnW_XMBf1c9G9baivfuY3Gr7J7IUYo2SG0GhKJoLCkh7xsXEyTs1uc0nNYjhaRMrZ7Q181sI_FNkqMR6BcDHRRbyUQepHznzo9R31COj4VeWxm9H_EGxnn_4K9ZBNhUIz384oP8LZbPlz_YT4t9IEEqFIjH72XaBbpAPixnTOIqpm4awnontStk7ePMwPagzFqOg';
+    const nextSrc = isSeniorProfile ? './assets/landing-senior.jpg' : teenImgUrl;
+    if (dom.landingTeaserImg.getAttribute('src') !== nextSrc) {
+      dom.landingTeaserImg.style.display = '';
+      dom.landingTeaserImg.setAttribute('src', nextSrc);
+    }
+    dom.landingTeaserImg.alt = isSeniorProfile
+      ? 'Persona mayor usando Mi Espacio con botones grandes junto a un familiar'
+      : 'Espacio predecible y seguro para comunicación aumentativa';
+  }
+  if (dom.landingTeaserCaption) {
+    dom.landingTeaserCaption.textContent = isSeniorProfile
+      ? 'Simple, cercano y accesible'
+      : 'Espacio predecible y seguro';
+  }
+  if (dom.landingPillarPrivacyDesc) {
+    dom.landingPillarPrivacyDesc.textContent = isSeniorProfile
+      ? 'Interfaz simple y protegida, enfocada en la autonomía diaria y libre de distracciones técnicas.'
+      : 'Modo adolescente protegido, enfocado puramente en su voz y libre de distracciones técnicas.';
   }
   if (dom.btnCommSearchToggle) {
     const showSearchBtn = activeProfile === 'senior' || !state.settings.showPhraseBar;
