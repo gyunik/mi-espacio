@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Asistente de Voz">
+  <rect width="240" height="160" rx="16" fill="#0F172A"/>
+  <circle cx="120" cy="80" r="58" fill="#162032" stroke="#38BDF8" stroke-opacity="0.28" stroke-width="2"/>
+  <circle cx="120" cy="80" r="44" fill="#1E293B" stroke="#38BDF8" stroke-opacity="0.16" stroke-width="2"/>
+  <!-- Micrófono principal -->
+  <rect x="104" y="42" width="32" height="50" rx="16" fill="#38BDF8"/>
+  <rect x="112" y="52" width="16" height="4" rx="2" fill="#0F172A" opacity="0.35"/>
+  <rect x="112" y="62" width="16" height="4" rx="2" fill="#0F172A" opacity="0.35"/>
+  <!-- Arco y base del micrófono -->
+  <path d="M92 78 C92 98 104 108 120 108 C136 108 148 98 148 78" fill="none" stroke="#E2E8F0" stroke-width="5" stroke-linecap="round"/>
+  <line x1="120" y1="108" x2="120" y2="124" stroke="#E2E8F0" stroke-width="5" stroke-linecap="round"/>
+  <line x1="102" y1="124" x2="138" y2="124" stroke="#E2E8F0" stroke-width="5" stroke-linecap="round"/>
+  <!-- Ondas de voz izquierda y derecha -->
+  <path d="M74 66 C66 74 66 86 74 94" fill="none" stroke="#4EDEA3" stroke-width="4" stroke-linecap="round"/>
+  <path d="M166 66 C174 74 174 86 166 94" fill="none" stroke="#4EDEA3" stroke-width="4" stroke-linecap="round"/>
+  <path d="M62 56 C50 69 50 91 62 104" fill="none" stroke="#38BDF8" stroke-opacity="0.7" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M178 56 C190 69 190 91 178 104" fill="none" stroke="#38BDF8" stroke-opacity="0.7" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

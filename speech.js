@@ -474,3 +474,122 @@ export function startLiveTranscript({ lang = 'es-AR', onStart, onUpdate, onError
     }
   };
 }
+
+/**
+ * Escucha una única frase/comando hablado (Web Speech Recognition API) en español rioplatense.
+ * Pensado para el Asistente de Voz: el usuario toca una vez, habla y al hacer pausa
+ * entrega el texto final automáticamente.
+ *
+ * @param {Object} options
+ * @param {string} [options.lang='es-AR']
+ * @param {Function} [options.onStart]
+ * @param {Function} [options.onInterim] Texto parcial mientras habla
+ * @param {Function} [options.onResult] Texto final reconocido
+ * @param {Function} [options.onError] Código de error ('unsupported', 'not-allowed', 'no-speech', etc.)
+ * @param {Function} [options.onEnd]
+ */
+export function listenSingleCommand({
+  lang = 'es-AR',
+  onStart,
+  onInterim,
+  onResult,
+  onError,
+  onEnd
+} = {}) {
+  const Recognition =
+    typeof window !== 'undefined' &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  if (!Recognition) {
+    onError?.('unsupported');
+    return null;
+  }
+
+  let stoppedManually = false;
+  let deliveredResult = false;
+  let activeLang = lang;
+  let lastError = null;
+  let lastTranscript = '';
+  let rec = null;
+
+  const createAndStart = () => {
+    rec = new Recognition();
+    rec.lang = activeLang;
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+
+    rec.onstart = () => {
+      onStart?.();
+    };
+
+    rec.onresult = (event) => {
+      let finalPiece = '';
+      let interimPiece = '';
+      for (let i = 0; i < event.results.length; i += 1) {
+        const piece = (event.results[i][0]?.transcript || '').trim();
+        if (!piece) continue;
+        if (event.results[i].isFinal) {
+          finalPiece = finalPiece ? `${finalPiece} ${piece}` : piece;
+        } else {
+          interimPiece = interimPiece ? `${interimPiece} ${piece}` : piece;
+        }
+      }
+
+      const combined = [finalPiece, interimPiece].filter(Boolean).join(' ').trim();
+      if (combined) {
+        lastTranscript = combined;
+        onInterim?.(combined);
+      }
+
+      if (finalPiece && !deliveredResult) {
+        deliveredResult = true;
+        onResult?.(finalPiece);
+      }
+    };
+
+    rec.onerror = (event) => {
+      lastError = event.error || 'unknown';
+      if (lastError === 'language-not-supported' && activeLang !== 'es-ES') {
+        activeLang = 'es-ES';
+        return;
+      }
+      if (lastError !== 'aborted') {
+        onError?.(lastError);
+      }
+    };
+
+    rec.onend = () => {
+      if (lastError === 'language-not-supported' && activeLang === 'es-ES' && !stoppedManually) {
+        lastError = null;
+        try {
+          createAndStart();
+          return;
+        } catch {}
+      }
+      if (!deliveredResult && lastTranscript && !stoppedManually) {
+        deliveredResult = true;
+        onResult?.(lastTranscript);
+      }
+      onEnd?.();
+    };
+
+    rec.start();
+  };
+
+  try {
+    createAndStart();
+  } catch (err) {
+    onError?.(err?.message || 'start-failed');
+    return null;
+  }
+
+  return {
+    stop: () => {
+      stoppedManually = true;
+      try {
+        rec?.stop();
+      } catch {}
+    }
+  };
+}

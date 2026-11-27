@@ -14,8 +14,16 @@ import {
   isAudioRecordingSupported,
   startVoiceRecording,
   createVoiceLevelMeter,
-  startLiveTranscript
+  startLiveTranscript,
+  listenSingleCommand
 } from './speech.js';
+
+import {
+  parseLocalVoiceIntent,
+  askAssistantAI,
+  getDailyAiUsage,
+  buildAuthorizedContacts
+} from './voiceAssistant.js';
 
 import { MUSIC_CATEGORIES } from './musicCatalog.js';
 import { pushConfig } from './firebaseConfig.js';
@@ -565,6 +573,38 @@ function cacheDom() {
   dom.newsAudioTopicsBar = document.getElementById('news-audio-topics-bar');
   dom.btnCloseNewsAudio = document.getElementById('btn-close-news-audio');
 
+  dom.settingEnableVoiceAssistant = document.getElementById('setting-enable-voice-assistant');
+  dom.settingVoiceAssistantMode = document.getElementById('setting-voice-assistant-mode');
+  dom.voiceAssistantAiLimitRow = document.getElementById('voice-assistant-ai-limit-row');
+  dom.settingVoiceAssistantLimit = document.getElementById('setting-voice-assistant-limit');
+  dom.voiceAssistantAiUsage = document.getElementById('voice-assistant-ai-usage');
+  dom.vaContactName = document.getElementById('va-contact-name');
+  dom.vaContactPhone = document.getElementById('va-contact-phone');
+  dom.vaContactAliases = document.getElementById('va-contact-aliases');
+  dom.vaContactMode = document.getElementById('va-contact-mode');
+  dom.btnAddVaContact = document.getElementById('btn-add-va-contact');
+  dom.vaContactsList = document.getElementById('va-contacts-list');
+  dom.voiceAssistantStatus = document.getElementById('voice-assistant-status');
+  dom.btnTestVoiceAssistant = document.getElementById('btn-test-voice-assistant');
+
+  dom.commVoiceAssistantModal = document.getElementById('comm-voice-assistant-modal');
+  dom.btnCloseVoiceAssistant = document.getElementById('btn-close-voice-assistant');
+  dom.vaModeBadge = document.getElementById('va-mode-badge');
+  dom.btnVaTalk = document.getElementById('btn-va-talk');
+  dom.vaTalkIcon = document.getElementById('va-talk-icon');
+  dom.vaTalkLabel = document.getElementById('va-talk-label');
+  dom.vaTalkHint = document.getElementById('va-talk-hint');
+  dom.vaHeardBox = document.getElementById('va-heard-box');
+  dom.vaHeardText = document.getElementById('va-heard-text');
+  dom.vaCallConfirm = document.getElementById('va-call-confirm');
+  dom.vaCallAvatar = document.getElementById('va-call-avatar');
+  dom.vaCallName = document.getElementById('va-call-name');
+  dom.vaCallPhone = document.getElementById('va-call-phone');
+  dom.btnVaConfirmCall = document.getElementById('btn-va-confirm-call');
+  dom.btnVaCancelCall = document.getElementById('btn-va-cancel-call');
+  dom.vaResponseText = document.getElementById('va-response-text');
+  dom.btnVaRepeat = document.getElementById('btn-va-repeat');
+
   dom.settingExitPin = document.getElementById('setting-exit-pin');
   dom.btnSaveExitPin = document.getElementById('btn-save-exit-pin');
   dom.btnClearExitPin = document.getElementById('btn-clear-exit-pin');
@@ -926,6 +966,18 @@ function startBoardSubscription() {
       }
       if (typeof remoteSettings.newsAudioCount === 'number' && !Number.isNaN(remoteSettings.newsAudioCount)) {
         updates.newsAudioCount = Math.max(3, Math.min(8, remoteSettings.newsAudioCount));
+      }
+      if (typeof remoteSettings.enableVoiceAssistant === 'boolean') {
+        updates.enableVoiceAssistant = remoteSettings.enableVoiceAssistant;
+      }
+      if (remoteSettings.voiceAssistantMode === 'local' || remoteSettings.voiceAssistantMode === 'ai') {
+        updates.voiceAssistantMode = remoteSettings.voiceAssistantMode;
+      }
+      if (typeof remoteSettings.voiceAssistantDailyLimit === 'number' && !Number.isNaN(remoteSettings.voiceAssistantDailyLimit)) {
+        updates.voiceAssistantDailyLimit = Math.max(1, Math.min(100, remoteSettings.voiceAssistantDailyLimit));
+      }
+      if (Array.isArray(remoteSettings.voiceContacts)) {
+        updates.voiceContacts = remoteSettings.voiceContacts;
       }
       if (remoteSettings.userProfile === 'teen' || remoteSettings.userProfile === 'senior') {
         updates.userProfile = remoteSettings.userProfile;
@@ -2235,6 +2287,396 @@ function bindPhraseBar() {
   dom.btnNewsAudioStop?.addEventListener('click', stopNewsAudioReading);
 
   // =========================================================================
+  // ASISTENTE DE VOZ (Híbrido: comandos locales 0 tokens + IA opcional)
+  // =========================================================================
+  const vaState = {
+    listening: false,
+    thinking: false,
+    controller: null,
+    lastSpokenReply: '',
+    pendingCall: null
+  };
+
+  const setVaButtonState = (mode) => {
+    if (!dom.btnVaTalk) return;
+    dom.btnVaTalk.classList.toggle('is-listening', mode === 'listening');
+    dom.btnVaTalk.classList.toggle('is-thinking', mode === 'thinking');
+    dom.btnVaTalk.setAttribute('aria-pressed', mode === 'listening' ? 'true' : 'false');
+
+    if (mode === 'listening') {
+      if (dom.vaTalkIcon) dom.vaTalkIcon.textContent = '⏹️';
+      if (dom.vaTalkLabel) dom.vaTalkLabel.textContent = 'Escuchando... Hablá ahora';
+      if (dom.vaTalkHint) dom.vaTalkHint.textContent = 'Tocá de nuevo para detener si ya terminaste.';
+    } else if (mode === 'thinking') {
+      if (dom.vaTalkIcon) dom.vaTalkIcon.textContent = '⏳';
+      if (dom.vaTalkLabel) dom.vaTalkLabel.textContent = 'Pensando...';
+      if (dom.vaTalkHint) dom.vaTalkHint.textContent = 'Un segundito, ya te respondo.';
+    } else {
+      if (dom.vaTalkIcon) dom.vaTalkIcon.textContent = '🎤';
+      if (dom.vaTalkLabel) dom.vaTalkLabel.textContent = 'Tocá para hablar';
+      if (dom.vaTalkHint) {
+        dom.vaTalkHint.textContent = 'Decí por ejemplo: "Llamá a mi hijo", "¿Qué hora es?" o "¿Cómo está el clima?"';
+      }
+    }
+  };
+
+  const hideVaCallConfirm = () => {
+    vaState.pendingCall = null;
+    if (dom.vaCallConfirm) dom.vaCallConfirm.hidden = true;
+  };
+
+  const showVaCallConfirm = (contact, mode) => {
+    const finalMode = mode === 'whatsapp' ? 'whatsapp' : 'tel';
+    vaState.pendingCall = { ...contact, mode: finalMode };
+    if (dom.vaCallAvatar) dom.vaCallAvatar.textContent = finalMode === 'whatsapp' ? '💬' : '📞';
+    if (dom.vaCallName) dom.vaCallName.textContent = contact.name;
+    if (dom.vaCallPhone) {
+      const aliasHint = contact.roleHint || (contact.aliases?.length ? contact.aliases[0] : '');
+      dom.vaCallPhone.textContent = aliasHint ? `${aliasHint} · ${contact.phone}` : contact.phone;
+    }
+    if (dom.btnVaConfirmCall) {
+      dom.btnVaConfirmCall.textContent =
+        finalMode === 'whatsapp' ? `💬 Abrir WhatsApp de ${contact.name}` : `📞 Confirmar llamada`;
+    }
+    if (dom.vaCallConfirm) dom.vaCallConfirm.hidden = false;
+  };
+
+  const setVaReply = (text, { shouldSpeak = true } = {}) => {
+    const clean = String(text || '').trim();
+    vaState.lastSpokenReply = clean;
+    if (dom.vaResponseText) dom.vaResponseText.textContent = clean;
+    if (dom.btnVaRepeat) dom.btnVaRepeat.hidden = !clean;
+    if (shouldSpeak && clean) {
+      speak(clean, ttsOptions());
+    }
+  };
+
+  const stopVaListening = () => {
+    if (vaState.controller) {
+      try {
+        vaState.controller.stop();
+      } catch {}
+      vaState.controller = null;
+    }
+    vaState.listening = false;
+    if (!vaState.thinking) setVaButtonState('idle');
+  };
+
+  const closeVoiceAssistantModal = () => {
+    stopVaListening();
+    stopAllAudio();
+    hideVaCallConfirm();
+    if (dom.commVoiceAssistantModal) {
+      dom.commVoiceAssistantModal.hidden = true;
+    }
+  };
+
+  const pauseBackgroundMediaForVoice = () => {
+    stopAllAudio();
+    stopMusicPreview();
+    stopRadioPreview();
+    if (state.music.audio && state.music.isPlaying) {
+      state.music.audio.pause();
+      state.music.isPlaying = false;
+      renderCardsGrid();
+    }
+    if (state.radio.audio && state.radio.isPlaying) {
+      state.radio.audio.pause();
+      state.radio.isPlaying = false;
+      renderCardsGrid();
+    }
+  };
+
+  const handleVoiceAssistantCommand = async (rawText) => {
+    const spoken = String(rawText || '').trim();
+    if (!spoken) return;
+
+    hideVaCallConfirm();
+    if (dom.vaHeardBox) dom.vaHeardBox.hidden = false;
+    if (dom.vaHeardText) dom.vaHeardText.textContent = `“${spoken}”`;
+
+    const intent = parseLocalVoiceIntent(spoken, state.settings);
+
+    // 1. Llamada a contacto autorizado (siempre con confirmación visual grande)
+    if (intent.type === 'call_contact') {
+      showVaCallConfirm(intent.contact, intent.preferredMode);
+      const verb = intent.preferredMode === 'whatsapp' ? 'abrir WhatsApp con' : 'llamar a';
+      setVaReply(`¿Querés ${verb} ${intent.contact.name}? Tocá el botón verde para confirmar.`);
+      return;
+    }
+
+    // 2. Contacto no autorizado / no encontrado (nunca marcar números desconocidos)
+    if (intent.type === 'call_not_found') {
+      const authorized = buildAuthorizedContacts(state.settings);
+      const names = authorized.slice(0, 4).map((c) => c.name).join(', ');
+      const extra = names
+        ? `Los contactos autorizados son: ${names}.`
+        : 'Todavía no hay contactos cargados en la agenda de Modo Familia.';
+      setVaReply(`No encontré a "${intent.requestedTarget || 'esa persona'}" en tu agenda autorizada. ${extra}`);
+      return;
+    }
+
+    // 3. Avisar a la familia en tiempo real
+    if (intent.type === 'notify_family') {
+      try {
+        await sendTeenRequest({
+          label: `🎙️ ${intent.message}`,
+          category: 'familia',
+          transcript: intent.message
+        });
+        logUsageEvent({ label: `Asistente: ${intent.message}`, category: 'familia' }).catch(() => {});
+        setVaReply(`Listo, ya le avisé a tu familia: "${intent.message}".`);
+      } catch {
+        setVaReply('No pude enviar el aviso en este momento. Verificá la conexión a internet.');
+      }
+      return;
+    }
+
+    // 4. Día y hora (100% offline, 0 tokens)
+    if (intent.type === 'time') {
+      const dt = getDateTimeSummary(new Date());
+      setVaReply(`${dt.headline} · ${dt.details}. ${dt.speechText}`);
+      return;
+    }
+
+    // 5. Clima (Open-Meteo, 0 tokens)
+    if (intent.type === 'weather') {
+      vaState.thinking = true;
+      setVaButtonState('thinking');
+      try {
+        const summary = await fetchWeatherSummary({
+          city: state.settings.weatherCity || 'Buenos Aires',
+          lat: Number(state.settings.weatherLat) || -34.6037,
+          lon: Number(state.settings.weatherLon) || -58.3816
+        });
+        setVaReply(`${summary.icon} ${summary.headline}. ${summary.speechText}`);
+      } catch {
+        setVaReply('No pude consultar el clima en este momento. Revisá tu conexión a internet.');
+      } finally {
+        vaState.thinking = false;
+        setVaButtonState('idle');
+      }
+      return;
+    }
+
+    // 6. Noticias (abre el lector de noticias existente con botones grandes)
+    if (intent.type === 'news') {
+      closeVoiceAssistantModal();
+      if (typeof window.__openNewsAudioModal === 'function') {
+        window.__openNewsAudioModal(intent.topic || state.settings.newsAudioTopic || 'argentina');
+      }
+      return;
+    }
+
+    // 7. Apagar radio
+    if (intent.type === 'radio_off') {
+      if (state.radio.audio && state.radio.isPlaying) {
+        state.radio.audio.pause();
+        state.radio.audio.removeAttribute('src');
+        state.radio.audio.load();
+        state.radio.isPlaying = false;
+        renderCardsGrid();
+        setVaReply('Listo, apagué la radio.');
+      } else {
+        setVaReply('La radio ya estaba apagada.');
+      }
+      return;
+    }
+
+    // 8. Prender radio (usa la radio configurada o busca por nombre)
+    if (intent.type === 'radio_on') {
+      if (intent.query) {
+        vaState.thinking = true;
+        setVaButtonState('thinking');
+        try {
+          const found = await searchRadioStations(intent.query);
+          if (found && found.length > 0) {
+            const st = found[0];
+            state.settings = saveSettings({
+              enableRadioCard: true,
+              radioName: st.name,
+              radioUrl: st.url
+            });
+            setVaReply(`Poniendo ${st.name}.`, { shouldSpeak: false });
+            closeVoiceAssistantModal();
+            if (typeof window.__toggleRadioCard === 'function') {
+              window.__toggleRadioCard();
+            }
+            return;
+          }
+        } catch {
+          // Seguir con la radio por defecto
+        } finally {
+          vaState.thinking = false;
+          setVaButtonState('idle');
+        }
+      }
+
+      if (!state.settings.radioUrl) {
+        state.settings = saveSettings({
+          enableRadioCard: true,
+          radioName: 'Radio Nacional Folklórica FM 98.7',
+          radioUrl: 'https://sa.mp3.icecast.magma.edge-access.net/sc_rad38'
+        });
+      }
+      closeVoiceAssistantModal();
+      if (typeof window.__toggleRadioCard === 'function' && !state.radio.isPlaying) {
+        window.__toggleRadioCard();
+      }
+      return;
+    }
+
+    // 9. Ayuda
+    if (intent.type === 'help') {
+      setVaReply(
+        'Podés pedirme: llamar a un familiar de tu agenda, preguntar qué hora es, cómo está el clima, escuchar las noticias de hoy, poner la radio o avisarle algo a tu familia.'
+      );
+      return;
+    }
+
+    // 10. Consulta abierta -> Solo usar IA si está activado el modo 'ai'
+    const aiEnabled = state.settings.voiceAssistantMode === 'ai';
+    if (!aiEnabled) {
+      setVaReply(
+        'Entendí lo que dijiste, pero estoy en modo local sin inteligencia artificial. Podés pedirme la hora, el clima, las noticias, poner la radio, avisar a tu familia o llamar a un contacto guardado.'
+      );
+      return;
+    }
+
+    vaState.thinking = true;
+    setVaButtonState('thinking');
+    setVaReply('Consultando tu pregunta...', { shouldSpeak: false });
+
+    try {
+      const res = await askAssistantAI({
+        workerUrl: pushConfig.workerUrl,
+        question: intent.text,
+        boardId: state.settings.pairingCode || 'local',
+        city: state.settings.weatherCity || 'Buenos Aires',
+        dailyLimit: Number(state.settings.voiceAssistantDailyLimit) || 10
+      });
+      setVaReply(res.reply);
+      applySettingsToUI();
+    } catch {
+      setVaReply('No pude conectarme para responder esa pregunta. Intentemos de nuevo en un momento.');
+    } finally {
+      vaState.thinking = false;
+      setVaButtonState('idle');
+    }
+  };
+
+  const toggleVaListening = () => {
+    if (vaState.thinking) return;
+    if (vaState.listening) {
+      stopVaListening();
+      return;
+    }
+
+    pauseBackgroundMediaForVoice();
+    hideVaCallConfirm();
+
+    const ctrl = listenSingleCommand({
+      lang: 'es-AR',
+      onStart: () => {
+        vaState.listening = true;
+        setVaButtonState('listening');
+        if (dom.vaHeardBox) dom.vaHeardBox.hidden = false;
+        if (dom.vaHeardText) dom.vaHeardText.textContent = 'Escuchando...';
+      },
+      onInterim: (partial) => {
+        if (dom.vaHeardBox) dom.vaHeardBox.hidden = false;
+        if (dom.vaHeardText) dom.vaHeardText.textContent = `“${partial}”`;
+      },
+      onResult: (finalText) => {
+        vaState.listening = false;
+        vaState.controller = null;
+        setVaButtonState('idle');
+        handleVoiceAssistantCommand(finalText);
+      },
+      onError: (code) => {
+        vaState.listening = false;
+        vaState.controller = null;
+        setVaButtonState('idle');
+        if (code === 'unsupported') {
+          setVaReply('Este navegador no soporta reconocimiento de voz. Podés usar los botones rápidos de abajo o abrir la app en Chrome.');
+        } else if (code === 'not-allowed' || code === 'service-not-allowed') {
+          setVaReply('Necesito permiso para usar el micrófono. Pedile a un familiar que habilite el micrófono para Mi Espacio.');
+        } else if (code === 'no-speech') {
+          setVaReply('No alcancé a escucharte. Tocá el botón grande y hablá cerquita del micrófono.');
+        } else {
+          setVaReply('Hubo un problemita con el micrófono. Tocá el botón para intentar otra vez.');
+        }
+      },
+      onEnd: () => {
+        vaState.listening = false;
+        vaState.controller = null;
+        if (!vaState.thinking) setVaButtonState('idle');
+      }
+    });
+
+    if (ctrl) {
+      vaState.controller = ctrl;
+    }
+  };
+
+  window.__openVoiceAssistantModal = () => {
+    pauseBackgroundMediaForVoice();
+    hideVaCallConfirm();
+    vaState.thinking = false;
+    vaState.listening = false;
+    setVaButtonState('idle');
+
+    if (dom.vaHeardBox) dom.vaHeardBox.hidden = true;
+    if (dom.vaModeBadge) {
+      const isAi = state.settings.voiceAssistantMode === 'ai';
+      const limit = Number(state.settings.voiceAssistantDailyLimit) || 10;
+      const usage = getDailyAiUsage();
+      dom.vaModeBadge.textContent = isAi
+        ? `✨ Híbrido con IA (hoy ${usage.count}/${limit})`
+        : '⚡ Comandos locales (gratis)';
+    }
+    setVaReply('Tocá el botón grande y decime en qué te puedo ayudar.', { shouldSpeak: false });
+
+    if (dom.commVoiceAssistantModal) {
+      dom.commVoiceAssistantModal.hidden = false;
+    }
+  };
+
+  dom.btnCloseVoiceAssistant?.addEventListener('click', closeVoiceAssistantModal);
+  dom.commVoiceAssistantModal?.addEventListener('click', (e) => {
+    if (e.target === dom.commVoiceAssistantModal) closeVoiceAssistantModal();
+  });
+  dom.btnVaTalk?.addEventListener('click', toggleVaListening);
+  dom.btnVaRepeat?.addEventListener('click', () => {
+    if (vaState.lastSpokenReply) {
+      speak(vaState.lastSpokenReply, ttsOptions());
+    }
+  });
+  dom.btnVaCancelCall?.addEventListener('click', () => {
+    hideVaCallConfirm();
+    setVaReply('Llamada cancelada.');
+  });
+  dom.btnVaConfirmCall?.addEventListener('click', () => {
+    const pending = vaState.pendingCall;
+    if (!pending) return;
+    hideVaCallConfirm();
+    closeVoiceAssistantModal();
+    if (typeof window.__triggerDirectCall === 'function') {
+      window.__triggerDirectCall({
+        name: pending.name,
+        phone: pending.phone,
+        mode: pending.mode || 'tel'
+      });
+    }
+  });
+  document.querySelectorAll('[data-va-sample]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const sample = chip.dataset.vaSample || '';
+      if (sample) handleVoiceAssistantCommand(sample);
+    });
+  });
+
+  // =========================================================================
   // PERFIL INICIAL (Adolescente / TEA vs. Persona Mayor) + BÚSQUEDA COMPACTA 🔍
   // =========================================================================
   const applyUserProfilePreset = async (profile) => {
@@ -2250,6 +2692,7 @@ function bindPhraseBar() {
             enableWeatherCard: true,
             enableDateTimeCard: true,
             enableRadioCard: true,
+            enableVoiceAssistant: true,
             enableHealthCall: Boolean(state.settings.healthCallPhone),
             radioName: state.settings.radioUrl
               ? state.settings.radioName
@@ -2267,6 +2710,7 @@ function bindPhraseBar() {
             enableWeatherCard: false,
             enableDateTimeCard: false,
             enableRadioCard: false,
+            enableVoiceAssistant: false,
             enableHealthCall: false
           };
 
@@ -2761,6 +3205,37 @@ function renderCardsGrid() {
     dom.cardsGrid.appendChild(newsBtn);
   }
 
+  // Tarjeta opcional de Asistente de Voz (Híbrido: comandos locales gratis + IA opcional)
+  const voiceAssistantEnabled = Boolean(state.settings.enableVoiceAssistant);
+  const showVoiceAssistantCard =
+    voiceAssistantEnabled && (state.activeCategory === 'all' || state.activeCategory === 'familia');
+
+  if (showVoiceAssistantCard) {
+    const vaBtn = document.createElement('button');
+    vaBtn.type = 'button';
+    vaBtn.className = 'aac-card';
+    vaBtn.setAttribute('aria-label', 'Abrir Asistente de Voz');
+
+    const visual = document.createElement('div');
+    visual.className = 'aac-card__visual';
+    const img = document.createElement('img');
+    img.src = './assets/cards/asistente-voz.svg';
+    img.alt = 'Asistente de Voz';
+    visual.appendChild(img);
+
+    const label = document.createElement('span');
+    label.className = 'aac-card__text';
+    label.textContent = '🎙️ Asistente de Voz';
+
+    vaBtn.append(visual, label);
+    vaBtn.addEventListener('click', () => {
+      if (typeof window.__openVoiceAssistantModal === 'function') {
+        window.__openVoiceAssistantModal();
+      }
+    });
+    dom.cardsGrid.appendChild(vaBtn);
+  }
+
   if (
     filtered.length === 0 &&
     !showVoiceMsgCard &&
@@ -2771,7 +3246,8 @@ function renderCardsGrid() {
     !showContactCallCard &&
     !showHealthCallCard &&
     !showNewsTvCard &&
-    !showNewsAudioCard
+    !showNewsAudioCard &&
+    !showVoiceAssistantCard
   ) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
@@ -4917,6 +5393,65 @@ function bindFamilyMode() {
     }
   });
 
+  // Asistente de Voz (Híbrido: comandos locales + IA opcional + agenda autorizada)
+  dom.settingEnableVoiceAssistant?.addEventListener('change', async () => {
+    const enabled = dom.settingEnableVoiceAssistant.checked;
+    state.settings = saveSettings({ enableVoiceAssistant: enabled });
+    applySettingsToUI();
+    renderCardsGrid();
+    await saveBoardPreference({ enableVoiceAssistant: enabled });
+  });
+
+  dom.settingVoiceAssistantMode?.addEventListener('change', async () => {
+    const mode = dom.settingVoiceAssistantMode.value === 'ai' ? 'ai' : 'local';
+    state.settings = saveSettings({ voiceAssistantMode: mode });
+    applySettingsToUI();
+    await saveBoardPreference({ voiceAssistantMode: mode });
+  });
+
+  dom.settingVoiceAssistantLimit?.addEventListener('change', async () => {
+    const limit = Math.max(1, Math.min(100, Number(dom.settingVoiceAssistantLimit.value) || 10));
+    state.settings = saveSettings({ voiceAssistantDailyLimit: limit });
+    applySettingsToUI();
+    await saveBoardPreference({ voiceAssistantDailyLimit: limit });
+  });
+
+  dom.btnAddVaContact?.addEventListener('click', async () => {
+    const name = (dom.vaContactName?.value || '').trim();
+    const phone = (dom.vaContactPhone?.value || '').replace(/[^\d+*#]/g, '');
+    const aliases = (dom.vaContactAliases?.value || '').trim();
+    const mode = dom.vaContactMode?.value === 'whatsapp' ? 'whatsapp' : 'tel';
+
+    if (!name || phone.length < 3) {
+      if (dom.voiceAssistantStatus) {
+        dom.voiceAssistantStatus.textContent = 'Ingresá un nombre y un teléfono válido para agregar el contacto.';
+      }
+      return;
+    }
+
+    const current = Array.isArray(state.settings.voiceContacts) ? [...state.settings.voiceContacts] : [];
+    current.push({
+      id: `vc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      phone,
+      aliases,
+      mode
+    });
+
+    state.settings = saveSettings({ voiceContacts: current });
+    if (dom.vaContactName) dom.vaContactName.value = '';
+    if (dom.vaContactPhone) dom.vaContactPhone.value = '';
+    if (dom.vaContactAliases) dom.vaContactAliases.value = '';
+    applySettingsToUI();
+    await saveBoardPreference({ voiceContacts: current });
+  });
+
+  dom.btnTestVoiceAssistant?.addEventListener('click', () => {
+    if (typeof window.__openVoiceAssistantModal === 'function') {
+      window.__openVoiceAssistantModal();
+    }
+  });
+
   // Protección del Comunicador: PIN de salida (4 dígitos) + Anti-rebote táctil
   dom.btnSaveExitPin?.addEventListener('click', async () => {
     const pin = (dom.settingExitPin?.value || '').replace(/\D/g, '');
@@ -6247,6 +6782,79 @@ function applySettingsToUI() {
     dom.newsAudioStatus.textContent = state.settings.enableNewsAudioCard
       ? `Activo: ${activeTopic.shortName} (${activeNewsAudioCount} titulares) ✓`
       : 'Activá la casilla para mostrar la tarjeta "Escuchar Noticias" en el Comunicador.';
+  }
+
+  // Sincronizar UI de Asistente de Voz (Modo Familia)
+  const vaEnabled = Boolean(state.settings.enableVoiceAssistant);
+  const vaMode = state.settings.voiceAssistantMode === 'ai' ? 'ai' : 'local';
+  const vaLimit = Math.max(1, Math.min(100, Number(state.settings.voiceAssistantDailyLimit) || 10));
+  const vaUsage = getDailyAiUsage();
+
+  if (dom.settingEnableVoiceAssistant) {
+    dom.settingEnableVoiceAssistant.checked = vaEnabled;
+  }
+  if (dom.settingVoiceAssistantMode) {
+    dom.settingVoiceAssistantMode.value = vaMode;
+  }
+  if (dom.voiceAssistantAiLimitRow) {
+    dom.voiceAssistantAiLimitRow.hidden = vaMode !== 'ai';
+  }
+  if (dom.settingVoiceAssistantLimit) {
+    dom.settingVoiceAssistantLimit.value = String(vaLimit);
+  }
+  if (dom.voiceAssistantAiUsage) {
+    dom.voiceAssistantAiUsage.textContent = `Hoy: ${vaUsage.count} / ${vaLimit}`;
+  }
+  if (dom.vaContactsList) {
+    const contacts = Array.isArray(state.settings.voiceContacts) ? state.settings.voiceContacts : [];
+    dom.vaContactsList.innerHTML = '';
+    if (contacts.length === 0) {
+      const emptyNote = document.createElement('span');
+      emptyNote.className = 'muted-text';
+      emptyNote.style.fontSize = '0.76rem';
+      emptyNote.textContent =
+        'Sin contactos extra aún (si ya cargaste Persona de Contacto u Obra Social arriba, también se reconocen por voz).';
+      dom.vaContactsList.appendChild(emptyNote);
+    } else {
+      contacts.forEach((c) => {
+        const row = document.createElement('div');
+        row.className = 'va-contact-item';
+
+        const meta = document.createElement('div');
+        meta.className = 'va-contact-item__meta';
+
+        const title = document.createElement('span');
+        title.className = 'va-contact-item__name';
+        title.textContent = `${c.mode === 'whatsapp' ? '💬' : '📞'} ${c.name} (${c.phone})`;
+
+        const sub = document.createElement('span');
+        sub.className = 'va-contact-item__sub';
+        sub.textContent = c.aliases ? `Alias: ${c.aliases}` : 'Sin alias adicionales';
+
+        meta.append(title, sub);
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn btn--ghost btn--sm';
+        delBtn.textContent = '✕';
+        delBtn.title = `Quitar a ${c.name}`;
+        delBtn.addEventListener('click', async () => {
+          const updated = (state.settings.voiceContacts || []).filter((item) => item.id !== c.id);
+          state.settings = saveSettings({ voiceContacts: updated });
+          applySettingsToUI();
+          await saveBoardPreference({ voiceContacts: updated });
+        });
+
+        row.append(meta, delBtn);
+        dom.vaContactsList.appendChild(row);
+      });
+    }
+  }
+  if (dom.voiceAssistantStatus) {
+    const totalAuth = buildAuthorizedContacts(state.settings).length;
+    dom.voiceAssistantStatus.textContent = vaEnabled
+      ? `Activo (${vaMode === 'ai' ? 'Local + IA' : 'Solo local gratis'}) · ${totalAuth} contacto${totalAuth === 1 ? '' : 's'} autorizado${totalAuth === 1 ? '' : 's'} ✓`
+      : 'Activá la casilla para mostrar la tarjeta "Asistente de Voz" en el Comunicador.';
   }
 
   const hasExitPin = String(state.settings.exitPin || '').replace(/\D/g, '').length === 4;

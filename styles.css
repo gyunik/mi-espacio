@@ -2787,3 +2787,238 @@ img[src*="static.arasaac.org"] {
     animation: none !important;
   }
 }
+
+/* ==========================================================================
+   ASISTENTE DE VOZ (Modal Comunicador — Alto contraste, texto grande, calma)
+   ========================================================================== */
+.va-modal__card {
+  max-width: 580px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.va-mode-badge {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.va-mic-stage {
+  display: flex;
+  justify-content: center;
+}
+
+.va-talk-btn {
+  width: 100%;
+  min-height: 124px;
+  padding: 20px 18px;
+  border-radius: 20px;
+  border: 2px solid rgba(56, 189, 248, 0.55);
+  background: linear-gradient(135deg, #0f2942 0%, #102a3d 100%);
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.va-talk-btn:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+}
+
+.va-talk-btn:active {
+  transform: scale(0.985);
+}
+
+.va-talk-btn.is-listening {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #0c3528 0%, #0f2f2b 100%);
+  box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.22);
+}
+
+.va-talk-btn.is-thinking {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #2f230e 0%, #241d11 100%);
+}
+
+.va-talk-btn__icon {
+  font-size: 2.3rem;
+  line-height: 1;
+}
+
+.va-talk-btn__label {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.va-talk-btn__hint {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.va-heard-box {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+.va-heard-box__eyebrow {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.va-heard-box__text {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  line-height: 1.35;
+}
+
+.va-call-confirm {
+  padding: 18px 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.14) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 2px solid rgba(16, 185, 129, 0.65);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.va-call-confirm__avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.22);
+  border: 2px solid rgba(16, 185, 129, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.va-call-confirm__info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.va-call-confirm__eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6ee7b7;
+}
+
+.va-call-confirm__name {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.va-call-confirm__phone {
+  font-size: 1.05rem;
+  color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+
+.va-call-confirm__actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.va-confirm-btn,
+.va-cancel-btn {
+  min-height: 56px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  justify-content: center;
+}
+
+.va-response-box {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.va-response-text {
+  margin: 0;
+  font-size: 1.18rem;
+  font-weight: 600;
+  color: #f8fafc;
+  line-height: 1.45;
+}
+
+.va-response-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.va-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.va-chip {
+  flex: 1 1 auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.7);
+  color: #e2e8f0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.va-chip:hover {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+}
+
+body.large-text-mode .va-talk-btn__label {
+  font-size: 1.55rem;
+}
+
+body.large-text-mode .va-response-text {
+  font-size: 1.38rem;
+}
+
+body.large-text-mode .va-call-confirm__name {
+  font-size: 1.8rem;
+}
+
+@media (max-width: 520px) {
+  .va-call-confirm__actions {
+    grid-template-columns: 1fr;
+  }
+}

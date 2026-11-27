@@ -76,6 +76,10 @@ export const DEFAULT_SETTINGS = {
   enableNewsAudioCard: false,
   newsAudioTopic: 'argentina',
   newsAudioCount: 5,
+  enableVoiceAssistant: false,
+  voiceAssistantMode: 'local', // 'local' | 'ai'
+  voiceAssistantDailyLimit: 10,
+  voiceContacts: [], // [{ id, name, phone, mode: 'tel' | 'whatsapp', aliases: 'hijo, Martín' }]
   exitPin: '', // PIN opcional de 4 dígitos para salir del Modo Comunicador
   tapCooldownMs: 0, // Anti-rebote táctil en ms (0, 700, 1200, 2000)
   firstThenActive: false,

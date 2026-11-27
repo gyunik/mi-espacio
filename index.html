@@ -15,10 +15,10 @@
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/logo-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="./icons/logo-512.png" />
-  <link rel="stylesheet" href="./styles.css?v=65" />
+  <link rel="stylesheet" href="./styles.css?v=70" />
   <link rel="stylesheet" href="./landing.css" />
   <link rel="stylesheet" href="./communicator.css" />
-  <link rel="stylesheet" href="./family.css?v=65" />
+  <link rel="stylesheet" href="./family.css?v=70" />
 </head>
 <body>
 
@@ -1329,6 +1329,67 @@
                 <span id="news-audio-status" class="muted-text" style="font-size: 0.76rem;"></span>
               </div>
             </div>
+
+            <!-- 3.7b Asistente de Voz (Híbrido: comandos locales gratis + IA opcional) -->
+            <div class="stitch-feature-card">
+              <div class="stitch-feature-card__top">
+                <div class="stitch-feature-card__meta">
+                  <div class="stitch-icon-box stitch-icon-box--cyan">🎙️</div>
+                  <div>
+                    <h3 class="stitch-feature-card__title">
+                      <span>Asistente de Voz</span>
+                      <span class="stitch-pill stitch-pill--cyan">Persona Mayor</span>
+                    </h3>
+                    <p class="stitch-feature-card__desc">Botón grande para hablar con naturalidad: llamar a contactos autorizados (con confirmación), clima, hora, noticias, radio o avisar a la familia.</p>
+                  </div>
+                </div>
+                <input id="setting-enable-voice-assistant" type="checkbox" aria-label="Activar tarjeta de Asistente de Voz" />
+              </div>
+
+              <div class="stitch-inner-box">
+                <label for="setting-voice-assistant-mode" class="field-label">Modo de funcionamiento:</label>
+                <div class="pin-row">
+                  <select id="setting-voice-assistant-mode" class="select" style="flex: 1;">
+                    <option value="local">⚡ Solo comandos locales (100% gratis)</option>
+                    <option value="ai">✨ Comandos locales + IA conversacional</option>
+                  </select>
+                </div>
+
+                <div id="voice-assistant-ai-limit-row" class="pin-row" style="margin-top: 8px;" hidden>
+                  <label for="setting-voice-assistant-limit" class="field-label" style="margin: 0; white-space: nowrap;">Límite IA diario:</label>
+                  <select id="setting-voice-assistant-limit" class="select" style="width: auto; min-width: 120px;">
+                    <option value="5">5 / día</option>
+                    <option value="10" selected>10 / día</option>
+                    <option value="20">20 / día</option>
+                    <option value="50">50 / día</option>
+                  </select>
+                  <span id="voice-assistant-ai-usage" class="muted-text" style="font-size: 0.76rem; margin-left: auto;">Hoy: 0 / 10</span>
+                </div>
+
+                <div class="va-contacts-config" style="margin-top: 12px;">
+                  <span class="field-label" style="display: block; margin-bottom: 6px;">Agenda de contactos autorizados para llamadas por voz:</span>
+                  <div class="va-contact-form-grid">
+                    <input id="va-contact-name" type="text" class="input" placeholder="Nombre (ej: Martín)" maxlength="40" />
+                    <input id="va-contact-phone" type="tel" class="input" placeholder="Teléfono (ej: 1155554444)" maxlength="24" />
+                    <input id="va-contact-aliases" type="text" class="input" placeholder="Alias de voz (ej: hijo, Tincho)" maxlength="80" />
+                    <div class="pin-row">
+                      <select id="va-contact-mode" class="select" style="flex: 1;">
+                        <option value="tel">📞 Llamada</option>
+                        <option value="whatsapp">💬 WhatsApp</option>
+                      </select>
+                      <button type="button" id="btn-add-va-contact" class="btn btn--primary btn--sm">+ Agregar</button>
+                    </div>
+                  </div>
+                  <div id="va-contacts-list" class="va-contacts-list"></div>
+                </div>
+
+                <div class="pin-row" style="margin-top: 10px;">
+                  <span id="voice-assistant-status" class="muted-text" style="font-size: 0.76rem; flex: 1;"></span>
+                  <button type="button" id="btn-test-voice-assistant" class="btn btn--accent btn--sm">🎙️ Probar</button>
+                </div>
+              </div>
+            </div>
+
             <!-- 3.8 Protección del Comunicador: PIN de salida + Anti-rebote táctil -->
             <div class="stitch-feature-card">
               <div class="stitch-feature-card__top">
@@ -1569,6 +1630,77 @@
     </div>
   </div>
 
+  <!-- MODAL DE ASISTENTE DE VOZ (Híbrido: comandos locales + IA opcional) -->
+  <div id="comm-voice-assistant-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="va-modal-title" hidden>
+    <div class="push-modal__card va-modal__card">
+      <div class="push-modal__top">
+        <div class="news-audio-modal__heading">
+          <span class="news-audio-badge-icon" aria-hidden="true">🎙️</span>
+          <div>
+            <h2 id="va-modal-title" class="news-audio-modal__title">Asistente de Voz</h2>
+            <span id="va-mode-badge" class="va-mode-badge">Comandos locales</span>
+          </div>
+        </div>
+        <button type="button" id="btn-close-voice-assistant" class="btn btn--danger">
+          ✕ Cerrar
+        </button>
+      </div>
+
+      <!-- Botón gigante principal para hablar -->
+      <div class="va-mic-stage">
+        <button type="button" id="btn-va-talk" class="va-talk-btn" aria-pressed="false">
+          <span id="va-talk-icon" class="va-talk-btn__icon" aria-hidden="true">🎤</span>
+          <span id="va-talk-label" class="va-talk-btn__label">Tocá para hablar</span>
+          <span id="va-talk-hint" class="va-talk-btn__hint">Decí por ejemplo: "Llamá a mi hijo" o "¿Qué hora es?"</span>
+        </button>
+      </div>
+
+      <!-- Lo que escuchó el micrófono -->
+      <div id="va-heard-box" class="va-heard-box" hidden>
+        <span class="va-heard-box__eyebrow">Escuché:</span>
+        <p id="va-heard-text" class="va-heard-box__text"></p>
+      </div>
+
+      <!-- Panel de confirmación grande antes de marcar una llamada -->
+      <div id="va-call-confirm" class="va-call-confirm" hidden aria-live="polite">
+        <div class="va-call-confirm__avatar" id="va-call-avatar" aria-hidden="true">📞</div>
+        <div class="va-call-confirm__info">
+          <span class="va-call-confirm__eyebrow">Confirmar contacto autorizado</span>
+          <strong id="va-call-name" class="va-call-confirm__name">Contacto</strong>
+          <span id="va-call-phone" class="va-call-confirm__phone"></span>
+        </div>
+        <div class="va-call-confirm__actions">
+          <button type="button" id="btn-va-confirm-call" class="btn btn--primary va-confirm-btn">
+            📞 Confirmar llamada
+          </button>
+          <button type="button" id="btn-va-cancel-call" class="btn btn--ghost va-cancel-btn">
+            ✕ Cancelar
+          </button>
+        </div>
+      </div>
+
+      <!-- Respuesta hablada y en texto grande -->
+      <div class="va-response-box" aria-live="polite">
+        <p id="va-response-text" class="va-response-text">
+          Tocá el botón grande de arriba y decime en qué te puedo ayudar.
+        </p>
+        <div class="va-response-actions">
+          <button type="button" id="btn-va-repeat" class="btn btn--accent btn--sm" hidden>
+            🔊 Repetir respuesta
+          </button>
+        </div>
+      </div>
+
+      <!-- Accesos táctiles rápidos de ejemplo -->
+      <div class="va-quick-chips" role="group" aria-label="Ejemplos rápidos">
+        <button type="button" class="va-chip" data-va-sample="¿Qué hora es?">🕒 ¿Qué hora es?</button>
+        <button type="button" class="va-chip" data-va-sample="¿Cómo está el clima?">🌤️ Clima</button>
+        <button type="button" class="va-chip" data-va-sample="¿Qué noticias hay hoy?">📰 Noticias</button>
+        <button type="button" class="va-chip" data-va-sample="Poné la radio">📻 Radio</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL DE PIN PARA SALIR DEL MODO COMUNICADOR -->
   <div id="comm-pin-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="comm-pin-title" hidden>
     <div class="push-modal__card" style="max-width: 380px;">
@@ -1645,6 +1777,6 @@
     </div>
   </div>
 
-  <script type="module" src="./app.js?v=65"></script>
+  <script type="module" src="./app.js?v=70"></script>
 </body>
 </html>

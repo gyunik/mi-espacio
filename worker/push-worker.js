@@ -10,6 +10,9 @@
  *      - FIREBASE_PROJECT_ID   (ej: mi-espacio-b77c1)
  *      - FIREBASE_CLIENT_EMAIL (el campo "client_email" del JSON)
  *      - FIREBASE_PRIVATE_KEY  (el campo "private_key" completo del JSON)
+ *    Opcional (solo si activás el modo "Con IA conversacional" en el Asistente de Voz):
+ *      - GEMINI_API_KEY        (clave gratuita/paga de Google AI Studio: https://aistudio.google.com/apikey)
+ *      - AI_MODEL              (opcional, por defecto: gemini-flash-lite-latest)
  * 5. Copiá la URL del Worker (ej: https://mi-espacio-push.tu-usuario.workers.dev)
  *    y pegala en firebaseConfig.js -> pushConfig.workerUrl.
  */
@@ -41,6 +44,11 @@ export default {
     // Endpoint GET /news?topic=argentina&limit=5 — Titulares de noticias en español (sin API key)
     if (request.method === 'GET' && urlObj.pathname.replace(/\/+$/, '') === '/news') {
       return handleNewsRequest(urlObj);
+    }
+
+    // Endpoint POST /assistant — Respuestas conversacionales breves para el Asistente de Voz (IA opcional)
+    if (request.method === 'POST' && urlObj.pathname.replace(/\/+$/, '') === '/assistant') {
+      return handleAssistantRequest(request, env);
     }
 
     if (request.method !== 'POST') {
@@ -262,4 +270,94 @@ function cleanXmlText(raw) {
     .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
   return text.replace(/\s+/g, ' ').trim();
+}
+
+/* ==========================================================================
+   Asistente de Voz con IA (POST /assistant) — Proxy seguro sin exponer keys
+   ========================================================================== */
+const assistantRateWindow = new Map();
+
+async function handleAssistantRequest(request, env) {
+  try {
+    const apiKey = (env.GEMINI_API_KEY || '').trim();
+    if (!apiKey) {
+      return jsonResponse({ ok: false, error: 'ai_not_configured' }, 503);
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const question = String(body.question || '').trim().slice(0, 320);
+    const boardId = String(body.boardId || 'anon').trim().slice(0, 40);
+    const city = String(body.city || 'Buenos Aires').trim().slice(0, 60);
+
+    if (!question) {
+      return jsonResponse({ ok: false, error: 'empty_question' }, 400);
+    }
+
+    // Protección básica anti-ráfaga en memoria del isolate (máx. 6 req/min por tablero/IP)
+    const ip = request.headers.get('CF-Connecting-IP') || 'ip';
+    const rateKey = `${boardId}:${ip}`;
+    const now = Date.now();
+    const recent = (assistantRateWindow.get(rateKey) || []).filter((ts) => now - ts < 60_000);
+    if (recent.length >= 6) {
+      return jsonResponse({ ok: false, error: 'rate_limited' }, 429);
+    }
+    recent.push(now);
+    assistantRateWindow.set(rateKey, recent);
+
+    const model = (env.AI_MODEL || 'gemini-flash-lite-latest').trim();
+    const systemInstruction =
+      `Sos el asistente de voz amable de la app "Mi Espacio", diseñado para acompañar a personas mayores en Argentina (ubicación de referencia: ${city}). ` +
+      'Respondé SIEMPRE en español rioplatense cálido, respetuoso y claro, en máximo 2 o 3 oraciones cortas pensadas para leerse en voz alta. ' +
+      'No uses markdown, asteriscos, listas con viñetas ni emojis. ' +
+      'Si te piden un consejo médico serio, respondé con prudencia y sugerí consultar con su médico o familiar.';
+
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+
+    const aiRes = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: systemInstruction }]
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: question }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 160
+        }
+      })
+    });
+
+    if (!aiRes.ok) {
+      return jsonResponse({ ok: false, error: `ai_http_${aiRes.status}` }, 502);
+    }
+
+    const aiJson = await aiRes.json();
+    const rawReply =
+      aiJson?.candidates?.[0]?.content?.parts
+        ?.map((p) => p.text || '')
+        .join(' ')
+        .trim() || '';
+
+    const cleanReply = rawReply
+      .replace(/[*_`#]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleanReply) {
+      return jsonResponse({ ok: false, error: 'empty_ai_reply' }, 502);
+    }
+
+    return jsonResponse({ ok: true, reply: cleanReply });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: err.message || 'assistant_error' }, 500);
+  }
 }
