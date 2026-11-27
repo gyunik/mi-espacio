@@ -604,6 +604,8 @@ function cacheDom() {
   dom.btnVaCancelCall = document.getElementById('btn-va-cancel-call');
   dom.vaResponseText = document.getElementById('va-response-text');
   dom.btnVaRepeat = document.getElementById('btn-va-repeat');
+  dom.vaTextForm = document.getElementById('va-text-form');
+  dom.vaTextInput = document.getElementById('va-text-input');
 
   dom.settingExitPin = document.getElementById('setting-exit-pin');
   dom.btnSaveExitPin = document.getElementById('btn-save-exit-pin');
@@ -2602,7 +2604,7 @@ function bindPhraseBar() {
         } else if (code === 'not-allowed' || code === 'service-not-allowed') {
           setVaReply('Necesito permiso para usar el micrófono. Pedile a un familiar que habilite el micrófono para Mi Espacio.');
         } else if (code === 'no-speech') {
-          setVaReply('No alcancé a escucharte. Tocá el botón grande y hablá cerquita del micrófono.');
+          setVaReply('No detecté sonido del micrófono. Revisá el ícono del micrófono en la barra de Chrome para elegir el dispositivo correcto, o escribí tu pregunta abajo.');
         } else {
           setVaReply('Hubo un problemita con el micrófono. Tocá el botón para intentar otra vez.');
         }
@@ -2674,6 +2676,14 @@ function bindPhraseBar() {
       const sample = chip.dataset.vaSample || '';
       if (sample) handleVoiceAssistantCommand(sample);
     });
+  });
+  dom.vaTextForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const typed = (dom.vaTextInput?.value || '').trim();
+    if (!typed) return;
+    if (dom.vaTextInput) dom.vaTextInput.value = '';
+    stopVaListening();
+    handleVoiceAssistantCommand(typed);
   });
 
   // =========================================================================

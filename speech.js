@@ -510,7 +510,16 @@ export function listenSingleCommand({
   let activeLang = lang;
   let lastError = null;
   let lastTranscript = '';
+  let heardSpeech = false;
+  let silenceTimer = null;
   let rec = null;
+
+  const clearSilenceTimer = () => {
+    if (silenceTimer) {
+      clearTimeout(silenceTimer);
+      silenceTimer = null;
+    }
+  };
 
   const createAndStart = () => {
     rec = new Recognition();
@@ -520,10 +529,31 @@ export function listenSingleCommand({
     rec.maxAlternatives = 1;
 
     rec.onstart = () => {
+      console.info('[VoiceAssistant] SpeechRecognition iniciado:', activeLang);
       onStart?.();
+      clearSilenceTimer();
+      // Si en 10s no detectó voz ni resultados (p. ej. micrófono incorrecto en Windows), avisar en vez de colgarse
+      silenceTimer = setTimeout(() => {
+        if (!heardSpeech && !deliveredResult && !stoppedManually) {
+          console.warn('[VoiceAssistant] Timeout sin detección de voz (revisar micrófono seleccionado en Chrome)');
+          lastError = 'no-speech';
+          try {
+            rec?.stop();
+          } catch {}
+          onError?.('no-speech');
+        }
+      }, 10000);
+    };
+
+    rec.onspeechstart = () => {
+      heardSpeech = true;
+      clearSilenceTimer();
+      console.info('[VoiceAssistant] Voz detectada');
     };
 
     rec.onresult = (event) => {
+      heardSpeech = true;
+      clearSilenceTimer();
       let finalPiece = '';
       let interimPiece = '';
       for (let i = 0; i < event.results.length; i += 1) {
@@ -549,7 +579,9 @@ export function listenSingleCommand({
     };
 
     rec.onerror = (event) => {
+      clearSilenceTimer();
       lastError = event.error || 'unknown';
+      console.warn('[VoiceAssistant] SpeechRecognition error:', lastError);
       if (lastError === 'language-not-supported' && activeLang !== 'es-ES') {
         activeLang = 'es-ES';
         return;
@@ -560,6 +592,7 @@ export function listenSingleCommand({
     };
 
     rec.onend = () => {
+      clearSilenceTimer();
       if (lastError === 'language-not-supported' && activeLang === 'es-ES' && !stoppedManually) {
         lastError = null;
         try {
@@ -567,7 +600,7 @@ export function listenSingleCommand({
           return;
         } catch {}
       }
-      if (!deliveredResult && lastTranscript && !stoppedManually) {
+      if (!deliveredResult && lastTranscript) {
         deliveredResult = true;
         onResult?.(lastTranscript);
       }
@@ -580,6 +613,7 @@ export function listenSingleCommand({
   try {
     createAndStart();
   } catch (err) {
+    clearSilenceTimer();
     onError?.(err?.message || 'start-failed');
     return null;
   }
@@ -587,6 +621,7 @@ export function listenSingleCommand({
   return {
     stop: () => {
       stoppedManually = true;
+      clearSilenceTimer();
       try {
         rec?.stop();
       } catch {}
