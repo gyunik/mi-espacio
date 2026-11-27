@@ -43,6 +43,7 @@ export const CATEGORIES = [
 
 export const DEFAULT_SETTINGS = {
   role: null,
+  userProfile: 'teen', // 'teen' | 'senior'
   pairingCode: '',
   speechRate: 0.95,
   voiceURI: '',

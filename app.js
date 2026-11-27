@@ -147,6 +147,7 @@ const state = {
   activeFamilyAlertId: null,
   dismissedFamilyAlertId: null,
   activeTeenReplyId: null,
+  cardSearchQuery: '',
   familyReply: {
     recorder: null,
     meter: null,
@@ -334,6 +335,12 @@ function cacheDom() {
   dom.btnPlayPhrase = document.getElementById('btn-play-phrase');
   dom.btnBackspacePhrase = document.getElementById('btn-backspace-phrase');
   dom.btnClearPhrase = document.getElementById('btn-clear-phrase');
+  dom.btnCommSearchToggle = document.getElementById('btn-comm-search-toggle');
+  dom.commCardSearchBar = document.getElementById('comm-card-search-bar');
+  dom.commCardSearchInput = document.getElementById('comm-card-search-input');
+  dom.btnCommSearchClear = document.getElementById('btn-comm-search-clear');
+  dom.landingProfileBtns = document.querySelectorAll('[data-profile-choice]');
+  dom.landingProfileStatus = document.getElementById('landing-profile-status');
   dom.categoryFilters = document.getElementById('category-filters');
   dom.cardsGrid = document.getElementById('cards-grid');
 
@@ -911,6 +918,12 @@ function startBoardSubscription() {
       }
       if (typeof remoteSettings.newsAudioCount === 'number' && !Number.isNaN(remoteSettings.newsAudioCount)) {
         updates.newsAudioCount = Math.max(3, Math.min(8, remoteSettings.newsAudioCount));
+      }
+      if (remoteSettings.userProfile === 'teen' || remoteSettings.userProfile === 'senior') {
+        updates.userProfile = remoteSettings.userProfile;
+      }
+      if (typeof remoteSettings.showPhraseBar === 'boolean') {
+        updates.showPhraseBar = remoteSettings.showPhraseBar;
       }
       if (typeof remoteSettings.exitPin === 'string') {
         updates.exitPin = remoteSettings.exitPin;
@@ -2213,6 +2226,90 @@ function bindPhraseBar() {
   });
   dom.btnNewsAudioStop?.addEventListener('click', stopNewsAudioReading);
 
+  // =========================================================================
+  // PERFIL INICIAL (Adolescente / TEA vs. Persona Mayor) + BÚSQUEDA COMPACTA 🔍
+  // =========================================================================
+  const applyUserProfilePreset = async (profile) => {
+    const target = profile === 'senior' ? 'senior' : 'teen';
+    const patch =
+      target === 'senior'
+        ? {
+            userProfile: 'senior',
+            showPhraseBar: false,
+            largeTextMode: true,
+            enableNewsAudioCard: true,
+            enableNewsTvCard: true,
+            enableWeatherCard: true,
+            enableDateTimeCard: true,
+            enableRadioCard: true,
+            radioName: state.settings.radioUrl
+              ? state.settings.radioName
+              : 'Radio Nacional Folklórica FM 98.7',
+            radioUrl:
+              state.settings.radioUrl ||
+              'https://sa.mp3.icecast.magma.edge-access.net/sc_rad38'
+          }
+        : {
+            userProfile: 'teen',
+            showPhraseBar: true,
+            largeTextMode: false,
+            enableNewsAudioCard: false,
+            enableNewsTvCard: false,
+            enableWeatherCard: false,
+            enableDateTimeCard: false,
+            enableRadioCard: false
+          };
+
+    state.settings = saveSettings(patch);
+    if (target === 'teen') {
+      state.cardSearchQuery = '';
+      if (dom.commCardSearchInput) dom.commCardSearchInput.value = '';
+      if (dom.commCardSearchBar) dom.commCardSearchBar.hidden = true;
+      if (dom.btnCommSearchToggle) dom.btnCommSearchToggle.setAttribute('aria-expanded', 'false');
+    }
+    applySettingsToUI();
+    renderPhraseBar();
+    renderCardsGrid();
+    await saveBoardPreference(patch);
+  };
+
+  dom.landingProfileBtns?.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      applyUserProfilePreset(btn.dataset.profileChoice);
+    });
+  });
+
+  const closeCardSearchBar = () => {
+    state.cardSearchQuery = '';
+    if (dom.commCardSearchInput) dom.commCardSearchInput.value = '';
+    if (dom.commCardSearchBar) dom.commCardSearchBar.hidden = true;
+    if (dom.btnCommSearchToggle) {
+      dom.btnCommSearchToggle.setAttribute('aria-expanded', 'false');
+      dom.btnCommSearchToggle.classList.remove('is-active');
+    }
+    renderCardsGrid();
+  };
+
+  dom.btnCommSearchToggle?.addEventListener('click', () => {
+    if (!dom.commCardSearchBar) return;
+    const willOpen = dom.commCardSearchBar.hidden;
+    if (willOpen) {
+      dom.commCardSearchBar.hidden = false;
+      dom.btnCommSearchToggle.setAttribute('aria-expanded', 'true');
+      dom.btnCommSearchToggle.classList.add('is-active');
+      dom.commCardSearchInput?.focus();
+    } else {
+      closeCardSearchBar();
+    }
+  });
+
+  dom.commCardSearchInput?.addEventListener('input', () => {
+    state.cardSearchQuery = dom.commCardSearchInput.value || '';
+    renderCardsGrid();
+  });
+
+  dom.btnCommSearchClear?.addEventListener('click', closeCardSearchBar);
+
   dom.btnCommEnablePush?.addEventListener('click', async () => {
     if (typeof Notification === 'undefined') return;
     const res = await Notification.requestPermission();
@@ -2720,6 +2817,36 @@ function renderCardsGrid() {
 
     dom.cardsGrid.appendChild(btn);
   });
+
+  // Filtro en vivo cuando se usa el botón chiquito 🔍 de búsqueda
+  const rawSearch = (state.cardSearchQuery || '').trim();
+  if (rawSearch) {
+    const norm = (s) =>
+      String(s || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    const terms = norm(rawSearch).split(/\s+/).filter(Boolean);
+    let visibleCount = 0;
+
+    dom.cardsGrid.querySelectorAll('.aac-card').forEach((cardEl) => {
+      const hay = norm(`${cardEl.getAttribute('aria-label') || ''} ${cardEl.textContent || ''}`);
+      const matches = terms.every((t) => hay.includes(t));
+      if (matches) {
+        visibleCount += 1;
+      } else {
+        cardEl.remove();
+      }
+    });
+
+    if (visibleCount === 0) {
+      dom.cardsGrid.innerHTML = '';
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = `No se encontraron tarjetas con "${rawSearch}".`;
+      dom.cardsGrid.appendChild(empty);
+    }
+  }
 }
 
 let firstThenInterval = null;
@@ -3983,9 +4110,12 @@ function bindFamilyMode() {
     if (dom.autosaveBanner) dom.autosaveBanner.hidden = true;
   });
 
-  dom.settingPhraseBar.addEventListener('change', () => {
-    state.settings = saveSettings({ showPhraseBar: dom.settingPhraseBar.checked });
+  dom.settingPhraseBar.addEventListener('change', async () => {
+    const showPhraseBar = dom.settingPhraseBar.checked;
+    state.settings = saveSettings({ showPhraseBar });
+    applySettingsToUI();
     renderPhraseBar();
+    await saveBoardPreference({ showPhraseBar });
   });
 
   dom.settingTeenVoiceMsg?.addEventListener('change', async () => {
@@ -5915,6 +6045,33 @@ function applySettingsToUI() {
   dom.settingRate.value = String(state.settings.speechRate);
   dom.rateValue.textContent = `${Number(state.settings.speechRate).toFixed(2)}x`;
   dom.settingPhraseBar.checked = Boolean(state.settings.showPhraseBar);
+
+  // Sincronizar selector de perfil en Landing y botón chiquito 🔍 en Comunicador
+  const activeProfile = state.settings.userProfile === 'senior' ? 'senior' : 'teen';
+  dom.landingProfileBtns?.forEach((btn) => {
+    const isSelected = btn.dataset.profileChoice === activeProfile;
+    btn.classList.toggle('is-active', isSelected);
+    btn.setAttribute('aria-pressed', String(isSelected));
+    const badge = btn.querySelector('.landing-profile-card__badge');
+    if (badge) badge.textContent = isSelected ? '✓ Seleccionado' : 'Seleccionar';
+  });
+  if (dom.landingProfileStatus) {
+    dom.landingProfileStatus.textContent =
+      activeProfile === 'senior'
+        ? 'Perfil activo: 💛 Persona Mayor'
+        : 'Perfil activo: 🧩 Adolescente / TEA';
+  }
+  if (dom.btnCommSearchToggle) {
+    const showSearchBtn = activeProfile === 'senior' || !state.settings.showPhraseBar;
+    dom.btnCommSearchToggle.hidden = !showSearchBtn;
+    if (!showSearchBtn && dom.commCardSearchBar && !dom.commCardSearchBar.hidden) {
+      state.cardSearchQuery = '';
+      if (dom.commCardSearchInput) dom.commCardSearchInput.value = '';
+      dom.commCardSearchBar.hidden = true;
+      dom.btnCommSearchToggle.setAttribute('aria-expanded', 'false');
+      dom.btnCommSearchToggle.classList.remove('is-active');
+    }
+  }
 
   const allowVoice = state.settings.allowTeenVoiceMessage !== false;
   if (dom.settingTeenVoiceMsg) dom.settingTeenVoiceMsg.checked = allowVoice;

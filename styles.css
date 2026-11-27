@@ -2324,6 +2324,35 @@ select:focus-visible {
   cursor: not-allowed;
 }
 
+/* Botón chiquito de búsqueda + barra desplegable en Comunicador */
+.chip-btn--icon {
+  min-width: 40px;
+  padding-inline: 10px;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.comm-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background-color: var(--bg-surface);
+  border: 1.5px solid rgba(56, 189, 248, 0.35);
+}
+
+.comm-search-bar[hidden] {
+  display: none;
+}
+
+.comm-search-bar__input {
+  flex: 1;
+  min-height: 44px;
+  font-size: 1rem;
+}
+
 /* ==========================================================================
    BUSCADOR DE PICTOGRAMAS ARASAAC
    ========================================================================== */

@@ -173,6 +173,47 @@
         </div>
       </div>
 
+      <!-- Selector de Perfil (Adolescente / TEA vs. Persona Mayor) -->
+      <section class="landing-profile-selector" aria-labelledby="landing-profile-title">
+        <div class="landing-profile-selector__head">
+          <div>
+            <div class="landing-teaser__eyebrow">
+              <span class="material-symbols-outlined" style="font-size: 16px;">tune</span>
+              <span>CONFIGURACIÓN INICIAL EN 1 CLIC</span>
+            </div>
+            <h3 id="landing-profile-title" class="landing-profile-selector__title">¿Para quién vas a usar Mi Espacio?</h3>
+            <p class="landing-profile-selector__sub">
+              Elegí el perfil para adaptar las tarjetas, el tamaño de texto y la barra superior automáticamente. Luego podés ajustar cada opción desde <strong>Equipo &amp; Familia</strong>.
+            </p>
+          </div>
+          <span id="landing-profile-status" class="landing-profile-status">Perfil activo: Adolescente / TEA</span>
+        </div>
+
+        <div class="landing-profile-grid" role="group" aria-label="Elegir perfil de usuario">
+          <button type="button" class="landing-profile-card is-active" data-profile-choice="teen" aria-pressed="true">
+            <div class="landing-profile-card__top">
+              <span class="landing-profile-card__icon" aria-hidden="true">🧩</span>
+              <span class="landing-profile-card__badge">Seleccionado</span>
+            </div>
+            <strong class="landing-profile-card__name">Adolescente / TEA</strong>
+            <p class="landing-profile-card__desc">
+              Incluye la barra para armar frases (CAA), apoyos visuales de calma, rutinas y comunicación sin sobreestimulación.
+            </p>
+          </button>
+
+          <button type="button" class="landing-profile-card" data-profile-choice="senior" aria-pressed="false">
+            <div class="landing-profile-card__top">
+              <span class="landing-profile-card__icon" aria-hidden="true">💛</span>
+              <span class="landing-profile-card__badge">Seleccionar</span>
+            </div>
+            <strong class="landing-profile-card__name">Persona Mayor</strong>
+            <p class="landing-profile-card__desc">
+              Activa texto grande, Escuchar Noticias, TV en vivo, Radio, Clima, Hora y un botón rápido 🔍 de búsqueda (sin barra de frases).
+            </p>
+          </button>
+        </div>
+      </section>
+
       <!-- Teaser Bidireccional -->
       <div class="landing-teaser">
         <div>
@@ -317,7 +358,10 @@
       <section id="comm-view-voice" class="tab-view is-active" role="tabpanel">
         <div class="voice-toolbar">
           <span id="comm-channel-pill" class="channel-pill">Canal: ------</span>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            <button type="button" id="btn-comm-search-toggle" class="chip-btn chip-btn--icon" aria-expanded="false" aria-label="Buscar tarjetas" title="Buscar tarjetas" hidden>
+              🔍
+            </button>
             <button type="button" id="btn-comm-enable-push" class="chip-btn" hidden>
               🔔 Activar notificaciones
             </button>
@@ -325,6 +369,20 @@
               📡 Avisar a Familia: Activado
             </button>
           </div>
+        </div>
+
+        <div id="comm-card-search-bar" class="comm-search-bar" hidden>
+          <input
+            id="comm-card-search-input"
+            type="search"
+            class="input comm-search-bar__input"
+            placeholder="Buscar tarjeta (ej: noticias, radio, clima, agua...)"
+            aria-label="Buscar tarjeta por nombre"
+            autocomplete="off"
+          />
+          <button type="button" id="btn-comm-search-clear" class="btn btn--ghost btn--sm" aria-label="Cerrar búsqueda">
+            ✕
+          </button>
         </div>
 
         <div id="phrase-bar" class="phrase-bar" aria-label="Tira de frase">
@@ -930,7 +988,7 @@
               <input id="setting-phrase-bar" type="checkbox" checked />
               <div>
                 <span class="stitch-toggle-card__title">Mostrar tira superior de frase ("Mi Voz")</span>
-                <span class="stitch-toggle-card__desc">Permite acumular palabras seleccionadas antes de reproducirlas en voz alta.</span>
+                <span class="stitch-toggle-card__desc">Permite acumular varias tarjetas para armar oraciones (ideal TEA). En Persona Mayor conviene desactivarla para ganar espacio.</span>
               </div>
             </label>
 
