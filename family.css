@@ -343,6 +343,12 @@
   border: 1px solid rgba(34, 197, 94, 0.28);
 }
 
+#family-shell .stitch-pill--amber {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.32);
+}
+
 /* Grids internos de Ajustes */
 #family-shell .stitch-grid-12 {
   display: grid;

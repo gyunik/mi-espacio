@@ -1228,6 +1228,48 @@
                 <span id="news-tv-status" class="muted-text" style="font-size: 0.76rem;"></span>
               </div>
             </div>
+
+            <!-- 3.7b Escuchar Noticias (Resumen de titulares leídos en voz alta) -->
+            <div class="stitch-feature-card">
+              <div class="stitch-feature-card__top">
+                <div class="stitch-feature-card__meta">
+                  <div class="stitch-icon-box stitch-icon-box--amber">📰</div>
+                  <div>
+                    <h3 class="stitch-feature-card__title">
+                      <span>Escuchar Noticias</span>
+                      <span class="stitch-pill stitch-pill--amber">Resumen hablado</span>
+                    </h3>
+                    <p class="stitch-feature-card__desc">Lee en voz alta los titulares del día en español, sin tandas ni publicidades, con botones grandes para avanzar o detener.</p>
+                  </div>
+                </div>
+                <input id="setting-enable-news-audio" type="checkbox" aria-label="Activar tarjeta para escuchar noticias" />
+              </div>
+
+              <div class="stitch-inner-box">
+                <label for="setting-news-audio-topic" class="field-label">Temática principal:</label>
+                <div class="pin-row">
+                  <select id="setting-news-audio-topic" class="select" style="flex: 1;">
+                    <option value="argentina">🇦🇷 Noticias de Argentina (Portada)</option>
+                    <option value="nacional">🏛️ Actualidad Nacional</option>
+                    <option value="mundo">🌎 Noticias del Mundo</option>
+                    <option value="deportes">⚽ Deportes</option>
+                    <option value="cultura">🎭 Cultura y Espectáculos</option>
+                    <option value="salud">🩺 Salud y Bienestar</option>
+                    <option value="ciencia">🔬 Ciencia y Tecnología</option>
+                  </select>
+                </div>
+                <div class="pin-row" style="margin-top: 8px;">
+                  <label for="setting-news-audio-count" class="field-label" style="margin: 0; white-space: nowrap;">Titulares:</label>
+                  <select id="setting-news-audio-count" class="select" style="width: auto; min-width: 110px;">
+                    <option value="3">3 noticias</option>
+                    <option value="5" selected>5 noticias</option>
+                    <option value="8">8 noticias</option>
+                  </select>
+                  <button type="button" id="btn-test-news-audio" class="btn btn--accent btn--sm" style="margin-left: auto;">🔊 Probar</button>
+                </div>
+                <span id="news-audio-status" class="muted-text" style="font-size: 0.76rem;"></span>
+              </div>
+            </div>
             <!-- 3.8 Protección del Comunicador: PIN de salida + Anti-rebote táctil -->
             <div class="stitch-feature-card">
               <div class="stitch-feature-card__top">
@@ -1423,6 +1465,48 @@
       <div class="news-tv-modal__foot">
         <span class="muted-text">Tocá otro canal arriba para cambiar en vivo.</span>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE ESCUCHAR NOTICIAS (Resumen hablado de titulares) -->
+  <div id="comm-news-audio-modal" class="push-modal" role="dialog" aria-modal="true" aria-labelledby="news-audio-title" hidden>
+    <div class="push-modal__card news-audio-modal__card">
+      <div class="push-modal__top">
+        <div class="news-audio-modal__heading">
+          <span class="news-audio-badge-icon" aria-hidden="true">📰</span>
+          <h2 id="news-audio-title" class="news-audio-modal__title">Escuchar Noticias</h2>
+        </div>
+        <button type="button" id="btn-close-news-audio" class="btn btn--danger">
+          ✕ Cerrar
+        </button>
+      </div>
+
+      <div class="news-audio-status-row">
+        <span id="news-audio-progress" class="news-audio-progress">Preparando noticias...</span>
+        <span id="news-audio-speaking-pill" class="news-audio-speaking-pill" hidden>🔊 Leyendo</span>
+      </div>
+
+      <div class="news-audio-reader" aria-live="polite">
+        <p id="news-audio-headline" class="news-audio-headline">Buscando las noticias más importantes de hoy...</p>
+        <p id="news-audio-source" class="news-audio-source"></p>
+      </div>
+
+      <div class="news-audio-controls" role="group" aria-label="Controles de lectura de noticias">
+        <button type="button" id="btn-news-audio-prev" class="btn news-audio-ctrl-btn">
+          ⏮️ Anterior
+        </button>
+        <button type="button" id="btn-news-audio-replay" class="btn btn--accent news-audio-ctrl-btn">
+          🔁 Repetir
+        </button>
+        <button type="button" id="btn-news-audio-next" class="btn btn--primary news-audio-ctrl-btn">
+          ⏭️ Siguiente
+        </button>
+        <button type="button" id="btn-news-audio-stop" class="btn btn--ghost news-audio-ctrl-btn">
+          ⏹️ Detener
+        </button>
+      </div>
+
+      <div id="news-audio-topics-bar" class="news-tv-channels" role="group" aria-label="Cambiar temática de noticias"></div>
     </div>
   </div>
 

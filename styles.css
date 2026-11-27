@@ -2207,6 +2207,124 @@ select:focus-visible {
 }
 
 /* ==========================================================================
+   MODAL DE ESCUCHAR NOTICIAS (RESUMEN HABLADO DE TITULARES)
+   ========================================================================== */
+.news-audio-modal__card {
+  max-width: 720px;
+  padding: 18px 20px;
+  gap: 14px;
+  border-color: rgba(245, 158, 11, 0.65);
+}
+
+.news-audio-modal__heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.news-audio-badge-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.news-audio-modal__title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.news-audio-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.news-audio-progress {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.news-audio-speaking-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background-color: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  color: #6ee7b7;
+  font-size: 0.86rem;
+  font-weight: 700;
+  animation: newsAudioPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes newsAudioPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+.news-audio-reader {
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.9));
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  min-height: 148px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+
+.news-audio-headline {
+  margin: 0;
+  font-size: clamp(1.22rem, 2.8vw, 1.65rem);
+  line-height: 1.38;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.news-audio-source {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.news-audio-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 600px) {
+  .news-audio-controls {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.news-audio-ctrl-btn {
+  min-height: 54px;
+  font-size: 1rem;
+  font-weight: 800;
+  border-radius: 14px;
+  justify-content: center;
+}
+
+.news-audio-ctrl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
    BUSCADOR DE PICTOGRAMAS ARASAAC
    ========================================================================== */
 .arasaac-box {

@@ -85,6 +85,51 @@ export const NEWS_TV_CHANNELS = [
   { id: 'dw', name: 'DW Español', shortName: 'DW', channelId: 'UCT4Jg8h03dD0iN3Pb5L0PMA', handle: '@dwespanol' }
 ];
 
+export const NEWS_AUDIO_TOPICS = [
+  {
+    id: 'argentina',
+    label: '🇦🇷 Noticias de Argentina (Portada)',
+    shortName: 'Argentina',
+    rssUrl: 'https://news.google.com/rss?hl=es-419&gl=AR&ceid=AR:es-419'
+  },
+  {
+    id: 'nacional',
+    label: '🏛️ Actualidad Nacional',
+    shortName: 'País',
+    rssUrl: 'https://news.google.com/rss/headlines/section/topic/NATION?hl=es-419&gl=AR&ceid=AR:es-419'
+  },
+  {
+    id: 'mundo',
+    label: '🌎 Noticias del Mundo',
+    shortName: 'Mundo',
+    rssUrl: 'https://news.google.com/rss/headlines/section/topic/WORLD?hl=es-419&gl=AR&ceid=AR:es-419'
+  },
+  {
+    id: 'deportes',
+    label: '⚽ Deportes',
+    shortName: 'Deportes',
+    rssUrl: 'https://news.google.com/rss/headlines/section/topic/SPORTS?hl=es-419&gl=AR&ceid=AR:es-419'
+  },
+  {
+    id: 'cultura',
+    label: '🎭 Cultura y Espectáculos',
+    shortName: 'Cultura',
+    rssUrl: 'https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=es-419&gl=AR&ceid=AR:es-419'
+  },
+  {
+    id: 'salud',
+    label: '🩺 Salud y Bienestar',
+    shortName: 'Salud',
+    rssUrl: 'https://news.google.com/rss/headlines/section/topic/HEALTH?hl=es-419&gl=AR&ceid=AR:es-419'
+  },
+  {
+    id: 'ciencia',
+    label: '🔬 Ciencia y Tecnología',
+    shortName: 'Ciencia',
+    rssUrl: 'https://news.google.com/rss/headlines/section/topic/SCIENCE?hl=es-419&gl=AR&ceid=AR:es-419'
+  }
+];
+
 export const CURATED_MUSIC_STATIONS = {
   chillout: [
     { name: 'Classic FM Calm (Piano y Relajación)', url: 'https://media-ice.musicradio.com/ClassicFMCalmMP3', country: 'GB' },
@@ -490,4 +535,140 @@ export function getDateTimeSummary(now = new Date()) {
     details,
     speechText
   };
+}
+
+const newsHeadlinesCache = new Map();
+const NEWS_CACHE_TTL_MS = 10 * 60 * 1000;
+
+function splitNewsTitleAndSource(rawTitle, fallbackSource = '') {
+  let title = String(rawTitle || '').replace(/\s+/g, ' ').trim();
+  let source = String(fallbackSource || '').replace(/\s+/g, ' ').trim();
+
+  const lastDash = title.lastIndexOf(' - ');
+  if (lastDash > 18) {
+    const candidate = title.slice(lastDash + 3).trim();
+    if (candidate.length > 0 && candidate.length <= 48) {
+      if (!source) source = candidate;
+      title = title.slice(0, lastDash).trim();
+    }
+  }
+  return { title, source };
+}
+
+function formatNewsRelativeTime(pubDateStr) {
+  if (!pubDateStr) return '';
+  const dt = new Date(pubDateStr);
+  if (Number.isNaN(dt.getTime())) return '';
+  const diffMin = Math.max(0, Math.round((Date.now() - dt.getTime()) / 60000));
+  if (diffMin < 5) return 'Hace instantes';
+  if (diffMin < 60) return `Hace ${diffMin} min`;
+  const diffHrs = Math.round(diffMin / 60);
+  if (diffHrs < 24) return diffHrs === 1 ? 'Hace 1 hora' : `Hace ${diffHrs} horas`;
+  return dt.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+}
+
+function normalizeNewsList(rawItems, limit) {
+  const seen = new Set();
+  const out = [];
+  for (const item of rawItems || []) {
+    const { title, source } = splitNewsTitleAndSource(item.title, item.source || item.author || '');
+    const key = title.toLowerCase();
+    if (!title || seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      title,
+      source: source || 'Noticias',
+      pubDate: item.pubDate || '',
+      publishedLabel: formatNewsRelativeTime(item.pubDate || '')
+    });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function parseRssXmlInBrowser(xmlText) {
+  if (typeof DOMParser === 'undefined' || !xmlText) return [];
+  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+  const nodes = Array.from(doc.querySelectorAll('item'));
+  return nodes.map((node) => ({
+    title: node.querySelector('title')?.textContent || '',
+    source: node.querySelector('source')?.textContent || '',
+    pubDate: node.querySelector('pubDate')?.textContent || ''
+  }));
+}
+
+/**
+ * Obtiene los titulares de noticias en español (Argentina) para leer en voz alta.
+ * 1) Intenta primero el Cloudflare Worker propio (/news) si está configurado y actualizado.
+ * 2) Si el Worker aún no tiene /news o falla, usa fallbacks gratuitos (rss2json / allorigins).
+ */
+export async function fetchNewsHeadlines({ topic = 'argentina', limit = 5, workerUrl = '' } = {}) {
+  const topicObj = NEWS_AUDIO_TOPICS.find((t) => t.id === topic) || NEWS_AUDIO_TOPICS[0];
+  const safeLimit = Math.min(10, Math.max(1, Number(limit) || 5));
+  const cacheKey = `${topicObj.id}:${safeLimit}`;
+  const cached = newsHeadlinesCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < NEWS_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  let items = [];
+
+  // 1) Cloudflare Worker propio (sin límites externos y con caché en edge)
+  const cleanWorker = String(workerUrl || '').trim().replace(/\/+$/, '');
+  if (cleanWorker) {
+    try {
+      const workerEndpoint = `${cleanWorker}/news?topic=${encodeURIComponent(topicObj.id)}&limit=${safeLimit}`;
+      const res = await fetch(workerEndpoint, { headers: { Accept: 'application/json' } });
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.ok && Array.isArray(json.items) && json.items.length > 0) {
+          items = normalizeNewsList(json.items, safeLimit);
+        }
+      }
+    } catch {
+      // Continuar al fallback automáticamente
+    }
+  }
+
+  // 2) Fallback gratuito 1: rss2json
+  if (items.length === 0) {
+    try {
+      const rss2JsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(topicObj.rssUrl)}`;
+      const res = await fetch(rss2JsonUrl, { headers: { Accept: 'application/json' } });
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.status === 'ok' && Array.isArray(json.items) && json.items.length > 0) {
+          items = normalizeNewsList(json.items, safeLimit);
+        }
+      }
+    } catch {
+      // Continuar al siguiente fallback
+    }
+  }
+
+  // 3) Fallback gratuito 2: allorigins + DOMParser
+  if (items.length === 0) {
+    try {
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(topicObj.rssUrl)}`;
+      const res = await fetch(proxyUrl);
+      if (res.ok) {
+        const xmlText = await res.text();
+        const parsed = parseRssXmlInBrowser(xmlText);
+        items = normalizeNewsList(parsed, safeLimit);
+      }
+    } catch {
+      // Sin resultados
+    }
+  }
+
+  if (items.length === 0) {
+    throw new Error('No se pudieron cargar las noticias en este momento.');
+  }
+
+  const result = {
+    topic: topicObj,
+    items
+  };
+  newsHeadlinesCache.set(cacheKey, { ts: Date.now(), data: result });
+  return result;
 }

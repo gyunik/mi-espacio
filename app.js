@@ -18,8 +18,10 @@ import {
 } from './speech.js';
 
 import { MUSIC_CATEGORIES } from './musicCatalog.js';
+import { pushConfig } from './firebaseConfig.js';
 import {
   NEWS_TV_CHANNELS,
+  NEWS_AUDIO_TOPICS,
   loadArgentineStations,
   loadMusicStationsByGenre,
   searchArasaacPictograms,
@@ -29,7 +31,8 @@ import {
   searchCities,
   filterHealthPlans,
   fetchWeatherSummary,
-  getDateTimeSummary
+  getDateTimeSummary,
+  fetchNewsHeadlines
 } from './seniorServices.js';
 import {
   CATEGORIES,
@@ -529,6 +532,24 @@ function cacheDom() {
   dom.newsTvChannelsBar = document.getElementById('news-tv-channels-bar');
   dom.btnCloseNewsTv = document.getElementById('btn-close-news-tv');
 
+  dom.settingEnableNewsAudio = document.getElementById('setting-enable-news-audio');
+  dom.settingNewsAudioTopic = document.getElementById('setting-news-audio-topic');
+  dom.settingNewsAudioCount = document.getElementById('setting-news-audio-count');
+  dom.btnTestNewsAudio = document.getElementById('btn-test-news-audio');
+  dom.newsAudioStatus = document.getElementById('news-audio-status');
+  dom.commNewsAudioModal = document.getElementById('comm-news-audio-modal');
+  dom.newsAudioTitle = document.getElementById('news-audio-title');
+  dom.newsAudioProgress = document.getElementById('news-audio-progress');
+  dom.newsAudioSpeakingPill = document.getElementById('news-audio-speaking-pill');
+  dom.newsAudioHeadline = document.getElementById('news-audio-headline');
+  dom.newsAudioSource = document.getElementById('news-audio-source');
+  dom.btnNewsAudioPrev = document.getElementById('btn-news-audio-prev');
+  dom.btnNewsAudioReplay = document.getElementById('btn-news-audio-replay');
+  dom.btnNewsAudioNext = document.getElementById('btn-news-audio-next');
+  dom.btnNewsAudioStop = document.getElementById('btn-news-audio-stop');
+  dom.newsAudioTopicsBar = document.getElementById('news-audio-topics-bar');
+  dom.btnCloseNewsAudio = document.getElementById('btn-close-news-audio');
+
   dom.settingExitPin = document.getElementById('setting-exit-pin');
   dom.btnSaveExitPin = document.getElementById('btn-save-exit-pin');
   dom.btnClearExitPin = document.getElementById('btn-clear-exit-pin');
@@ -881,6 +902,15 @@ function startBoardSubscription() {
       }
       if (typeof remoteSettings.newsTvChannelId === 'string') {
         updates.newsTvChannelId = remoteSettings.newsTvChannelId;
+      }
+      if (typeof remoteSettings.enableNewsAudioCard === 'boolean') {
+        updates.enableNewsAudioCard = remoteSettings.enableNewsAudioCard;
+      }
+      if (typeof remoteSettings.newsAudioTopic === 'string') {
+        updates.newsAudioTopic = remoteSettings.newsAudioTopic;
+      }
+      if (typeof remoteSettings.newsAudioCount === 'number' && !Number.isNaN(remoteSettings.newsAudioCount)) {
+        updates.newsAudioCount = Math.max(3, Math.min(8, remoteSettings.newsAudioCount));
       }
       if (typeof remoteSettings.exitPin === 'string') {
         updates.exitPin = remoteSettings.exitPin;
@@ -1955,6 +1985,234 @@ function bindPhraseBar() {
     if (e.target === dom.commNewsTvModal) closeNewsTvModal();
   });
 
+  // =========================================================================
+  // ESCUCHAR NOTICIAS (Resumen hablado de titulares en español)
+  // =========================================================================
+  const newsAudioState = {
+    sessionId: 0,
+    topicId: 'argentina',
+    limit: 5,
+    items: [],
+    currentIndex: 0,
+    isSpeaking: false,
+    isLoading: false
+  };
+
+  const pauseMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const updateNewsAudioUI = () => {
+    const topicObj =
+      NEWS_AUDIO_TOPICS.find((t) => t.id === newsAudioState.topicId) || NEWS_AUDIO_TOPICS[0];
+    if (dom.newsAudioTitle) {
+      dom.newsAudioTitle.textContent = `Noticias · ${topicObj.shortName}`;
+    }
+
+    const total = newsAudioState.items.length;
+    const idx = newsAudioState.currentIndex;
+    const item = newsAudioState.items[idx] || null;
+
+    if (dom.newsAudioSpeakingPill) {
+      dom.newsAudioSpeakingPill.hidden = !newsAudioState.isSpeaking;
+    }
+
+    if (newsAudioState.isLoading) {
+      if (dom.newsAudioProgress) dom.newsAudioProgress.textContent = 'Buscando noticias de hoy...';
+      if (dom.newsAudioHeadline) dom.newsAudioHeadline.textContent = 'Cargando los titulares más recientes...';
+      if (dom.newsAudioSource) dom.newsAudioSource.textContent = '';
+    } else if (item) {
+      if (dom.newsAudioProgress) {
+        dom.newsAudioProgress.textContent = `Noticia ${idx + 1} de ${total}`;
+      }
+      if (dom.newsAudioHeadline) {
+        dom.newsAudioHeadline.textContent = item.title;
+      }
+      if (dom.newsAudioSource) {
+        const meta = [item.source, item.publishedLabel].filter(Boolean).join(' · ');
+        dom.newsAudioSource.textContent = meta;
+      }
+    }
+
+    const hasItems = total > 0 && !newsAudioState.isLoading;
+    if (dom.btnNewsAudioPrev) dom.btnNewsAudioPrev.disabled = !hasItems || idx <= 0;
+    if (dom.btnNewsAudioNext) dom.btnNewsAudioNext.disabled = !hasItems || idx >= total - 1;
+    if (dom.btnNewsAudioReplay) dom.btnNewsAudioReplay.disabled = !hasItems;
+    if (dom.btnNewsAudioStop) dom.btnNewsAudioStop.disabled = !newsAudioState.isSpeaking;
+
+    dom.newsAudioTopicsBar?.querySelectorAll('.news-tv-ch-btn').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.topicId === newsAudioState.topicId);
+    });
+  };
+
+  const stopNewsAudioReading = () => {
+    newsAudioState.sessionId += 1;
+    newsAudioState.isSpeaking = false;
+    stopAllAudio();
+    updateNewsAudioUI();
+  };
+
+  const closeNewsAudioModal = () => {
+    stopNewsAudioReading();
+    if (dom.commNewsAudioModal) {
+      dom.commNewsAudioModal.hidden = true;
+    }
+  };
+
+  const speakNewsFromIndex = async (startIndex, { announceIntro = false } = {}) => {
+    const total = newsAudioState.items.length;
+    if (total === 0) return;
+
+    const mySession = ++newsAudioState.sessionId;
+    const safeStart = Math.max(0, Math.min(total - 1, startIndex));
+    newsAudioState.currentIndex = safeStart;
+    newsAudioState.isSpeaking = true;
+    updateNewsAudioUI();
+
+    const topicObj =
+      NEWS_AUDIO_TOPICS.find((t) => t.id === newsAudioState.topicId) || NEWS_AUDIO_TOPICS[0];
+
+    if (announceIntro) {
+      await speak(`Noticias de ${topicObj.shortName}.`, ttsOptions());
+      if (newsAudioState.sessionId !== mySession) return;
+      await pauseMs(350);
+      if (newsAudioState.sessionId !== mySession) return;
+    }
+
+    for (let i = safeStart; i < total; i += 1) {
+      if (newsAudioState.sessionId !== mySession) return;
+      newsAudioState.currentIndex = i;
+      newsAudioState.isSpeaking = true;
+      updateNewsAudioUI();
+
+      const item = newsAudioState.items[i];
+      const prefix = total > 1 ? `Titular ${i + 1}. ` : '';
+      await speak(`${prefix}${item.title}.`, ttsOptions());
+      if (newsAudioState.sessionId !== mySession) return;
+
+      if (i < total - 1) {
+        await pauseMs(650);
+        if (newsAudioState.sessionId !== mySession) return;
+      }
+    }
+
+    if (newsAudioState.sessionId === mySession) {
+      await pauseMs(300);
+      if (newsAudioState.sessionId !== mySession) return;
+      await speak('Esas fueron las noticias principales de hoy.', ttsOptions());
+    }
+
+    if (newsAudioState.sessionId === mySession) {
+      newsAudioState.isSpeaking = false;
+      updateNewsAudioUI();
+    }
+  };
+
+  const loadNewsAudioTopic = async (topicId, limit) => {
+    const mySession = ++newsAudioState.sessionId;
+    stopAllAudio();
+    newsAudioState.topicId = topicId || 'argentina';
+    newsAudioState.limit = Math.max(3, Math.min(8, Number(limit) || 5));
+    newsAudioState.items = [];
+    newsAudioState.currentIndex = 0;
+    newsAudioState.isSpeaking = false;
+    newsAudioState.isLoading = true;
+    updateNewsAudioUI();
+
+    try {
+      const data = await fetchNewsHeadlines({
+        topic: newsAudioState.topicId,
+        limit: newsAudioState.limit,
+        workerUrl: pushConfig?.workerUrl || ''
+      });
+      if (newsAudioState.sessionId !== mySession) return;
+
+      newsAudioState.items = data.items || [];
+      newsAudioState.isLoading = false;
+      newsAudioState.currentIndex = 0;
+      updateNewsAudioUI();
+
+      if (newsAudioState.items.length > 0) {
+        speakNewsFromIndex(0, { announceIntro: true });
+      }
+    } catch {
+      if (newsAudioState.sessionId !== mySession) return;
+      newsAudioState.isLoading = false;
+      newsAudioState.isSpeaking = false;
+      if (dom.newsAudioProgress) dom.newsAudioProgress.textContent = 'Sin conexión';
+      if (dom.newsAudioHeadline) {
+        dom.newsAudioHeadline.textContent = 'No se pudieron cargar las noticias en este momento. Verificá la conexión a internet e intentá de nuevo.';
+      }
+      if (dom.newsAudioSource) dom.newsAudioSource.textContent = '';
+      updateNewsAudioUI();
+      speak('No se pudieron cargar las noticias en este momento.', ttsOptions());
+    }
+  };
+
+  const renderNewsAudioTopicButtons = () => {
+    if (!dom.newsAudioTopicsBar || dom.newsAudioTopicsBar.children.length > 0) return;
+    NEWS_AUDIO_TOPICS.forEach((topic) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'news-tv-ch-btn';
+      btn.dataset.topicId = topic.id;
+      btn.textContent = topic.shortName;
+      btn.addEventListener('click', () => {
+        loadNewsAudioTopic(topic.id, newsAudioState.limit);
+      });
+      dom.newsAudioTopicsBar.appendChild(btn);
+    });
+  };
+
+  window.__openNewsAudioModal = (overrideTopic, overrideCount) => {
+    // Pausar radio, música y cualquier locución previa
+    stopAllAudio();
+    stopMusicPreview();
+    stopRadioPreview();
+    if (state.music.audio && state.music.isPlaying) {
+      state.music.audio.pause();
+      if ((state.settings.musicCategory || 'calma') === 'stream') {
+        state.music.audio.removeAttribute('src');
+        state.music.audio.load();
+      }
+      state.music.isPlaying = false;
+      renderCardsGrid();
+    }
+    if (state.radio.audio && state.radio.isPlaying) {
+      state.radio.audio.pause();
+      state.radio.audio.removeAttribute('src');
+      state.radio.audio.load();
+      state.radio.isPlaying = false;
+      renderCardsGrid();
+    }
+
+    renderNewsAudioTopicButtons();
+    if (dom.commNewsAudioModal) {
+      dom.commNewsAudioModal.hidden = false;
+    }
+
+    const topicId = overrideTopic || state.settings.newsAudioTopic || 'argentina';
+    const count = Number(overrideCount) || Number(state.settings.newsAudioCount) || 5;
+    loadNewsAudioTopic(topicId, count);
+  };
+
+  dom.btnCloseNewsAudio?.addEventListener('click', closeNewsAudioModal);
+  dom.commNewsAudioModal?.addEventListener('click', (e) => {
+    if (e.target === dom.commNewsAudioModal) closeNewsAudioModal();
+  });
+  dom.btnNewsAudioPrev?.addEventListener('click', () => {
+    if (newsAudioState.currentIndex > 0) {
+      speakNewsFromIndex(newsAudioState.currentIndex - 1);
+    }
+  });
+  dom.btnNewsAudioNext?.addEventListener('click', () => {
+    if (newsAudioState.currentIndex < newsAudioState.items.length - 1) {
+      speakNewsFromIndex(newsAudioState.currentIndex + 1);
+    }
+  });
+  dom.btnNewsAudioReplay?.addEventListener('click', () => {
+    speakNewsFromIndex(newsAudioState.currentIndex);
+  });
+  dom.btnNewsAudioStop?.addEventListener('click', stopNewsAudioReading);
+
   dom.btnCommEnablePush?.addEventListener('click', async () => {
     if (typeof Notification === 'undefined') return;
     const res = await Notification.requestPermission();
@@ -2359,6 +2617,40 @@ function renderCardsGrid() {
     dom.cardsGrid.appendChild(tvBtn);
   }
 
+  // Tarjeta opcional de Escuchar Noticias (Resumen hablado de titulares)
+  const newsAudioEnabled = Boolean(state.settings.enableNewsAudioCard);
+  const showNewsAudioCard =
+    newsAudioEnabled && (state.activeCategory === 'all' || state.activeCategory === 'ocio');
+
+  if (showNewsAudioCard) {
+    const topicObj =
+      NEWS_AUDIO_TOPICS.find((t) => t.id === state.settings.newsAudioTopic) ||
+      NEWS_AUDIO_TOPICS[0];
+    const newsBtn = document.createElement('button');
+    newsBtn.type = 'button';
+    newsBtn.className = 'aac-card';
+    newsBtn.setAttribute('aria-label', `Escuchar noticias de ${topicObj.shortName}`);
+
+    const visual = document.createElement('div');
+    visual.className = 'aac-card__visual';
+    const img = document.createElement('img');
+    img.src = './assets/cards/escuchar-noticias.svg';
+    img.alt = 'Escuchar Noticias';
+    visual.appendChild(img);
+
+    const label = document.createElement('span');
+    label.className = 'aac-card__text';
+    label.textContent = '📰 Escuchar Noticias';
+
+    newsBtn.append(visual, label);
+    newsBtn.addEventListener('click', () => {
+      if (typeof window.__openNewsAudioModal === 'function') {
+        window.__openNewsAudioModal();
+      }
+    });
+    dom.cardsGrid.appendChild(newsBtn);
+  }
+
   if (
     filtered.length === 0 &&
     !showVoiceMsgCard &&
@@ -2368,7 +2660,8 @@ function renderCardsGrid() {
     !showDateTimeCard &&
     !showContactCallCard &&
     !showHealthCallCard &&
-    !showNewsTvCard
+    !showNewsTvCard &&
+    !showNewsAudioCard
   ) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
@@ -4449,6 +4742,38 @@ function bindFamilyMode() {
     }
   });
 
+  // Escuchar Noticias (Resumen hablado de titulares)
+  dom.settingEnableNewsAudio?.addEventListener('change', async () => {
+    const enabled = dom.settingEnableNewsAudio.checked;
+    state.settings = saveSettings({ enableNewsAudioCard: enabled });
+    applySettingsToUI();
+    renderCardsGrid();
+    await saveBoardPreference({ enableNewsAudioCard: enabled });
+  });
+
+  dom.settingNewsAudioTopic?.addEventListener('change', async () => {
+    const topicId = dom.settingNewsAudioTopic.value || 'argentina';
+    state.settings = saveSettings({ newsAudioTopic: topicId });
+    applySettingsToUI();
+    renderCardsGrid();
+    await saveBoardPreference({ newsAudioTopic: topicId });
+  });
+
+  dom.settingNewsAudioCount?.addEventListener('change', async () => {
+    const count = Math.max(3, Math.min(8, Number(dom.settingNewsAudioCount.value) || 5));
+    state.settings = saveSettings({ newsAudioCount: count });
+    applySettingsToUI();
+    await saveBoardPreference({ newsAudioCount: count });
+  });
+
+  dom.btnTestNewsAudio?.addEventListener('click', () => {
+    const topicId = dom.settingNewsAudioTopic?.value || state.settings.newsAudioTopic || 'argentina';
+    const count = Number(dom.settingNewsAudioCount?.value) || Number(state.settings.newsAudioCount) || 5;
+    if (typeof window.__openNewsAudioModal === 'function') {
+      window.__openNewsAudioModal(topicId, count);
+    }
+  });
+
   // Protección del Comunicador: PIN de salida (4 dígitos) + Anti-rebote táctil
   dom.btnSaveExitPin?.addEventListener('click', async () => {
     const pin = (dom.settingExitPin?.value || '').replace(/\D/g, '');
@@ -5686,6 +6011,25 @@ function applySettingsToUI() {
     dom.newsTvStatus.textContent = state.settings.enableNewsTvCard
       ? `Canal inicial activo: ${activeCh.name} ✓`
       : 'Activá la casilla para mostrar la tarjeta de Noticias en el Comunicador.';
+  }
+
+  if (dom.settingEnableNewsAudio) {
+    dom.settingEnableNewsAudio.checked = Boolean(state.settings.enableNewsAudioCard);
+  }
+  const activeNewsAudioTopicId = state.settings.newsAudioTopic || 'argentina';
+  const activeNewsAudioCount = Number(state.settings.newsAudioCount) || 5;
+  if (dom.settingNewsAudioTopic) {
+    dom.settingNewsAudioTopic.value = activeNewsAudioTopicId;
+  }
+  if (dom.settingNewsAudioCount) {
+    dom.settingNewsAudioCount.value = String(activeNewsAudioCount);
+  }
+  if (dom.newsAudioStatus) {
+    const activeTopic =
+      NEWS_AUDIO_TOPICS.find((t) => t.id === activeNewsAudioTopicId) || NEWS_AUDIO_TOPICS[0];
+    dom.newsAudioStatus.textContent = state.settings.enableNewsAudioCard
+      ? `Activo: ${activeTopic.shortName} (${activeNewsAudioCount} titulares) ✓`
+      : 'Activá la casilla para mostrar la tarjeta "Escuchar Noticias" en el Comunicador.';
   }
 
   const hasExitPin = String(state.settings.exitPin || '').replace(/\D/g, '').length === 4;

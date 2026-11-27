@@ -16,14 +16,31 @@
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type'
+};
+
+const NEWS_RSS_FEEDS = {
+  argentina: 'https://news.google.com/rss?hl=es-419&gl=AR&ceid=AR:es-419',
+  nacional: 'https://news.google.com/rss/headlines/section/topic/NATION?hl=es-419&gl=AR&ceid=AR:es-419',
+  mundo: 'https://news.google.com/rss/headlines/section/topic/WORLD?hl=es-419&gl=AR&ceid=AR:es-419',
+  deportes: 'https://news.google.com/rss/headlines/section/topic/SPORTS?hl=es-419&gl=AR&ceid=AR:es-419',
+  cultura: 'https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=es-419&gl=AR&ceid=AR:es-419',
+  salud: 'https://news.google.com/rss/headlines/section/topic/HEALTH?hl=es-419&gl=AR&ceid=AR:es-419',
+  ciencia: 'https://news.google.com/rss/headlines/section/topic/SCIENCE?hl=es-419&gl=AR&ceid=AR:es-419'
 };
 
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
+
+    const urlObj = new URL(request.url);
+
+    // Endpoint GET /news?topic=argentina&limit=5 — Titulares de noticias en español (sin API key)
+    if (request.method === 'GET' && urlObj.pathname.replace(/\/+$/, '') === '/news') {
+      return handleNewsRequest(urlObj);
     }
 
     if (request.method !== 'POST') {
@@ -149,4 +166,100 @@ function base64UrlEncodeBytes(bytes) {
   let bin = '';
   bytes.forEach((b) => (bin += String.fromCharCode(b)));
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function handleNewsRequest(urlObj) {
+  try {
+    const rawTopic = (urlObj.searchParams.get('topic') || 'argentina').toLowerCase().trim();
+    const topic = NEWS_RSS_FEEDS[rawTopic] ? rawTopic : 'argentina';
+    const limit = Math.min(12, Math.max(1, Number(urlObj.searchParams.get('limit')) || 6));
+    const rssUrl = NEWS_RSS_FEEDS[topic];
+
+    const res = await fetch(rssUrl, {
+      headers: {
+        'User-Agent': 'MiEspacioNewsReader/1.0 (+https://gyunik.github.io/mi-espacio/)',
+        Accept: 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8'
+      },
+      cf: { cacheTtl: 900, cacheEverything: true }
+    });
+
+    if (!res.ok) {
+      return jsonResponse({ ok: false, error: `rss_http_${res.status}` }, 502);
+    }
+
+    const xml = await res.text();
+    const items = parseRssItems(xml, limit);
+
+    return new Response(JSON.stringify({ ok: true, topic, items }), {
+      status: 200,
+      headers: {
+        ...CORS_HEADERS,
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'public, max-age=600'
+      }
+    });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: err.message || 'news_error' }, 500);
+  }
+}
+
+function parseRssItems(xml, limit) {
+  const items = [];
+  const seen = new Set();
+  const itemRegex = /<item\b[^>]*>([\s\S]*?)<\/item>/gi;
+  let match;
+
+  while ((match = itemRegex.exec(xml)) !== null && items.length < limit) {
+    const block = match[1];
+    const rawTitle = extractXmlTag(block, 'title');
+    if (!rawTitle) continue;
+
+    let title = cleanXmlText(rawTitle);
+    let source = cleanXmlText(extractXmlTag(block, 'source') || '');
+    const pubDate = cleanXmlText(extractXmlTag(block, 'pubDate') || '');
+
+    // Google News suele anexar " - Nombre del Medio" al final del título
+    const lastDash = title.lastIndexOf(' - ');
+    if (lastDash > 18) {
+      const candidateSource = title.slice(lastDash + 3).trim();
+      if (candidateSource.length > 0 && candidateSource.length <= 48) {
+        if (!source) source = candidateSource;
+        title = title.slice(0, lastDash).trim();
+      }
+    }
+
+    const key = title.toLowerCase();
+    if (!title || seen.has(key)) continue;
+    seen.add(key);
+
+    items.push({
+      title,
+      source,
+      pubDate
+    });
+  }
+
+  return items;
+}
+
+function extractXmlTag(block, tagName) {
+  const re = new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i');
+  const m = block.match(re);
+  return m ? m[1] : '';
+}
+
+function cleanXmlText(raw) {
+  if (!raw) return '';
+  let text = String(raw).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
+  text = text.replace(/<[^>]+>/g, ' ');
+  text = text
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+  return text.replace(/\s+/g, ' ').trim();
 }

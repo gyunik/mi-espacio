@@ -72,6 +72,9 @@ export const DEFAULT_SETTINGS = {
   healthCallPhone: '',
   enableNewsTvCard: false,
   newsTvChannelId: 'tn',
+  enableNewsAudioCard: false,
+  newsAudioTopic: 'argentina',
+  newsAudioCount: 5,
   exitPin: '', // PIN opcional de 4 dígitos para salir del Modo Comunicador
   tapCooldownMs: 0, // Anti-rebote táctil en ms (0, 700, 1200, 2000)
   firstThenActive: false,
